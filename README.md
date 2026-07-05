@@ -3,6 +3,23 @@
 Google AI Studio의 **Gemini(`gemini-2.5-flash`)** 를 사용해, **사용자 본인의 데이터**를
 근거로 직무 맞춤 자기소개서를 생성·검증·첨삭하고, HR 관점의 액션플랜까지 제안하는 도구입니다.
 
+## 실행 방법 2가지
+
+| 방법 | 파일 | 이럴 때 사용 |
+|---|---|---|
+| **Colab / 아이패드** | [`cover_letter_ai_colab.ipynb`](./cover_letter_ai_colab.ipynb) | 태블릿, Google Colab에서 셀 단위로 실행 |
+| **로컬/서버 (모듈형)** | `main.py` + `cover_letter_ai/` 패키지 | PC에서 파일 여러 개로 관리하며 DB 연동 |
+
+두 버전은 로직이 완전히 동일합니다. Colab 노트북은 모든 모듈을 한 파일에 셀 단위로 통합한 버전입니다.
+
+### Colab에서 열기
+1. GitHub에서 `cover_letter_ai_colab.ipynb` 파일 페이지로 이동 → **Raw** 또는 파일 자체를 열고,
+   주소창의 `github.com` 을 `colab.research.google.com/github` 으로 바꿔 접속하면 바로 Colab으로 열립니다.
+   예: `https://colab.research.google.com/github/eunha9348/ARC_-/blob/claude/cover-letter-ai-generator-7uvjuj/cover_letter_ai_colab.ipynb`
+2. 위에서부터 셀을 순서대로 실행(▶️ 또는 `Runtime → Run all`).
+3. **[API 키 설정]** 셀에 키 입력, **[사용자 데이터 입력]** 셀에 본인 사실 입력 후 **[실행]** 셀 실행.
+4. 키를 코드에 남기고 싶지 않으면 Colab 왼쪽 🔑(Secrets)에 `GOOGLE_AI_STUDIO_API_KEY` 이름으로 등록하면 자동 인식됩니다.
+
 ## 핵심 설계 원칙
 
 1. **제1원칙 — 환각(Hallucination) 방지**
