@@ -1,22 +1,33 @@
 """
 =============================================================================
- 자기소개서 AI 생성기 — 단일 파일 통합본 (Google AI Studio · Gemini 2.5 Flash)
+ AI 자기소개서 '생성' 서비스 — 단일 파일 통합본 (Google AI Studio · Gemini 2.5 Flash)
 =============================================================================
+
+★ 이 프로그램은 자소서를 '대신 써 주는' 생성 서비스입니다. (첨삭 도구가 아님)
+  사용자의 사실 데이터만을 재료로, 문항별로 그대로 제출 가능한 수준의
+  완성형 자기소개서를 생성하고, 그 글을 사용자가 자기 것으로 소화하도록
+  돕는 '작성 가이드'와 (부가) HR 액션플랜을 함께 제공합니다.
+
+★ 회사 맞춤 기능: 지원 회사명을 입력하면 Google 검색(Gemini 검색 그라운딩)으로
+  회사의 미션/가치/인재상을 자동 조사하고, 노골적 인용 없이 글의 방향에만
+  은은하게 스며들도록(penetrate) 반영합니다.
 
 사용법 (Colab):
   1) 이 파일 전체를 복사해서 Colab의 "새 노트북" 코드 셀 하나에 그대로 붙여넣기.
-  2) 아래 [1. API 키 설정] 구역에 본인 Google AI Studio 키 입력.
-  3) 아래 [8. 사용자 데이터 입력] 구역에 본인의 '사실'만 입력.
-  4) 셀을 실행(▶️)하면 자소서 생성 + 근거검증 + 직무맞춤 수정제안 + HR 액션플랜이
-     한 번에 출력됩니다.
+  2) [1. API 키 설정] 구역에 본인 Google AI Studio 키 입력.
+  3) [9. 사용자 데이터 입력] 구역에 본인의 '사실'만 입력. (지원 회사명 포함)
+  4) [10. 자소서 문항 입력] 구역에 지원할 회사의 실제 문항 입력.
+  5) 셀을 실행(▶️)하면 문항별 완성형 자소서가 출력됩니다.
 
 설계 원칙:
   제1원칙(환각 방지)  : 자소서 내용은 오직 '사용자 데이터'에서만 나옵니다.
                        모범 자소서(문체 참조용)는 내용을 복사하지 않으며,
                        생성 후 근거 검증 → 자동 교정 과정을 거칩니다.
-  제2원칙(문체/맞춤법) : 자소서 특유의 담백한 문어체·맞춤법을 프롬프트로 강제합니다.
+  제2원칙(문체/맞춤법) : 어미 통일('~했습니다'체), 1인칭 시점 유지, 나열식·
+                       돌림노래식 반복 금지. 생성 후 최종 다듬기(polish)
+                       패스로 제출본 수준까지 다듬습니다.
   직무별 구분         : 직무별 스타일/양식/HR 평가 포인트를 반영해
-                       생성·첨삭·액션플랜을 모두 분기합니다.
+                       생성·가이드·액션플랜을 모두 분기합니다.
 =============================================================================
 """
 
@@ -77,8 +88,10 @@ def resolve_api_key() -> str:
 
 # =============================================================================
 # 2. 데이터 구조
-#    UserProfile      : 자소서 내용의 유일한 사실 출처
-#    ReferenceExample : 모범 자소서 1건(문체 참조 전용)
+#    UserProfile       : 자소서 내용의 유일한 사실 출처
+#    ReferenceExample  : 모범 자소서 1건(문체 참조 전용)
+#    AnswerResult      : 문항 1개의 완성형 자소서 + 부속 정보
+#    ApplicationResult : 지원서 전체(여러 문항) 결과 묶음
 # =============================================================================
 @dataclass
 class UserProfile:
@@ -121,16 +134,6 @@ class ReferenceExample:
 
 
 @dataclass
-class GenerationRequest:
-    user: "UserProfile" = None
-    job_key: str = "general"
-    region: str = "KR"
-    question: str = ""
-    max_chars: int = 1000
-    tone: str = ""
-
-
-@dataclass
 class GroundingReport:
     grounded: bool = True
     unsupported_claims: list = field(default_factory=list)
@@ -138,11 +141,20 @@ class GroundingReport:
 
 
 @dataclass
-class CoverLetterResult:
-    cover_letter: str = ""
+class AnswerResult:
+    """문항 1개에 대한 완성형 자소서 + 부속 정보."""
+    question: str = ""
+    cover_letter: str = ""                        # ★ 주 결과물: 완성형 자소서 본문
     grounding: GroundingReport = field(default_factory=GroundingReport)
-    revision_suggestions: str = ""
-    action_plan: str = ""
+    writing_guide: str = ""                       # 이 자소서를 내 것으로 만드는 가이드
+
+
+@dataclass
+class ApplicationResult:
+    """지원서 전체(여러 문항) 산출물 묶음."""
+    answers: list = field(default_factory=list)   # AnswerResult 리스트
+    company_research: str = ""                    # 회사 리서치 요약(참고용)
+    action_plan: str = ""                         # (부가) HR 관점 액션플랜
     meta: dict = field(default_factory=dict)
 
 
@@ -156,7 +168,7 @@ REGION_STYLE = {
             "- 문항별(지원동기/성장과정/성격의 장단점/입사 후 포부 등) 서술형 구성.\n"
             "- 존댓말/문어체, 겸손하되 근거 있는 자신감.\n"
             "- 두괄식(핵심 문장 먼저) + 구체적 경험 + 회사/직무 연결 마무리.\n"
-            "- 정량적 성과(숫자)와 STAR(상황-과제-행동-결과) 구조 선호.\n"
+            "- 정량적 성과(숫자)와 6하원칙 기반 심층 서술 선호.\n"
             "- 과장/추상적 미사여구 지양, 사실 기반 스토리텔링."
         ),
     },
@@ -178,7 +190,7 @@ JOB_PROFILES = {
         "competencies": ["문제해결", "성실성", "협업", "성장의지"],
         "hr_focus": ["직무 이해도", "조직 적합성", "성장 가능성", "진정성"],
         "tone": "신뢰감 있고 담백한 문어체, 두괄식",
-        "structure": ["핵심 강점 요약", "구체적 경험(STAR)", "직무/회사 연결", "포부"],
+        "structure": ["핵심 강점 요약", "구체적 경험(심층 서술)", "직무/회사 연결", "포부"],
         "keywords": ["직무 역량", "협업", "성과", "학습"],
         "good_signals": ["직무 연관 프로젝트", "정량 성과", "지속적 학습 이력"],
     },
@@ -331,6 +343,8 @@ def list_job_keys():
 
 # =============================================================================
 # 4. Gemini 클라이언트 (신형 SDK 우선, 없으면 구형 SDK로 자동 폴백)
+#    - generate()             : 일반 텍스트 생성
+#    - generate_with_search() : Google 검색 그라운딩 생성 (회사 리서치용)
 # =============================================================================
 class GeminiClient:
     """Gemini 텍스트 생성용 최소 래퍼."""
@@ -375,6 +389,32 @@ class GeminiClient:
         if self._backend == "genai":
             return self._generate_new(prompt, cfg)
         return self._generate_old(prompt, cfg)
+
+    def generate_with_search(self, prompt: str, generation_config: dict = None) -> str:
+        """Google 검색 그라운딩을 켜고 생성한다 (지원 회사 리서치용).
+
+        신형 SDK(google-genai)에서만 검색이 동작하며, 실패하거나 구형 SDK인
+        경우 일반 생성으로 폴백한다(이때 모델에게 '모르면 지어내지 말 것'을
+        프롬프트로 강제하고 있어야 함).
+        """
+        cfg = generation_config or GENERATION_CONFIG
+        if self._backend == "genai":
+            try:
+                from google.genai import types
+                gen_cfg = types.GenerateContentConfig(
+                    temperature=0.2,
+                    max_output_tokens=cfg.get("max_output_tokens", 2048),
+                    tools=[types.Tool(google_search=types.GoogleSearch())],
+                )
+                resp = self._client.models.generate_content(
+                    model=self.model_name, contents=prompt, config=gen_cfg,
+                )
+                text = (getattr(resp, "text", "") or "").strip()
+                if text:
+                    return text
+            except Exception:
+                pass
+        return self.generate(prompt, cfg)
 
     def _generate_new(self, prompt: str, cfg: dict) -> str:
         from google.genai import types
@@ -482,20 +522,37 @@ class ReferenceStore:
 
 
 # =============================================================================
-# 6. 프롬프트 조립 (환각 방지 · 맞춤법/문체 · 직무 규칙을 프롬프트로 강제)
+# 6. 프롬프트 조립 — ★ 핵심: '완성형 자소서'를 대신 써 주는 집필 프롬프트
 # =============================================================================
 ANTI_HALLUCINATION_RULES = """\
 [절대 규칙 — 반드시 지킬 것]
-1) (제1원칙) 아래 '사용자 사실 원장'에 있는 내용만 근거로 사용한다.
-   - 원장에 없는 회사명, 수치, 경험, 자격, 기술, 직함을 새로 만들어내지 말 것.
+1) (제1원칙) 아래 '사용자 사실 원장'에 있는 내용만 지원자의 사실로 사용한다.
+   - 원장에 없는 수치, 경험, 자격, 기술, 직함을 새로 만들어내지 말 것.
    - 어떤 사실도 추측/과장/윤색하지 말 것. 특히 숫자는 원장에 있는 값만 사용.
-   - 내용을 더 채우고 싶어도 근거가 없으면 만들지 말고, 그 자리에
-     "[보완필요: 무엇이 필요한지]" 형태로 표시할 것.
    - '스타일 예시'의 문장/사실을 절대 그대로 가져오지 말 것(문체만 참고).
 2) (제2원칙) 한국어 맞춤법·띄어쓰기·문맥을 자연스럽게. 자소서 특유의
    담백하고 신뢰감 있는 문어체를 사용하고, 문장 간 논리가 매끄럽게 이어질 것.
 3) 진부한 상투어(예: "저는 어릴 적부터", "귀사의 무궁한 발전")는 지양하고,
    구체적 사실과 성과 중심으로 서술할 것.
+"""
+
+WRITING_STYLE_RULES = """\
+[서술 방식 규칙 — 나열 금지, 깊이 있게]
+1) 경험 나열 금지: 문항과 회사에 가장 잘 맞는 경험 1개(많아야 2개)만 골라
+   깊게 서술할 것. 여러 경험을 얕게 훑으며 나열하는 글은 실패작이다.
+   - 선택한 경험은 무엇을(What), 언제(When), 어디서(Where), 어떻게(How)
+     했는지, 그래서 어떤 결과와 성과가 나왔는지가 하나의 이야기로
+     이어지도록 쓸 것.
+2) 돌림노래 금지: 같은 강점·성과·표현을 말만 바꿔 반복하지 말 것.
+   한 번 말한 내용은 다시 등장시키지 않는다.
+3) 어미와 시점:
+   - 어미는 '~했습니다/~입니다'체로 일관되게 통일할 것.
+   - 단, 연속된 문장이 똑같은 어미로 끝나 단조로워지지 않도록 문장 구조와
+     길이를 다양화할 것. (예: 명사절 활용, 쉼표로 절 연결, 문장 길이 변주)
+   - '~하는 전문가이다', '~한 사람이다' 같은 제3자 관찰 시점의 단정 표현 금지.
+     글 전체가 지원자 본인이 직접 말하는 1인칭 시점이어야 한다.
+   - '~을 했습니다. ~을 했습니다. ~을 했습니다.' 식의 행동 보고 나열체 금지.
+     행동 사이의 고민, 판단, 이유가 문장으로 드러나야 한다.
 """
 
 
@@ -534,21 +591,72 @@ def build_style_examples_block(examples) -> str:
     return "\n\n".join(blocks)
 
 
-def build_generation_prompt(user, job_key, region, question, examples, max_chars=1000, tone=""):
+def build_company_research_prompt(company_name: str) -> str:
+    """지원 회사의 가치/지향점 리서치 프롬프트 (Google 검색 그라운딩과 함께 사용)."""
+    return f"""\
+당신은 기업 리서처입니다. Google 검색을 활용해 '{company_name}' 회사에 대해
+아래 항목을 조사하고 간결하게 정리하세요. (한국 기업일 가능성이 높습니다)
+
+1) 미션/비전/핵심가치 (공식 홈페이지·채용 페이지 표현 위주)
+2) 인재상 (공개된 것이 있다면)
+3) 최근 1~2년의 주력 사업/전략 방향
+4) 조직문화 키워드
+
+[규칙]
+- 각 항목 2~3줄 이내로 간결하게.
+- 검색으로 확인되지 않는 항목은 "확인 불가"로만 표시하고 절대 지어내지 말 것.
+- 요약만 출력(사족 없이).
+"""
+
+
+def build_company_block(company_research: str) -> str:
+    """생성 프롬프트에 넣을 '회사 가치 은은하게 반영' 지시 블록."""
+    if not (company_research or "").strip():
+        return "(회사 리서치 정보 없음 — 이 항목은 무시하고 직무 중심으로 작성)"
+    return f"""{company_research}
+
+[회사 가치 반영 규칙 — 반드시 지킬 것]
+- 위 리서치의 회사 가치·지향점을 직접 인용하거나 나열하지 말 것.
+  ("귀사의 핵심가치인 OO처럼", "귀사의 인재상에 부합하는" 등 노골적 언급 금지)
+- 대신 ① 어떤 경험을 고를지, ② 그 경험에서 무엇을 강조할지, ③ 포부의 방향을
+  회사가 가는 방향과 자연스럽게 맞닿게 하는 수준으로만 은은하게 스며들게 할 것.
+- 읽는 인사담당자가 '이 지원자, 우리 회사를 제대로 이해하고 있네'라고
+  느끼되, 회사 소개를 베꼈다는 인상은 받지 않아야 한다."""
+
+
+def build_generation_prompt(user, job_key, region, question, examples,
+                            max_chars=1000, tone="", company_research=""):
+    """완성형 자소서 집필 프롬프트 — 이 서비스의 심장."""
     profile = get_job_profile(job_key)
     region_style = get_region_style(region)
     fact_sheet = build_fact_sheet(user)
     style_block = build_style_examples_block(examples)
+    company_block = build_company_block(company_research)
     tone_line = tone.strip() or profile["tone"]
-    length_line = (f"- 분량: 공백 포함 약 {max_chars}자 이내로 작성." if max_chars
-                  else "- 분량: 문항에 적절한 길이로 작성.")
+    length_line = (
+        f"- 분량: 공백 포함 약 {max_chars}자. 제한에 최대한 가깝게 충분히 채울 것(짧게 끝내지 말 것)."
+        if max_chars else "- 분량: 문항에 적절한 완결된 길이로 충분히 작성."
+    )
     question_line = question.strip() or "자유 형식의 자기소개서(핵심 강점과 지원동기 중심)"
 
     return f"""\
-당신은 {region_style['label']} 작성을 돕는 전문 커리어 코치이자 교정 전문가입니다.
-지원자의 사실 데이터만을 근거로, 직무에 최적화된 자기소개서를 작성하세요.
+당신은 지원자를 대신해 '그대로 제출해도 좋은 완성형 {region_style['label']}'를
+집필하는 전문 자기소개서 작가입니다. 아래 사실 데이터를 재료로, 채용 담당자를
+설득하는 완결된 글 한 편을 완성하는 것이 당신의 임무입니다.
 
 {ANTI_HALLUCINATION_RULES}
+
+{WRITING_STYLE_RULES}
+
+[집필 지침 — 이 글은 '초안'이 아니라 '완성본'이다]
+1) 두괄식: 첫 1~2문장에서 글의 핵심 메시지(강점과 직무 적합성)를 제시할 것.
+2) 본문은 위 서술 방식 규칙에 따라, 선택한 핵심 경험 하나를 What/When/Where/How
+   와 결과·성과가 이어지는 완결된 이야기로 깊게 풀어 쓸 것.
+   - '사실'은 원장의 것만 사용하되, 문장·서사·연결·표현은 전문 작가 수준으로
+     풍부하게 발전시킬 것. (사실 추가 금지 ≠ 건조한 나열)
+3) 마지막 문단은 지원 회사·직무와의 연결과 구체적인 기여 방향으로 마무리할 것.
+4) "[보완필요: ...]" 표시는 문항이 반드시 요구하는 내용인데 원장에 근거가 전혀
+   없을 때만 최소한으로 사용할 것. 원장의 사실로 채울 수 있으면 사용하지 말 것.
 
 [지원 직무 프로필]
 - 직무: {profile['label']} (key={profile['key']})
@@ -562,7 +670,10 @@ def build_generation_prompt(user, job_key, region, question, examples, max_chars
 [지역(문화) 스타일 가이드]
 {region_style['guidance']}
 
-[사용자 사실 원장 — 유일한 사실 출처]
+[지원 회사 리서치 — 은은하게만 반영할 것]
+{company_block}
+
+[사용자 사실 원장 — 지원자 사실의 유일한 출처]
 {fact_sheet}
 
 [문체 참고용 스타일 예시 — 내용 복붙 금지, 전개/톤만 참고]
@@ -572,29 +683,35 @@ def build_generation_prompt(user, job_key, region, question, examples, max_chars
 - 자소서 문항: {question_line}
 {length_line}
 - 위 '권장 구성 흐름'을 기본 골격으로 하되, 문항 성격에 맞게 자연스럽게 조정.
-- 두괄식으로 핵심을 먼저 제시하고, 사용자 원장의 구체적 경험/수치로 뒷받침.
-- 마지막에 직무·회사와의 연결 및 기여 포부로 마무리.
+- 한국형이라면 소제목(예: [데이터로 리스크를 읽는 힘])을 활용해도 좋음.
 
 [출력 형식]
 - 완성된 자소서 본문만 출력(머리말/설명/사족 없이).
-- 근거가 부족해 채우지 못한 부분은 문장 안에 "[보완필요: ...]"로만 표시.
 """
 
 
-def build_verification_prompt(generated_text, user):
+def build_verification_prompt(generated_text, user, company_research=""):
     fact_sheet = build_fact_sheet(user)
+    company_note = ""
+    if (company_research or "").strip():
+        company_note = f"""
+[참고 — 회사 공개 정보(검색 리서치 결과)]
+{company_research}
+- 위 회사 정보의 범위 안에 있는 '회사에 대한' 서술은 문제 삼지 않는다.
+  (단, 지원자 '본인의 경험/성과'는 반드시 사실 원장에 근거해야 한다)"""
     return f"""\
 당신은 자기소개서 팩트체커입니다. 아래 '사용자 사실 원장'에 근거가 없는
-문장/주장(지어낸 회사·수치·경험·자격·기술 등)을 찾아내세요.
+문장/주장(지어낸 수치·경험·자격·기술 등)을 찾아내세요.
 
-[사용자 사실 원장 — 유일하게 허용되는 사실]
+[사용자 사실 원장 — 지원자 사실의 유일한 출처]
 {fact_sheet}
+{company_note}
 
 [검사할 자기소개서]
 {generated_text}
 
 [판정 규칙]
-- 원장으로 뒷받침되지 않는 구체적 사실 주장만 문제 삼는다.
+- 원장으로 뒷받침되지 않는 '지원자 본인에 대한' 구체적 사실 주장만 문제 삼는다.
 - 일반적 다짐/포부/의지 표현(구체 사실 아님)이나 "[보완필요:...]" 표시는 문제 아님.
 - 원장 내용을 자연스럽게 바꿔 쓴 것은 문제 아님(의미가 같으면 OK).
 
@@ -607,15 +724,21 @@ def build_verification_prompt(generated_text, user):
 """
 
 
-def build_correction_prompt(generated_text, user, unsupported_claims):
+def build_correction_prompt(generated_text, user, unsupported_claims, company_research=""):
     fact_sheet = build_fact_sheet(user)
     claims = "\n".join(f"- {c}" for c in unsupported_claims) or "- (없음)"
+    company_note = ""
+    if (company_research or "").strip():
+        company_note = f"""
+[참고 — 회사 공개 정보(검색 리서치 결과), 이 범위의 회사 서술은 유지 가능]
+{company_research}"""
     return f"""\
 아래 자기소개서에서 '근거 없는 문장'들을 제거하거나, 사실 원장에 맞게
 고쳐 쓰세요. 새로운 사실을 추가하지 말고, 문맥이 매끄럽도록 다듬으세요.
 
-[사용자 사실 원장 — 유일한 사실 출처]
+[사용자 사실 원장 — 지원자 사실의 유일한 출처]
 {fact_sheet}
+{company_note}
 
 [제거/수정 대상(근거 없는 문장)]
 {claims}
@@ -632,118 +755,80 @@ def build_correction_prompt(generated_text, user, unsupported_claims):
 """
 
 
-def safe_parse_json(text: str) -> dict:
-    """모델 응답에서 JSON 블록만 안전하게 파싱(코드펜스 섞여도 처리)."""
-    if not text:
-        return {}
-    t = text.strip()
-    if t.startswith("```"):
-        t = t.strip("`")
-        if t.lower().startswith("json"):
-            t = t[4:]
-    start = t.find("{")
-    end = t.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        t = t[start:end + 1]
-    try:
-        return _json.loads(t)
-    except Exception:
-        return {}
-
-
-# =============================================================================
-# 7. 생성 → 근거 검증(환각 탐지) → 자동 교정
-# =============================================================================
-def generate_draft(client, user, job_key, region, question, examples, max_chars=1000, tone=""):
-    prompt = build_generation_prompt(user, job_key, region, question, examples, max_chars, tone)
-    return client.generate(prompt, GENERATION_CONFIG)
-
-
-def verify_grounding(client, generated_text, user):
-    prompt = build_verification_prompt(generated_text, user)
-    raw = client.generate(prompt, VERIFICATION_CONFIG)
-    parsed = safe_parse_json(raw)
-    if not parsed:
-        return GroundingReport(grounded=False, unsupported_claims=[],
-                               notes="검증 응답 파싱 실패 — 사람이 직접 사실 확인 권장.")
-    return GroundingReport(
-        grounded=bool(parsed.get("grounded", False)),
-        unsupported_claims=list(parsed.get("unsupported_claims", []) or []),
-        notes=str(parsed.get("notes", "")),
-    )
-
-
-def correct_draft(client, generated_text, user, unsupported_claims):
-    prompt = build_correction_prompt(generated_text, user, unsupported_claims)
-    return client.generate(prompt, GENERATION_CONFIG)
-
-
-def generate_grounded_cover_letter(client, req: GenerationRequest, examples, max_iterations=2):
-    """(자소서 본문, 최종 근거검증 리포트) 반환. 근거가 확보될 때까지 생성→검증→교정 반복."""
-    if req.user is None or req.user.is_empty():
-        raise ValueError("사용자 데이터(UserProfile)가 비어 있습니다. 최소 1개 이상의 사실을 입력하세요.")
-
-    text = generate_draft(client, req.user, req.job_key, req.region, req.question,
-                          examples, req.max_chars, req.tone)
-    report = verify_grounding(client, text, req.user)
-
-    iterations = 0
-    while (not report.grounded) and report.unsupported_claims and iterations < max_iterations:
-        text = correct_draft(client, text, req.user, report.unsupported_claims)
-        report = verify_grounding(client, text, req.user)
-        iterations += 1
-
-    report.notes = (report.notes + f" (교정 반복 {iterations}회)").strip()
-    return text, report
-
-
-# =============================================================================
-# 7-1. 직무 맞춤 수정 제안
-# =============================================================================
-def build_revision_prompt(cover_letter_text, target_job_key, region, user):
-    profile = get_job_profile(target_job_key)
-    region_style = get_region_style(region)
+def build_polish_prompt(generated_text, user, max_chars=1000):
+    """최종 다듬기(polish) — 제출 직전 완성도 끌어올리기 (제2원칙 강화)."""
     fact_sheet = build_fact_sheet(user)
+    length_line = (
+        f"- 분량: 공백 포함 약 {max_chars}자 수준을 유지할 것."
+        if max_chars else "- 분량: 현재 수준을 유지할 것."
+    )
     return f"""\
-당신은 자기소개서 첨삭 전문가입니다. 아래 자소서를 '{profile['label']}' 직무에
-맞게 개선하기 위한 구체적 수정 제안을 작성하세요.
+당신은 자기소개서 전문 교정가입니다. 아래 자기소개서를 '제출 직전 최종본'
+수준으로 다듬으세요.
 
-[중요 원칙]
-- 없는 사실을 지어내라고 제안하지 말 것(사실은 아래 원장 범위 내에서만).
-- '표현 방식, 강조점, 구조, 키워드 반영, 톤'을 어떻게 바꿀지 제안.
-- 각 제안은 [현재 → 개선방향 → 이유] 형태로 근거를 붙일 것.
-
-[목표 직무 특성]
-- 인사팀 평가 포인트: {', '.join(profile['hr_focus'])}
-- 핵심 역량: {', '.join(profile['competencies'])}
-- 권장 톤/구성: {profile['tone']} / {' → '.join(profile['structure'])}
-- 선호 키워드: {', '.join(profile['keywords'])}
-
-[지역 스타일]
-{region_style['guidance']}
-
-[사용자 사실 원장(제안 시 사실 범위)]
+[사용자 사실 원장 — 유일한 사실 출처]
 {fact_sheet}
 
-[현재 자기소개서]
-{cover_letter_text}
+[다듬을 자기소개서]
+{generated_text}
 
-[출력 형식]
-1) 총평 (2~3문장)
-2) 문항/문단별 수정 제안 (각 항목: 현재 → 개선방향 → 이유)
-3) 직무 키워드 반영 체크 (반영됨/보강 필요 구분)
-4) 맞춤법·문체 관점 지적(있다면)
+[교정 지침]
+- 새로운 사실을 추가하지 말 것(표현·흐름만 개선).
+- 맞춤법·띄어쓰기·조사 오류, 어색한 번역투 교정.
+- 어미 점검(중요):
+  · '~했습니다/~입니다'체로 통일하되, 같은 어미가 3문장 이상 연속되면
+    문장 구조를 바꿔 리듬을 살릴 것.
+  · '~하는 전문가이다', '~한 사람이다' 같은 3인칭 관찰자식 표현이 남아
+    있으면 1인칭 서술로 교정할 것.
+- 반복 점검(중요): 같은 강점·성과·표현이 돌림노래처럼 반복되면 가장 강한
+  한 곳만 남기고 정리할 것. 행동 보고 나열체('~했습니다'의 연속)는 행동
+  사이의 고민과 판단이 드러나는 문장으로 연결할 것.
+- 문단 연결과 문장 호흡을 매끄럽게, 두괄식 구조는 유지·강화.
+- "[보완필요: ...]" 표시가 있다면 그대로 유지.
+{length_line}
+- 다듬어진 본문만 출력.
 """
 
 
-def suggest_revisions_for_job(client, cover_letter_text, target_job_key, region, user):
-    prompt = build_revision_prompt(cover_letter_text, target_job_key, region, user)
-    return client.generate(prompt, GENERATION_CONFIG)
+def build_writing_guide_prompt(cover_letter_text, question, user, job_key):
+    """'이 자소서를 내 것으로 만드는 가이드' — 사용자가 완성본을 소화하도록 돕는다."""
+    profile = get_job_profile(job_key)
+    fact_sheet = build_fact_sheet(user)
+    question_line = question.strip() or "자유 형식의 자기소개서"
+    return f"""\
+당신은 자기소개서 코치입니다. 아래는 지원자의 사실 데이터로 AI가 대신 작성한
+완성형 자기소개서입니다. 지원자가 이 글을 '자기 것'으로 소화해 최종 제출본을
+완성하고, 면접까지 대비할 수 있도록 돕는 가이드를 작성하세요.
+
+[지원 직무]
+- {profile['label']} — 인사팀 평가 포인트: {', '.join(profile['hr_focus'])}
+
+[사용자 사실 원장]
+{fact_sheet}
+
+[자소서 문항]
+{question_line}
+
+[완성된 자기소개서]
+{cover_letter_text}
+
+[작성 규칙]
+- 새로운 사실을 지어내라고 제안하지 말 것.
+- 이 글을 '고쳐야 할 초안'이 아니라 '완성본'으로 대하되, 지원자 본인만이
+  더할 수 있는 것(디테일, 감정, 당시의 판단)을 짚어줄 것.
+
+[출력 형식]
+1) 이 자소서의 전략 (2~3문장): 어떤 강점을 어떤 순서로 배치했고, 왜 이 구성이
+   해당 직무 인사담당자에게 효과적인지.
+2) 문단별 해설: 각 문단의 역할(후킹/근거/직무연결/포부)과 활용된 지원자 경험.
+3) 직접 손보면 더 좋아지는 포인트: "[보완필요]" 표시가 있다면 채우는 법,
+   지원자 본인만 아는 디테일(당시의 판단, 감정, 대화, 시행착오)을 추가하면
+   좋은 위치와 방법.
+4) 제출 전 최종 체크리스트 (5개 내외).
+5) 이 자소서 기반 예상 면접 질문 3개와 답변 포인트.
+"""
 
 
-# =============================================================================
-# 7-2. HR 관점 액션플랜
-# =============================================================================
 def build_action_plan_prompt(user, job_key):
     profile = get_job_profile(job_key)
     fact_sheet = build_fact_sheet(user)
@@ -778,70 +863,229 @@ def build_action_plan_prompt(user, job_key):
 """
 
 
+def safe_parse_json(text: str) -> dict:
+    """모델 응답에서 JSON 블록만 안전하게 파싱(코드펜스 섞여도 처리)."""
+    if not text:
+        return {}
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.strip("`")
+        if t.lower().startswith("json"):
+            t = t[4:]
+    start = t.find("{")
+    end = t.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        t = t[start:end + 1]
+    try:
+        return _json.loads(t)
+    except Exception:
+        return {}
+
+
+# =============================================================================
+# 7. 생성 파이프라인:
+#    회사 리서치 → 집필 → 근거 검증(환각 탐지) → 교정 → 최종 다듬기
+# =============================================================================
+def research_company(client, company_name: str) -> str:
+    """Google 검색 그라운딩으로 지원 회사의 가치/지향점을 조사해 요약."""
+    name = (company_name or "").strip()
+    if not name:
+        return ""
+    prompt = build_company_research_prompt(name)
+    try:
+        return client.generate_with_search(prompt)
+    except Exception:
+        return ""
+
+
+def generate_draft(client, user, job_key, region, question, examples,
+                   max_chars=1000, tone="", company_research=""):
+    prompt = build_generation_prompt(user, job_key, region, question, examples,
+                                     max_chars, tone, company_research)
+    return client.generate(prompt, GENERATION_CONFIG)
+
+
+def verify_grounding(client, generated_text, user, company_research=""):
+    prompt = build_verification_prompt(generated_text, user, company_research)
+    raw = client.generate(prompt, VERIFICATION_CONFIG)
+    parsed = safe_parse_json(raw)
+    if not parsed:
+        return GroundingReport(grounded=False, unsupported_claims=[],
+                               notes="검증 응답 파싱 실패 — 사람이 직접 사실 확인 권장.")
+    return GroundingReport(
+        grounded=bool(parsed.get("grounded", False)),
+        unsupported_claims=list(parsed.get("unsupported_claims", []) or []),
+        notes=str(parsed.get("notes", "")),
+    )
+
+
+def correct_draft(client, generated_text, user, unsupported_claims, company_research=""):
+    prompt = build_correction_prompt(generated_text, user, unsupported_claims, company_research)
+    return client.generate(prompt, GENERATION_CONFIG)
+
+
+def polish_draft(client, generated_text, user, max_chars=1000):
+    """어미·반복·맞춤법·문맥을 제출본 수준으로 다듬는 최종 패스."""
+    prompt = build_polish_prompt(generated_text, user, max_chars)
+    return client.generate(prompt, GENERATION_CONFIG)
+
+
+def generate_grounded_cover_letter(client, user, job_key, region, question,
+                                   examples, max_chars=1000, tone="",
+                                   company_research="", max_iterations=2, polish=True):
+    """(완성형 자소서 본문, 근거검증 리포트) 반환.
+
+    생성 → 검증/교정 반복 → 최종 다듬기 = 제출 가능한 완성형 자소서.
+    """
+    if user is None or user.is_empty():
+        raise ValueError("사용자 데이터(UserProfile)가 비어 있습니다. 최소 1개 이상의 사실을 입력하세요.")
+
+    text = generate_draft(client, user, job_key, region, question, examples,
+                          max_chars, tone, company_research)
+    report = verify_grounding(client, text, user, company_research)
+
+    iterations = 0
+    while (not report.grounded) and report.unsupported_claims and iterations < max_iterations:
+        text = correct_draft(client, text, user, report.unsupported_claims, company_research)
+        report = verify_grounding(client, text, user, company_research)
+        iterations += 1
+
+    if polish:
+        text = polish_draft(client, text, user, max_chars)
+
+    report.notes = (report.notes + f" (교정 반복 {iterations}회)").strip()
+    return text, report
+
+
+# =============================================================================
+# 7-1. '이 자소서를 내 것으로 만드는 가이드'
+# =============================================================================
+def build_writing_guide(client, cover_letter_text, question, user, job_key):
+    prompt = build_writing_guide_prompt(cover_letter_text, question, user, job_key)
+    return client.generate(prompt, GENERATION_CONFIG)
+
+
+# =============================================================================
+# 7-2. (부가) HR 관점 액션플랜
+# =============================================================================
 def suggest_action_plan(client, user, job_key):
     prompt = build_action_plan_prompt(user, job_key)
     return client.generate(prompt, GENERATION_CONFIG)
 
 
 # =============================================================================
-# 7-3. 전체 오케스트레이션 (파이프라인)
+# 7-3. 전체 오케스트레이션 — 문항별 완성형 자소서 일괄 생성
 # =============================================================================
-def generate_cover_letter_package(client, req: GenerationRequest, store: ReferenceStore = None,
-                                  num_style_examples=3, include_revision=True,
-                                  include_action_plan=True, max_grounding_iterations=2):
-    """생성 + 근거검증/교정 + 직무맞춤 수정제안 + HR 액션플랜을 한 번에 수행."""
+def generate_application(client, user, job_key="general", region="KR",
+                         questions=None, tone="", store=None,
+                         num_style_examples=3, use_company_research=True,
+                         include_writing_guide=True, include_action_plan=True,
+                         max_grounding_iterations=2, polish=True):
+    """지원서 전체(여러 문항)의 완성형 자소서를 생성한다.
+
+    questions            : 문항 목록. 각 항목은 {"question": str, "max_chars": int}.
+                           비어 있으면 자유 형식 1건을 생성한다.
+    use_company_research : True 면 user.target_company 를 Google 검색으로 조사해
+                           회사 가치/지향점을 글에 은은하게 반영한다.
+    """
+    if not questions:
+        questions = [{"question": "", "max_chars": 1000}]
+
+    # 0) 지원 회사 리서치 (문항 전체에 공통 반영)
+    company_research = ""
+    if use_company_research and (user.target_company or "").strip():
+        company_research = research_company(client, user.target_company)
+
+    # 1) 문체 예시 선별 (모든 문항에 공통 사용)
     examples = []
     if store is not None and len(store) > 0:
-        examples = store.select_examples(req.job_key, req.region, k=num_style_examples)
+        examples = store.select_examples(job_key, region, k=num_style_examples)
 
-    cover_letter, grounding = generate_grounded_cover_letter(
-        client, req, examples, max_iterations=max_grounding_iterations)
+    answers = []
+    for q in questions:
+        question_text = str(q.get("question", "") or "")
+        max_chars = int(q.get("max_chars", 1000) or 0)
 
-    result = CoverLetterResult(cover_letter=cover_letter, grounding=grounding)
+        cover_letter, grounding = generate_grounded_cover_letter(
+            client, user, job_key, region, question_text, examples,
+            max_chars=max_chars, tone=tone, company_research=company_research,
+            max_iterations=max_grounding_iterations, polish=polish,
+        )
 
-    if include_revision:
-        result.revision_suggestions = suggest_revisions_for_job(
-            client, cover_letter, req.job_key, req.region, req.user)
+        answer = AnswerResult(
+            question=question_text or "(자유 형식)",
+            cover_letter=cover_letter,
+            grounding=grounding,
+        )
+        if include_writing_guide:
+            answer.writing_guide = build_writing_guide(
+                client, cover_letter, question_text, user, job_key)
+        answers.append(answer)
+
+    result = ApplicationResult(answers=answers, company_research=company_research)
 
     if include_action_plan:
-        result.action_plan = suggest_action_plan(client, req.user, req.job_key)
+        result.action_plan = suggest_action_plan(client, user, job_key)
 
-    profile = get_job_profile(req.job_key)
+    profile = get_job_profile(job_key)
     result.meta = {
-        "job_key": normalize_job_key(req.job_key),
+        "job_key": normalize_job_key(job_key),
         "job_label": profile["label"],
-        "region": req.region.upper(),
+        "region": (region or "KR").upper(),
+        "num_questions": len(answers),
         "num_style_examples": len(examples),
-        "grounded": grounding.grounded,
+        "company_research_used": bool(company_research),
+        "all_grounded": all(a.grounding.grounded for a in answers),
     }
     return result
 
 
-def format_result(result: CoverLetterResult) -> str:
-    g = result.grounding
+def format_application(result: ApplicationResult) -> str:
+    """결과 출력 — 완성형 자소서가 주인공이 되도록 구성."""
     lines = []
     lines.append("=" * 70)
-    lines.append(f" 직무: {result.meta.get('job_label')} / 지역: {result.meta.get('region')}")
+    lines.append(
+        f" AI 자기소개서 생성 결과 | 직무: {result.meta.get('job_label')}"
+        f" / 지역: {result.meta.get('region')}"
+        f" | 문항 {result.meta.get('num_questions')}개"
+    )
+    if result.meta.get("company_research_used"):
+        lines.append("  ▸ 지원 회사 리서치가 글의 방향에 은은하게 반영되었습니다.")
     lines.append("=" * 70)
-    lines.append("\n■ 생성된 자기소개서\n")
-    lines.append(result.cover_letter)
-    lines.append("\n" + "-" * 70)
-    lines.append("■ 근거 검증(환각 탐지) 결과")
-    lines.append(f"  - 전부 사실 기반인가: {'예 ✅' if g.grounded else '아니오 ⚠️'}")
-    if g.unsupported_claims:
-        lines.append("  - 근거 없는(의심) 문장:")
-        for c in g.unsupported_claims:
-            lines.append(f"      · {c}")
-    if g.notes:
-        lines.append(f"  - 총평: {g.notes}")
-    if result.revision_suggestions:
-        lines.append("\n" + "-" * 70)
-        lines.append("■ 직무 맞춤 수정 제안\n")
-        lines.append(result.revision_suggestions)
+
+    for i, ans in enumerate(result.answers, 1):
+        lines.append(f"\n【문항 {i}】 {ans.question}")
+        lines.append("-" * 70)
+        lines.append(ans.cover_letter)
+        lines.append("")
+
+        g = ans.grounding
+        if g.grounded:
+            lines.append("  ▸ 근거 검증: 통과 ✅ — 사용자 데이터에 없는 내용이 발견되지 않았습니다.")
+        else:
+            lines.append("  ▸ 근거 검증: 확인 필요 ⚠️")
+            for c in g.unsupported_claims:
+                lines.append(f"      · {c}")
+            if g.notes:
+                lines.append(f"      ({g.notes})")
+
+        if ans.writing_guide:
+            lines.append("")
+            lines.append("  ── 이 자소서를 내 것으로 만드는 가이드 ──")
+            lines.append(ans.writing_guide)
+
+    if result.company_research:
+        lines.append("\n" + "=" * 70)
+        lines.append("■ (참고) 지원 회사 리서치 요약 — 글에는 은은하게만 반영됨")
+        lines.append("-" * 70)
+        lines.append(result.company_research)
+
     if result.action_plan:
-        lines.append("\n" + "-" * 70)
-        lines.append("■ HR 관점 액션플랜\n")
+        lines.append("\n" + "=" * 70)
+        lines.append("■ (부가) HR 관점 커리어 액션플랜 — 다음 지원까지 준비하면 좋은 것")
+        lines.append("-" * 70)
         lines.append(result.action_plan)
+
     lines.append("=" * 70)
     return "\n".join(lines)
 
@@ -874,10 +1118,13 @@ reference_store = ReferenceStore()
 #  제1원칙(환각 방지): 여기 없는 내용은 자소서에 절대 등장하지 않습니다.
 #  비워 둔 항목은 자소서에서 다루지 않습니다.
 #  리스트 항목은 "문자열" 또는 {"키": "값"} 형태 모두 가능합니다.
+#
+#  ※ target_company 에 회사명을 넣으면 Google 검색으로 그 회사의 가치/인재상을
+#    조사해 글의 방향에 은은하게 반영합니다. (노골적 인용은 하지 않음)
 # =============================================================================
 user_profile = UserProfile(
     name="",                 # 예: "홍길동"
-    target_company="",       # 예: "OO전자"
+    target_company="",       # 예: "OO전자"  ← 회사 리서치에 사용됨
     target_job="",           # 예: "백엔드 개발자"
 
     education=[
@@ -915,30 +1162,41 @@ user_profile = UserProfile(
 
 
 # =============================================================================
-# 10. [실행] 자소서 생성 + 검증 + 첨삭 + 액션플랜
-#     직무(job_key)/지역(region)/문항(question) 등을 아래에서 조정하세요.
+# 10. [자소서 문항 입력] — 지원할 회사의 실제 문항을 그대로 넣으세요
+# =============================================================================
+#  여러 문항을 넣으면 문항별 완성형 자소서가 각각 생성됩니다.
+#  비워 두면([]) 자유 형식 1건이 생성됩니다.
+# =============================================================================
+QUESTIONS = [
+    # 예:
+    # {"question": "지원동기와 입사 후 포부를 기술하시오.", "max_chars": 1000},
+    # {"question": "가장 도전적이었던 경험과 그 과정에서 배운 점을 기술하시오.", "max_chars": 1500},
+    # {"question": "본인의 강점과 이를 직무에 어떻게 활용할지 기술하시오.", "max_chars": 800},
+]
+
+
+# =============================================================================
+# 11. [실행] 문항별 완성형 자소서 생성 + 가이드 + (부가) 액션플랜
+#     직무(job_key)/지역(region) 등을 아래에서 조정하세요.
 # =============================================================================
 if __name__ == "__main__":
     client = GeminiClient()   # 위 1번 구역의 API 키/모델(gemini-2.5-flash) 사용
     print(reference_store.balance_report())
 
-    request = GenerationRequest(
-        user=user_profile,
-        job_key="",        # 예: "backend" / "data" / "marketing" ... (공란 시 general)
-        region="KR",       # "KR"(한국형) 또는 "US"(미국형)
-        question="",       # 자소서 문항. 예: "지원동기와 입사 후 포부를 기술하시오."
-        max_chars=1000,    # 한국형 글자수 제한(0이면 제한 없음)
-        tone="",           # 추가 톤 요청(비우면 직무 기본 톤)
-    )
-
-    result = generate_cover_letter_package(
+    result = generate_application(
         client=client,
-        req=request,
+        user=user_profile,
+        job_key="",                  # 예: "backend" / "data" / "marketing" (공란 시 general)
+        region="KR",                 # "KR"(한국형) 또는 "US"(미국형)
+        questions=QUESTIONS,         # 위 10번 구역에서 입력한 문항들
+        tone="",                     # 추가 톤 요청(비우면 직무 기본 톤)
         store=reference_store,
-        num_style_examples=3,
-        include_revision=True,
-        include_action_plan=True,
-        max_grounding_iterations=2,
+        num_style_examples=3,        # few-shot 문체 예시 개수
+        use_company_research=True,   # ★ 지원 회사 가치를 검색해 은은하게 반영
+        include_writing_guide=True,  # '내 것으로 만드는 가이드' 포함
+        include_action_plan=True,    # (부가) HR 관점 액션플랜 포함
+        max_grounding_iterations=2,  # 환각 검증→교정 반복 횟수
+        polish=True,                 # 최종 문체 다듬기 패스(어미·반복 정리)
     )
 
-    print(format_result(result))
+    print(format_application(result))
