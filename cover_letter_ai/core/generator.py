@@ -1,13 +1,14 @@
 """
 core/generator.py
 ============================================================================
-자소서 '생성' + '근거 검증(환각 탐지)' + '자동 교정' 로직.
+자소서 '생성' + '근거 검증(환각 탐지)' + '자동 교정' + '최종 다듬기' 로직.
 
-흐름:
-  1) generate_draft()      : 사용자 사실 + 직무 스타일로 초안 생성
-  2) verify_grounding()    : 초안에 근거 없는 주장(환각)이 있는지 검사
-  3) correct_draft()       : 근거 없는 문장을 제거/수정
-  → generate_grounded_cover_letter() 가 위 과정을 자동 반복(최대 N회)
+흐름 (★ 완성형 자소서를 만들어내는 것이 목표):
+  1) generate_draft()      : 사용자 사실 + 직무 스타일로 완성형 초고 집필
+  2) verify_grounding()    : 근거 없는 주장(환각)이 있는지 검사
+  3) correct_draft()       : 근거 없는 문장을 제거/수정 (필요시 반복)
+  4) polish_draft()        : 맞춤법·문맥·문체 최종 다듬기 → 제출 가능한 완성본
+  → generate_grounded_cover_letter() 가 위 과정을 자동 수행
 """
 
 from __future__ import annotations
@@ -81,18 +82,33 @@ def correct_draft(
 
 
 # --------------------------------------------------------------------------
-#  통합: 근거가 확보될 때까지 생성→검증→교정 반복
+#  4) 최종 다듬기 — 맞춤법·문맥·문체를 제출본 수준으로 (제2원칙의 마무리)
+# --------------------------------------------------------------------------
+def polish_draft(
+    client: GeminiClient,
+    generated_text: str,
+    user: UserProfile,
+    max_chars: int = 1000,
+) -> str:
+    prompt = pb.build_polish_prompt(generated_text, user, max_chars)
+    return client.generate(prompt, config.GENERATION_CONFIG)
+
+
+# --------------------------------------------------------------------------
+#  통합: 생성 → 검증/교정 반복 → 최종 다듬기 = 제출 가능한 완성형 자소서
 # --------------------------------------------------------------------------
 def generate_grounded_cover_letter(
     client: GeminiClient,
     req: GenerationRequest,
     examples: list[ReferenceExample],
     max_iterations: int = 2,
+    polish: bool = True,
 ) -> tuple[str, GroundingReport]:
     """
-    (자소서 본문, 최종 근거검증 리포트) 반환.
+    (완성형 자소서 본문, 최종 근거검증 리포트) 반환.
 
     max_iterations: 검증→교정 재시도 최대 횟수.
+    polish: True 면 마지막에 문체·맞춤법 최종 다듬기 패스를 수행.
     """
     if req.user.is_empty():
         raise ValueError(
@@ -112,6 +128,9 @@ def generate_grounded_cover_letter(
         text = correct_draft(client, text, req.user, report.unsupported_claims)
         report = verify_grounding(client, text, req.user)
         iterations += 1
+
+    if polish:
+        text = polish_draft(client, text, req.user, req.max_chars)
 
     report.notes = (report.notes + f" (교정 반복 {iterations}회)").strip()
     return text, report

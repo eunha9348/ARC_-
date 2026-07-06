@@ -87,7 +87,7 @@ class ReferenceExample:
 # --------------------------------------------------------------------------
 @dataclass
 class GenerationRequest:
-    """자소서 1건 생성에 필요한 파라미터 묶음."""
+    """자소서 문항 1개 생성에 필요한 파라미터 묶음."""
     user: UserProfile
     job_key: str = "general"            # JOB_PROFILES key
     region: str = "KR"                  # "KR" | "US"
@@ -111,14 +111,23 @@ class GroundingReport:
 
 
 @dataclass
-class CoverLetterResult:
-    """최종 산출물 묶음."""
-    cover_letter: str = ""                        # 생성된 자소서
+class AnswerResult:
+    """문항 1개에 대한 완성형 자소서 + 부속 정보."""
+    question: str = ""                            # 자소서 문항
+    cover_letter: str = ""                        # ★ 주 결과물: 완성형 자소서 본문
     grounding: GroundingReport = field(default_factory=GroundingReport)
-    revision_suggestions: str = ""                # 직무 맞춤 수정 제안
-    action_plan: str = ""                         # HR 관점 액션플랜
+    writing_guide: str = ""                       # 이 자소서를 내 것으로 만드는 가이드
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class ApplicationResult:
+    """지원서 전체(여러 문항) 산출물 묶음."""
+    answers: list[AnswerResult] = field(default_factory=list)   # 문항별 자소서
+    action_plan: str = ""                         # (부가) HR 관점 액션플랜
     meta: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        d = asdict(self)
-        return d
+        return asdict(self)

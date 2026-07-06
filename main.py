@@ -1,20 +1,27 @@
 """
 main.py
 ============================================================================
-자기소개서 AI 생성기 — 실행 진입점.
+AI 자기소개서 '생성' 서비스 — 실행 진입점.
+
+★ 이 프로그램은 자소서를 '대신 써 주는' 서비스입니다.
+  사용자의 사실 데이터만을 재료로, 문항별로 그대로 제출 가능한 수준의
+  완성형 자소서를 생성하고, 그 글을 사용자가 자기 것으로 소화하도록
+  돕는 '작성 가이드'를 함께 제공합니다.
 
 여기서 하는 일:
   (A) API 키/모델 확인  (실제 키는 cover_letter_ai/config.py 에 입력)
   (B) 모범 자소서(레퍼런스) DB 연결  ← 다른 코드/DB에서 주입(여기선 공란)
   (C) ★ 사용자 데이터 입력 ★         ← 실행 시 '직접' 채워 넣는 부분(공란)
-  (D) 파이프라인 실행 → 자소서 + 근거검증 + 수정제안 + 액션플랜 출력
+  (D) 자소서 문항 입력               ← 지원할 회사의 실제 문항들
+  (E) 파이프라인 실행 → 문항별 완성형 자소서 + 가이드 + (부가) 액션플랜
 
 ────────────────────────────────────────────────────────────────────────
 사용 방법
   1) cover_letter_ai/config.py 의 GOOGLE_AI_STUDIO_API_KEY 에 키 입력
      (또는 환경변수 GOOGLE_AI_STUDIO_API_KEY 설정)
   2) 아래 (C) 구역의 UserProfile(...) 에 본인 사실 데이터 입력
-  3) python main.py 실행
+  3) 아래 (D) 구역의 QUESTIONS 에 지원할 회사의 자소서 문항 입력
+  4) python main.py 실행
 ────────────────────────────────────────────────────────────────────────
 """
 
@@ -22,30 +29,23 @@ from cover_letter_ai import (
     GeminiClient,
     UserProfile,
     ReferenceExample,
-    GenerationRequest,
     ReferenceStore,
-    generate_cover_letter_package,
-    format_result,
+    generate_application,
+    format_application,
 )
 
 
 # ==========================================================================
 #  (B) 모범 자소서(레퍼런스) DB 연결
 # --------------------------------------------------------------------------
-#  실제 모범 자소서(한국형 750 + 미국형 250)는 별도 코드/DB 에서 불러온다고
-#  하셨으므로, 여기서는 '연결 지점'만 만들어 둡니다.
+#  실제 모범 자소서(한국형 750 + 미국형 250)는 별도 코드/DB 에서 불러온다면
+#  loader 함수를 만들어 주입하세요. 없어도(공란) 자소서 생성은 동작합니다.
 #
-#  방법 1) DB 로더 함수를 만들어 주입:
 #      def load_examples_from_db() -> list[ReferenceExample]:
 #          rows = your_db.query("SELECT region, job_key, text, source FROM refs")
 #          return [ReferenceExample(region=r.region, job_key=r.job_key,
 #                                   text=r.text, source=r.source) for r in rows]
 #      store = ReferenceStore(loader=load_examples_from_db)
-#
-#  방법 2) 메모리에 직접 add() (테스트용)
-#
-#  ※ 레퍼런스가 없어도(store=None) 자소서 생성은 동작합니다.
-#    (직무 스타일 가이드만으로 작성)
 # ==========================================================================
 def build_reference_store() -> ReferenceStore:
     store = ReferenceStore()
@@ -110,6 +110,20 @@ def build_user_profile() -> UserProfile:
 # ==========================================================================
 
 
+# ==========================================================================
+#  (D) 자소서 문항 입력 — 지원할 회사의 실제 문항을 그대로 넣으세요
+# --------------------------------------------------------------------------
+#  여러 문항을 넣으면 문항별 완성형 자소서가 각각 생성됩니다.
+#  비워 두면([]) 자유 형식 1건이 생성됩니다.
+# ==========================================================================
+QUESTIONS = [
+    # 예:
+    # {"question": "지원동기와 입사 후 포부를 기술하시오.", "max_chars": 1000},
+    # {"question": "가장 도전적이었던 경험과 그 과정에서 배운 점을 기술하시오.", "max_chars": 1500},
+    # {"question": "본인의 강점과 이를 직무에 어떻게 활용할지 기술하시오.", "max_chars": 800},
+]
+
+
 def main():
     # ---- (A) 클라이언트 준비 (API 키/모델은 config.py 에서) ----
     client = GeminiClient()   # config.py 의 키/모델(gemini-2.5-flash) 사용
@@ -121,28 +135,23 @@ def main():
     # ---- (C) 사용자 데이터 ----
     user = build_user_profile()
 
-    # ---- 생성 요청 파라미터 (직무/지역/문항은 실행 시 조정) ----
-    request = GenerationRequest(
-        user=user,
-        job_key="",        # 예: "backend" / "data" / "marketing" ... (공란 시 general)
-        region="KR",       # "KR"(한국형) 또는 "US"(미국형)
-        question="",       # 자소서 문항. 예: "지원동기와 입사 후 포부를 기술하시오."
-        max_chars=1000,    # 한국형 글자수 제한(0이면 제한 없음)
-        tone="",           # 추가 톤 요청(비우면 직무 기본 톤)
-    )
-
-    # ---- (D) 파이프라인 실행 ----
-    result = generate_cover_letter_package(
+    # ---- (E) 파이프라인 실행: 문항별 완성형 자소서 생성 ----
+    result = generate_application(
         client=client,
-        req=request,
+        user=user,
+        job_key="",                  # 예: "backend" / "data" / "marketing" (공란 시 general)
+        region="KR",                 # "KR"(한국형) 또는 "US"(미국형)
+        questions=QUESTIONS,         # (D) 에서 입력한 문항들
+        tone="",                     # 추가 톤 요청(비우면 직무 기본 톤)
         store=store,
-        num_style_examples=3,       # few-shot 문체 예시 개수
-        include_revision=True,      # 직무 맞춤 수정 제안 포함
-        include_action_plan=True,   # HR 관점 액션플랜 포함
-        max_grounding_iterations=2, # 환각 검증→교정 반복 횟수
+        num_style_examples=3,        # few-shot 문체 예시 개수
+        include_writing_guide=True,  # '내 것으로 만드는 가이드' 포함
+        include_action_plan=True,    # (부가) HR 관점 액션플랜 포함
+        max_grounding_iterations=2,  # 환각 검증→교정 반복 횟수
+        polish=True,                 # 최종 문체 다듬기 패스
     )
 
-    print(format_result(result))
+    print(format_application(result))
 
 
 if __name__ == "__main__":
