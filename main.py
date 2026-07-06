@@ -69,7 +69,7 @@ def build_reference_store() -> ReferenceStore:
 def build_user_profile() -> UserProfile:
     user = UserProfile(
         name="",                 # 예: "홍길동"
-        target_company="",       # 예: "OO전자"
+        target_company="",       # 예: "OO전자"  ← Google 검색 회사 리서치에 사용됨
         target_job="",           # 예: "백엔드 개발자"
 
         education=[
@@ -145,10 +145,11 @@ def main():
         tone="",                     # 추가 톤 요청(비우면 직무 기본 톤)
         store=store,
         num_style_examples=3,        # few-shot 문체 예시 개수
+        use_company_research=True,   # ★ 지원 회사 가치를 검색해 은은하게 반영
         include_writing_guide=True,  # '내 것으로 만드는 가이드' 포함
         include_action_plan=True,    # (부가) HR 관점 액션플랜 포함
         max_grounding_iterations=2,  # 환각 검증→교정 반복 횟수
-        polish=True,                 # 최종 문체 다듬기 패스
+        polish=True,                 # 최종 문체 다듬기 패스(어미·반복 정리)
     )
 
     print(format_application(result))

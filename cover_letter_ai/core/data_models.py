@@ -126,6 +126,7 @@ class AnswerResult:
 class ApplicationResult:
     """지원서 전체(여러 문항) 산출물 묶음."""
     answers: list[AnswerResult] = field(default_factory=list)   # 문항별 자소서
+    company_research: str = ""                    # 지원 회사 리서치 요약(참고용)
     action_plan: str = ""                         # (부가) HR 관점 액션플랜
     meta: dict[str, Any] = field(default_factory=dict)
 

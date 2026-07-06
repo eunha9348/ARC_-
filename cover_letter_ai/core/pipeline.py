@@ -8,6 +8,7 @@ core/pipeline.py
   사용자가 그 완성본을 잘 활용하도록 돕는 부속물이다.
 
 generate_application() 하나만 호출하면:
+  0) 지원 회사 리서치(Google 검색) — 회사 가치를 글에 은은하게 반영
   1) 모범 자소서(레퍼런스)에서 문체 예시 선별
   2) 문항별로: 완성형 자소서 생성 → 근거 검증(환각 탐지)/교정 → 최종 다듬기
   3) 문항별 '이 자소서를 내 것으로 만드는 가이드' 생성
@@ -37,6 +38,7 @@ def generate_application(
     tone: str = "",
     store: ReferenceStore | None = None,
     num_style_examples: int = 3,
+    use_company_research: bool = True,
     include_writing_guide: bool = True,
     include_action_plan: bool = True,
     max_grounding_iterations: int = 2,
@@ -45,14 +47,21 @@ def generate_application(
     """
     지원서 전체(여러 문항)의 완성형 자소서를 생성한다.
 
-    client    : GeminiClient (API 키/모델 주입됨)
-    user      : 사용자 사실 데이터 (자소서 내용의 유일한 출처)
-    questions : 문항 목록. 각 항목은 {"question": str, "max_chars": int}.
-                비어 있으면 자유 형식 1건을 생성한다.
-    store     : ReferenceStore (모범 자소서 DB). None 이면 예시 없이 진행.
+    client               : GeminiClient (API 키/모델 주입됨)
+    user                 : 사용자 사실 데이터 (자소서 내용의 유일한 출처)
+    questions            : 문항 목록. 각 항목은 {"question": str, "max_chars": int}.
+                           비어 있으면 자유 형식 1건을 생성한다.
+    store                : ReferenceStore (모범 자소서 DB). None 이면 예시 없이 진행.
+    use_company_research : True 면 user.target_company 를 Google 검색으로 조사해
+                           회사 가치/지향점을 글에 은은하게 반영한다.
     """
     if not questions:
         questions = [{"question": "", "max_chars": 1000}]
+
+    # 지원 회사 리서치 (문항 전체에 공통 반영)
+    company_research = ""
+    if use_company_research and (user.target_company or "").strip():
+        company_research = generator.research_company(client, user.target_company)
 
     # 문체 예시 선별 (모든 문항에 공통 사용)
     examples = []
@@ -75,6 +84,7 @@ def generate_application(
         cover_letter, grounding = generator.generate_grounded_cover_letter(
             client=client, req=req, examples=examples,
             max_iterations=max_grounding_iterations, polish=polish,
+            company_research=company_research,
         )
 
         answer = AnswerResult(
@@ -92,7 +102,7 @@ def generate_application(
 
         answers.append(answer)
 
-    result = ApplicationResult(answers=answers)
+    result = ApplicationResult(answers=answers, company_research=company_research)
 
     # (부가) HR 관점 액션플랜 — 다음 지원까지 이력을 보강하는 제안
     if include_action_plan:
@@ -107,6 +117,7 @@ def generate_application(
         "region": (region or "KR").upper(),
         "num_questions": len(answers),
         "num_style_examples": len(examples),
+        "company_research_used": bool(company_research),
         "all_grounded": all(a.grounding.grounded for a in answers),
     }
     return result
@@ -123,6 +134,8 @@ def format_application(result: ApplicationResult) -> str:
         f" / 지역: {result.meta.get('region')}"
         f" | 문항 {result.meta.get('num_questions')}개"
     )
+    if result.meta.get("company_research_used"):
+        lines.append("  ▸ 지원 회사 리서치가 글의 방향에 은은하게 반영되었습니다.")
     lines.append("=" * 70)
 
     for i, ans in enumerate(result.answers, 1):
@@ -145,6 +158,12 @@ def format_application(result: ApplicationResult) -> str:
             lines.append("")
             lines.append("  ── 이 자소서를 내 것으로 만드는 가이드 ──")
             lines.append(ans.writing_guide)
+
+    if result.company_research:
+        lines.append("\n" + "=" * 70)
+        lines.append("■ (참고) 지원 회사 리서치 요약 — 글에는 은은하게만 반영됨")
+        lines.append("-" * 70)
+        lines.append(result.company_research)
 
     if result.action_plan:
         lines.append("\n" + "=" * 70)

@@ -77,6 +77,34 @@ class GeminiClient:
             return self._generate_new(prompt, cfg)
         return self._generate_old(prompt, cfg)
 
+    def generate_with_search(self, prompt: str,
+                             generation_config: dict[str, Any] | None = None) -> str:
+        """
+        Google 검색 그라운딩을 켜고 생성한다 (지원 회사 리서치용).
+
+        신형 SDK(google-genai)에서만 검색이 동작하며, 실패하거나 구형 SDK인
+        경우 일반 생성으로 폴백한다(이때 '모르면 지어내지 말 것'을 프롬프트로
+        강제하고 있어야 함).
+        """
+        cfg = generation_config or config.GENERATION_CONFIG
+        if self._backend == "genai":
+            try:
+                from google.genai import types  # type: ignore
+                gen_cfg = types.GenerateContentConfig(
+                    temperature=0.2,
+                    max_output_tokens=cfg.get("max_output_tokens", 2048),
+                    tools=[types.Tool(google_search=types.GoogleSearch())],
+                )
+                resp = self._client.models.generate_content(
+                    model=self.model_name, contents=prompt, config=gen_cfg,
+                )
+                text = (getattr(resp, "text", "") or "").strip()
+                if text:
+                    return text
+            except Exception:
+                pass
+        return self.generate(prompt, cfg)
+
     def _generate_new(self, prompt: str, cfg: dict[str, Any]) -> str:
         from google.genai import types  # type: ignore
 
