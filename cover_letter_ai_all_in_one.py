@@ -1003,8 +1003,14 @@ def generate_application(client, user, job_key="general", region="KR",
 
     answers = []
     for q in questions:
-        question_text = str(q.get("question", "") or "")
-        max_chars = int(q.get("max_chars", 1000) or 0)
+        # 문항을 문자열("...")로 넣거나 {"question": "...", "max_chars": N}
+        # 딕셔너리로 넣거나 둘 다 허용한다.
+        if isinstance(q, str):
+            question_text = q
+            max_chars = 1000
+        else:
+            question_text = str(q.get("question", "") or "")
+            max_chars = int(q.get("max_chars", 1000) or 0)
 
         cover_letter, grounding = generate_grounded_cover_letter(
             client, user, job_key, region, question_text, examples,
@@ -1166,9 +1172,15 @@ user_profile = UserProfile(
 # =============================================================================
 #  여러 문항을 넣으면 문항별 완성형 자소서가 각각 생성됩니다.
 #  비워 두면([]) 자유 형식 1건이 생성됩니다.
+#  ─ 문항은 "문자열" 그대로 넣거나, {"question": "...", "max_chars": N}
+#    딕셔너리로 넣거나 둘 다 가능합니다. (문자열이면 max_chars=1000 기본 적용)
 # =============================================================================
 QUESTIONS = [
-    # 예:
+    # 방법 1) 문자열만 넣기 (간단, 글자수 제한은 기본 1000자)
+    # "지원동기와 입사 후 포부를 기술하시오.",
+    # "가장 도전적이었던 경험과 그 과정에서 배운 점을 기술하시오.",
+
+    # 방법 2) 딕셔너리로 글자수까지 지정 (권장 — 실제 문항의 글자수 제한을 맞출 수 있음)
     # {"question": "지원동기와 입사 후 포부를 기술하시오.", "max_chars": 1000},
     # {"question": "가장 도전적이었던 경험과 그 과정에서 배운 점을 기술하시오.", "max_chars": 1500},
     # {"question": "본인의 강점과 이를 직무에 어떻게 활용할지 기술하시오.", "max_chars": 800},
