@@ -72,8 +72,14 @@ def generate_application(
 
     answers: list[AnswerResult] = []
     for q in questions:
-        question_text = str(q.get("question", "") or "")
-        max_chars = int(q.get("max_chars", 1000) or 0)
+        # 문항을 문자열("...")로 넣거나 {"question": "...", "max_chars": N}
+        # 딕셔너리로 넣거나 둘 다 허용한다.
+        if isinstance(q, str):
+            question_text = q
+            max_chars = 1000
+        else:
+            question_text = str(q.get("question", "") or "")
+            max_chars = int(q.get("max_chars", 1000) or 0)
 
         req = GenerationRequest(
             user=user, job_key=job_key, region=region,
