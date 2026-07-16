@@ -38,6 +38,7 @@ def generate_application(
     tone: str = "",
     store: ReferenceStore | None = None,
     num_style_examples: int = 3,
+    reference_max_chars_each: int = 1400,
     use_company_research: bool = True,
     include_writing_guide: bool = True,
     include_action_plan: bool = True,
@@ -68,6 +69,7 @@ def generate_application(
     if store is not None and len(store) > 0:
         examples = store.select_examples(
             job_key=job_key, region=region, k=num_style_examples,
+            max_chars_each=reference_max_chars_each,
         )
 
     answers: list[AnswerResult] = []
