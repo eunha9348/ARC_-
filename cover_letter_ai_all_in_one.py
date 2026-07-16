@@ -1244,27 +1244,67 @@ QUESTIONS = [
 
 
 # =============================================================================
-# 11. [실행] 문항별 완성형 자소서 생성 + 가이드 + (부가) 액션플랜
-#     직무(job_key)/지역(region) 등을 아래에서 조정하세요.
+# 11. [실행] main() — 문항별 완성형 자소서 생성 + 가이드 + (부가) 액션플랜
 # =============================================================================
-if __name__ == "__main__":
+#  아래 main() 을 호출하면 전체 파이프라인이 실행됩니다.
+#  파라미터를 바꿔 재실행할 수 있습니다. 예:
+#      main(job_key="data")                      # 직무만 바꿔 재생성
+#      main(job_key="data", region="US")         # 미국형으로 생성
+#      main(include_action_plan=False)           # 액션플랜 생략(빠른 실행)
+#  반환값(ApplicationResult)을 받아 후처리도 가능합니다:
+#      result = main(job_key="data")
+#      print(result.answers[0].cover_letter)     # 첫 문항 자소서만 다시 보기
+# =============================================================================
+def main(
+    job_key="",                  # 직무 key. 예: "backend"/"data"/"marketing"/"백엔드" (공란 시 general)
+    region="KR",                 # "KR"(한국형) 또는 "US"(미국형)
+    tone="",                     # 추가 톤 요청(비우면 직무 기본 톤)
+    num_style_examples=3,        # few-shot 문체 예시 개수 (레퍼런스 DB 있을 때만 사용)
+    use_company_research=True,   # ★ 지원 회사 가치를 Google 검색해 은은하게 반영
+    include_writing_guide=True,  # '이 자소서를 내 것으로 만드는 가이드' 포함
+    include_action_plan=True,    # (부가) HR 관점 액션플랜 포함
+    max_grounding_iterations=2,  # 환각 검증→교정 반복 최대 횟수
+    polish=True,                 # 최종 문체 다듬기 패스(어미·반복·시계열 정리)
+    user=None,                   # UserProfile 직접 주입(생략 시 위 9번 구역의 user_profile)
+    questions=None,              # 문항 직접 주입(생략 시 위 10번 구역의 QUESTIONS)
+    store=None,                  # ReferenceStore 직접 주입(생략 시 위 8번 구역의 reference_store)
+):
+    """전체 파이프라인 실행: 회사 리서치 → 문항별 완성형 자소서 생성 →
+    근거검증/교정 → 최종 다듬기 → 작성 가이드 → (부가) 액션플랜.
+
+    결과를 콘솔에 출력하고 ApplicationResult 객체를 반환한다.
+    """
     client = GeminiClient()   # 위 1번 구역의 API 키/모델(gemini-2.5-flash) 사용
-    print(reference_store.balance_report())
+
+    _user = user if user is not None else user_profile
+    _questions = questions if questions is not None else QUESTIONS
+    _store = store if store is not None else reference_store
+
+    print(_store.balance_report())
 
     result = generate_application(
         client=client,
-        user=user_profile,
-        job_key="",                  # 예: "backend" / "data" / "marketing" (공란 시 general)
-        region="KR",                 # "KR"(한국형) 또는 "US"(미국형)
-        questions=QUESTIONS,         # 위 10번 구역에서 입력한 문항들
-        tone="",                     # 추가 톤 요청(비우면 직무 기본 톤)
-        store=reference_store,
-        num_style_examples=3,        # few-shot 문체 예시 개수
-        use_company_research=True,   # ★ 지원 회사 가치를 검색해 은은하게 반영
-        include_writing_guide=True,  # '내 것으로 만드는 가이드' 포함
-        include_action_plan=True,    # (부가) HR 관점 액션플랜 포함
-        max_grounding_iterations=2,  # 환각 검증→교정 반복 횟수
-        polish=True,                 # 최종 문체 다듬기 패스(어미·반복 정리)
+        user=_user,
+        job_key=job_key,
+        region=region,
+        questions=_questions,
+        tone=tone,
+        store=_store,
+        num_style_examples=num_style_examples,
+        use_company_research=use_company_research,
+        include_writing_guide=include_writing_guide,
+        include_action_plan=include_action_plan,
+        max_grounding_iterations=max_grounding_iterations,
+        polish=polish,
     )
 
     print(format_application(result))
+    return result
+
+
+if __name__ == "__main__":
+    # ↓↓↓ 여기서 파라미터를 조정해 실행하세요 ↓↓↓
+    main(
+        job_key="",              # 예: "data" (AI금융/퀀트), "backend", "marketing" ...
+        region="KR",             # "KR" 또는 "US"
+    )
