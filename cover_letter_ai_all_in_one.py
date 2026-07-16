@@ -1034,7 +1034,8 @@ def suggest_action_plan(client, user, job_key):
 # =============================================================================
 def generate_application(client, user, job_key="general", region="KR",
                          questions=None, tone="", store=None,
-                         num_style_examples=3, use_company_research=True,
+                         num_style_examples=3, reference_max_chars_each=1400,
+                         use_company_research=True,
                          include_writing_guide=True, include_action_plan=True,
                          max_grounding_iterations=2, polish=True):
     """지원서 전체(여러 문항)의 완성형 자소서를 생성한다.
@@ -1055,7 +1056,8 @@ def generate_application(client, user, job_key="general", region="KR",
     # 1) 문체 예시 선별 (모든 문항에 공통 사용)
     examples = []
     if store is not None and len(store) > 0:
-        examples = store.select_examples(job_key, region, k=num_style_examples)
+        examples = store.select_examples(job_key, region, k=num_style_examples,
+                                         max_chars_each=reference_max_chars_each)
 
     answers = []
     for q in questions:
@@ -1244,37 +1246,75 @@ QUESTIONS = [
 
 
 # =============================================================================
-# 11. [실행] main() — 문항별 완성형 자소서 생성 + 가이드 + (부가) 액션플랜
+# 11. [실행] main() — 이 코드의 모든 조정 가능한 파라미터를 한 곳에 모은 진입점
 # =============================================================================
-#  아래 main() 을 호출하면 전체 파이프라인이 실행됩니다.
-#  파라미터를 바꿔 재실행할 수 있습니다. 예:
-#      main(job_key="data")                      # 직무만 바꿔 재생성
-#      main(job_key="data", region="US")         # 미국형으로 생성
-#      main(include_action_plan=False)           # 액션플랜 생략(빠른 실행)
-#  반환값(ApplicationResult)을 받아 후처리도 가능합니다:
-#      result = main(job_key="data")
-#      print(result.answers[0].cover_letter)     # 첫 문항 자소서만 다시 보기
+#  ★ 백엔드 개발자 전달용: 파이프라인 전체에서 조정 가능한 파라미터를 전부
+#    main() 인자로 노출했습니다. (연결 · 생성/검증 하이퍼파라미터 · 파이프라인
+#    옵션 · 데이터 주입) 인자를 안 주면 안전한 기본값을 사용합니다.
+#
+#  예:
+#      main(job_key="data")                              # 직무만 바꿔 재생성
+#      main(job_key="data", region="US")                # 미국형으로 생성
+#      main(gen_temperature=0.4)                         # 생성 창의성 ↑
+#      main(api_key="AIza...", model_name="gemini-2.5-flash")  # 키/모델 직접 지정
+#      main(user=my_profile, questions=my_questions)    # 데이터 직접 주입
+#      result = main(job_key="data")                    # 결과 객체 받기
+#      print(result.answers[0].cover_letter)            # 첫 문항 자소서만 다시 보기
 # =============================================================================
 def main(
+    # ---- 직무/문항 설정 ----
     job_key="",                  # 직무 key. 예: "backend"/"data"/"marketing"/"백엔드" (공란 시 general)
     region="KR",                 # "KR"(한국형) 또는 "US"(미국형)
     tone="",                     # 추가 톤 요청(비우면 직무 기본 톤)
+
+    # ---- 연결 설정 (API 키 / 모델) ----
+    api_key=None,                # Google AI Studio API 키. None이면 1번 구역 상수/Secrets 사용
+    model_name=None,             # 모델명. None이면 GEMINI_MODEL_NAME("gemini-2.5-flash")
+
+    # ---- 생성 하이퍼파라미터 (자소서 집필/교정/다듬기 공통) ----
+    gen_temperature=0.25,        # 낮을수록 사실 충실(환각↓), 높을수록 표현 다양성↑
+    gen_top_p=0.9,
+    gen_top_k=40,
+    gen_max_output_tokens=4096,  # 생성 응답 최대 토큰
+
+    # ---- 근거 검증(팩트체크) 하이퍼파라미터 ----
+    verify_temperature=0.0,      # 판정은 결정적으로(0.0 권장)
+    verify_max_output_tokens=2048,
+
+    # ---- 파이프라인 옵션 ----
     num_style_examples=3,        # few-shot 문체 예시 개수 (레퍼런스 DB 있을 때만 사용)
+    reference_max_chars_each=1400,  # 문체 예시 1건당 최대 글자수(길면 잘라 토큰 절약)
     use_company_research=True,   # ★ 지원 회사 가치를 Google 검색해 은은하게 반영
     include_writing_guide=True,  # '이 자소서를 내 것으로 만드는 가이드' 포함
     include_action_plan=True,    # (부가) HR 관점 액션플랜 포함
     max_grounding_iterations=2,  # 환각 검증→교정 반복 최대 횟수
     polish=True,                 # 최종 문체 다듬기 패스(어미·반복·시계열 정리)
-    user=None,                   # UserProfile 직접 주입(생략 시 위 9번 구역의 user_profile)
-    questions=None,              # 문항 직접 주입(생략 시 위 10번 구역의 QUESTIONS)
-    store=None,                  # ReferenceStore 직접 주입(생략 시 위 8번 구역의 reference_store)
+
+    # ---- 데이터 주입 (생략 시 파일 상단 구역의 전역값 사용) ----
+    user=None,                   # UserProfile 직접 주입(생략 시 9번 구역의 user_profile)
+    questions=None,              # 문항 직접 주입(생략 시 10번 구역의 QUESTIONS)
+    store=None,                  # ReferenceStore 직접 주입(생략 시 8번 구역의 reference_store)
 ):
     """전체 파이프라인 실행: 회사 리서치 → 문항별 완성형 자소서 생성 →
     근거검증/교정 → 최종 다듬기 → 작성 가이드 → (부가) 액션플랜.
 
+    이 코드에서 조정 가능한 모든 파라미터를 인자로 받는다.
     결과를 콘솔에 출력하고 ApplicationResult 객체를 반환한다.
     """
-    client = GeminiClient()   # 위 1번 구역의 API 키/모델(gemini-2.5-flash) 사용
+    # 생성/검증 하이퍼파라미터를 전역 설정에 반영(모든 호출 함수가 이 값을 참조)
+    GENERATION_CONFIG.update({
+        "temperature": gen_temperature,
+        "top_p": gen_top_p,
+        "top_k": gen_top_k,
+        "max_output_tokens": gen_max_output_tokens,
+    })
+    VERIFICATION_CONFIG.update({
+        "temperature": verify_temperature,
+        "max_output_tokens": verify_max_output_tokens,
+    })
+
+    # API 키/모델을 인자로 받아 클라이언트 생성(둘 다 None이면 1번 구역 설정 사용)
+    client = GeminiClient(api_key=api_key, model_name=model_name)
 
     _user = user if user is not None else user_profile
     _questions = questions if questions is not None else QUESTIONS
@@ -1291,6 +1331,7 @@ def main(
         tone=tone,
         store=_store,
         num_style_examples=num_style_examples,
+        reference_max_chars_each=reference_max_chars_each,
         use_company_research=use_company_research,
         include_writing_guide=include_writing_guide,
         include_action_plan=include_action_plan,
@@ -1303,8 +1344,10 @@ def main(
 
 
 if __name__ == "__main__":
-    # ↓↓↓ 여기서 파라미터를 조정해 실행하세요 ↓↓↓
+    # ↓↓↓ 여기서 파라미터를 조정해 실행하세요 (필요한 것만 지정, 나머지는 기본값) ↓↓↓
     main(
         job_key="",              # 예: "data" (AI금융/퀀트), "backend", "marketing" ...
         region="KR",             # "KR" 또는 "US"
+        # api_key="AIza...",     # 1번 구역에 안 넣었다면 여기서 직접 지정 가능
+        # gen_temperature=0.25,  # 생성 창의성 조절
     )
