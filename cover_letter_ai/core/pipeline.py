@@ -18,6 +18,7 @@ generate_application() 하나만 호출하면:
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .data_models import (
@@ -181,3 +182,67 @@ def format_application(result: ApplicationResult) -> str:
 
     lines.append("=" * 70)
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+#  프론트엔드 연동용 출력 헬퍼
+#    - split_into_sentences() : 자소서 본문을 '문장 단위'로 분해(편집 UI용)
+#    - result_to_json()       : ApplicationResult 를 JSON 직렬화 가능한 dict 로
+# --------------------------------------------------------------------------
+def split_into_sentences(text: str) -> list[dict[str, Any]]:
+    """자소서 본문을 문장 단위로 분해한다 (프론트 문장별 편집/하이라이트용).
+
+    각 문장은 {"id", "paragraph", "text", "needs_input"} 형태.
+    ※ 한국어 문장 분리는 best-effort(종결부호 . ! ? + 개행 기준)입니다.
+    """
+    sentences: list[dict[str, Any]] = []
+    idx = 0
+    for para_idx, para in enumerate((text or "").split("\n")):
+        if not para.strip():
+            continue
+        parts = re.split(r"(?<=[.!?])\s+", para.strip())
+        for p in parts:
+            p = p.strip()
+            if not p:
+                continue
+            idx += 1
+            sentences.append({
+                "id": f"s{idx}",
+                "paragraph": para_idx,
+                "text": p,
+                "needs_input": ("[보완필요" in p),
+            })
+    return sentences
+
+
+def result_to_json(result: ApplicationResult) -> dict[str, Any]:
+    """ApplicationResult 를 프론트엔드/ API 용 JSON 직렬화 가능한 dict 로 변환.
+
+    문항별로 char_count / char_count_no_space / sentences / grounding /
+    writing_guide 를 포함한다. (구조는 프로젝트 문서 참고)
+    """
+    answers = []
+    for i, ans in enumerate(result.answers, 1):
+        text = ans.cover_letter or ""
+        sentences = split_into_sentences(text)
+        answers.append({
+            "index": i,
+            "question": ans.question,
+            "cover_letter": text,
+            "char_count": len(text),
+            "char_count_no_space": len(text.replace(" ", "").replace("\n", "")),
+            "sentences": sentences,
+            "needs_input": any(s["needs_input"] for s in sentences),
+            "grounding": {
+                "grounded": bool(ans.grounding.grounded),
+                "unsupported_claims": list(ans.grounding.unsupported_claims or []),
+                "notes": ans.grounding.notes or "",
+            },
+            "writing_guide": ans.writing_guide or "",
+        })
+    return {
+        "meta": dict(result.meta or {}),
+        "company_research": result.company_research or "",
+        "action_plan": result.action_plan or "",
+        "answers": answers,
+    }

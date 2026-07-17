@@ -36,7 +36,10 @@ from .core.data_models import (
 )
 from .core.gemini_client import GeminiClient
 from .core.reference_store import ReferenceStore
-from .core.pipeline import generate_application, format_application
+from .core.pipeline import (
+    generate_application, format_application,
+    result_to_json, split_into_sentences,
+)
 from .core.job_profiles import list_job_keys, get_job_profile
 
 __all__ = [
@@ -54,6 +57,8 @@ __all__ = [
     "ReferenceStore",
     "generate_application",
     "format_application",
+    "result_to_json",
+    "split_into_sentences",
     "list_job_keys",
     "get_job_profile",
 ]
