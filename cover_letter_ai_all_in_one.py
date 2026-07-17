@@ -1155,6 +1155,95 @@ def format_application(result: ApplicationResult) -> str:
 
 
 # =============================================================================
+# 7-4. 프론트엔드 연동용 출력 헬퍼
+#      - split_into_sentences() : 자소서 본문을 '문장 단위'로 분해(편집 UI용)
+#      - result_to_json()       : ApplicationResult 를 JSON 직렬화 가능한 dict 로
+# =============================================================================
+def split_into_sentences(text: str) -> list:
+    """자소서 본문을 문장 단위로 분해한다 (프론트 문장별 편집/하이라이트용).
+
+    각 문장은 {"id", "text", "needs_input"} 형태.
+      - id         : 문장 식별자 (예: "s1", "s2" …) — 프론트 편집 추적 키로 사용
+      - text       : 문장 텍스트(종결부호 포함)
+      - needs_input: "[보완필요…]" 표시가 들어있어 사용자 입력이 필요한 문장인지
+    ※ 한국어 문장 분리는 best-effort(종결부호 . ! ? + 개행 기준)입니다.
+      프론트에서 더 정교한 분리가 필요하면 원문(cover_letter)을 직접 재분할하세요.
+    """
+    sentences = []
+    idx = 0
+    for para_idx, para in enumerate((text or "").split("\n")):
+        if not para.strip():
+            continue
+        parts = re.split(r"(?<=[.!?])\s+", para.strip())
+        for p in parts:
+            p = p.strip()
+            if not p:
+                continue
+            idx += 1
+            sentences.append({
+                "id": f"s{idx}",
+                "paragraph": para_idx,          # 같은 문단(문단 index) 그룹핑용
+                "text": p,
+                "needs_input": ("[보완필요" in p),
+            })
+    return sentences
+
+
+def result_to_json(result: ApplicationResult) -> dict:
+    """ApplicationResult 를 프론트엔드/ API 용 JSON 직렬화 가능한 dict 로 변환.
+
+    반환 구조:
+      {
+        "meta": {...},
+        "company_research": str,
+        "action_plan": str,
+        "answers": [
+          {
+            "index": int,                 # 1부터
+            "question": str,
+            "cover_letter": str,          # ★ 전체 본문(원문, 편집 저장 시 기준)
+            "char_count": int,            # 공백 포함 글자수(한국형 글자수 제한 대응)
+            "char_count_no_space": int,   # 공백 제외 글자수
+            "sentences": [ {id, paragraph, text, needs_input}, ... ],
+            "needs_input": bool,          # 이 문항에 [보완필요] 문장이 하나라도 있는지
+            "grounding": {                # 근거 검증(환각 탐지) 결과
+              "grounded": bool,
+              "unsupported_claims": [str, ...],
+              "notes": str
+            },
+            "writing_guide": str
+          }, ...
+        ]
+      }
+    """
+    answers = []
+    for i, ans in enumerate(result.answers, 1):
+        text = ans.cover_letter or ""
+        sentences = split_into_sentences(text)
+        answers.append({
+            "index": i,
+            "question": ans.question,
+            "cover_letter": text,
+            "char_count": len(text),
+            "char_count_no_space": len(text.replace(" ", "").replace("\n", "")),
+            "sentences": sentences,
+            "needs_input": any(s["needs_input"] for s in sentences),
+            "grounding": {
+                "grounded": bool(ans.grounding.grounded),
+                "unsupported_claims": list(ans.grounding.unsupported_claims or []),
+                "notes": ans.grounding.notes or "",
+            },
+            "writing_guide": ans.writing_guide or "",
+        })
+    return {
+        "meta": dict(result.meta or {}),
+        "company_research": result.company_research or "",
+        "action_plan": result.action_plan or "",
+        "answers": answers,
+    }
+
+
+# =============================================================================
 # 8. [레퍼런스 DB] 모범 자소서 연결 (선택 사항, 비워둬도 정상 동작)
 # =============================================================================
 #  실제 모범 자소서(한국형 750 + 미국형 250)는 별도 DB/코드에서 불러온다면
