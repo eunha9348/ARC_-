@@ -66,7 +66,7 @@ Google AI Studio의 **Gemini(`gemini-2.5-flash`)** 를 사용해, **사용자 �
 
 ---
 
-# Career Analysis AI — COMPREHENSIVE Edition v3.0
+# Career Analysis AI — COMPREHENSIVE Edition v3.1
 
 종합 커리어 분석 모듈. v2.0 에서 발생한 **환각(Hallucination) 장애**를 구조적으로
 재설계한 버전입니다.
@@ -81,7 +81,8 @@ Google AI Studio의 **Gemini(`gemini-2.5-flash`)** 를 사용해, **사용자 �
 | `analysis_response.py` | 응답 envelope 모델 (pydantic 선택 의존) |
 | `tests/test_hallucination_guard.py` | 환각 가드 회귀 테스트 25건 |
 | `tests/test_star_quality.py` | STAR 품질 회귀 테스트 18건 |
-| `docs/field_report_hallucination_v3.html` | 장애 원인 분석 필드 리포트 |
+| `docs/comprehensive_analysis_dossier.html` | 시스템 도시에 — 전체 로직·필드 리포트·품질 체계 |
+| `docs/field_report_hallucination_v3.html` | 장애 원인 분석 필드 리포트 (단독본) |
 
 ## 실행
 
@@ -92,7 +93,8 @@ export USER_DEPARTMENT="경영학과"      # 선택
 
 cat my_career.txt | python3 career_analysis_comprehensive.py
 
-python3 tests/test_hallucination_guard.py   # 회귀 테스트
+python3 tests/test_hallucination_guard.py   # 환각 가드 25건
+python3 tests/test_star_quality.py         # STAR 품질 18건
 ```
 
 ## v2.0 에서 무엇이 문제였나

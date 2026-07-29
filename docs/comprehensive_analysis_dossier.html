@@ -1,0 +1,1347 @@
+<title>종합 커리어 분석 — 시스템 도시에 (v3.1)</title>
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:      #F4F7F7;
+    --surface:     #FFFFFF;
+    --surface-alt: #EDF2F2;
+    --ink:         #14181A;
+    --ink-soft:    #454F52;
+    --ink-faint:   #6E797C;
+    --rule:        #D2DCDC;
+    --rule-strong: #B4C3C3;
+
+    --accent:      #0F5F63;
+    --accent-soft: #DCEBEB;
+    --accent-ink:  #0B4B4E;
+
+    --critical:    #A32E1F;
+    --critical-bg: #F7E4E1;
+    --fixed:       #2C6B44;
+    --fixed-bg:    #DFEDE4;
+    --warn:        #8A6116;
+    --warn-bg:     #F5EAD5;
+
+    --sans: "Pretendard", "Pretendard Variable", -apple-system, BlinkMacSystemFont,
+            "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "맑은 고딕",
+            system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono",
+            "Cascadia Mono", Menlo, Consolas, monospace;
+
+    --measure: 70ch;
+    --pad: clamp(1.1rem, 4vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0E1213; --surface: #161C1D; --surface-alt: #1D2526;
+      --ink: #E6ECEC; --ink-soft: #AEBBBB; --ink-faint: #7E8C8C;
+      --rule: #2A3435; --rule-strong: #3C4849;
+      --accent: #5FB6B8; --accent-soft: #12302F; --accent-ink: #8FD3D4;
+      --critical: #E08578; --critical-bg: #33201C;
+      --fixed: #7FBE96; --fixed-bg: #172B20;
+      --warn: #D6AC63; --warn-bg: #2E2415;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E1213; --surface: #161C1D; --surface-alt: #1D2526;
+    --ink: #E6ECEC; --ink-soft: #AEBBBB; --ink-faint: #7E8C8C;
+    --rule: #2A3435; --rule-strong: #3C4849;
+    --accent: #5FB6B8; --accent-soft: #12302F; --accent-ink: #8FD3D4;
+    --critical: #E08578; --critical-bg: #33201C;
+    --fixed: #7FBE96; --fixed-bg: #172B20;
+    --warn: #D6AC63; --warn-bg: #2E2415;
+  }
+  :root[data-theme="light"] {
+    --ground: #F4F7F7; --surface: #FFFFFF; --surface-alt: #EDF2F2;
+    --ink: #14181A; --ink-soft: #454F52; --ink-faint: #6E797C;
+    --rule: #D2DCDC; --rule-strong: #B4C3C3;
+    --accent: #0F5F63; --accent-soft: #DCEBEB; --accent-ink: #0B4B4E;
+    --critical: #A32E1F; --critical-bg: #F7E4E1;
+    --fixed: #2C6B44; --fixed-bg: #DFEDE4;
+    --warn: #8A6116; --warn-bg: #F5EAD5;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  .wrap { max-width: 82rem; margin: 0 auto; padding: 0 var(--pad) 6rem; }
+
+  /* ── 머리말 ── */
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: clamp(2.5rem, 6vw, 4.5rem) 0 1.5rem;
+    display: flex; flex-direction: column; gap: 1.5rem;
+  }
+  .stamp {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--accent);
+    display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem;
+  }
+  .stamp b { font-weight: 600; color: var(--ink-soft); }
+  h1 {
+    margin: 0; font-size: clamp(1.9rem, 5.2vw, 3rem); line-height: 1.18;
+    letter-spacing: -0.02em; font-weight: 700; text-wrap: balance; max-width: 22ch;
+  }
+  .standfirst {
+    margin: 0; max-width: var(--measure);
+    font-size: clamp(1rem, 2.2vw, 1.1rem); color: var(--ink-soft);
+  }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-top: 0.5rem;
+  }
+  .meta-grid div {
+    background: var(--surface); padding: 0.85rem 1rem;
+    display: flex; flex-direction: column; gap: 0.2rem;
+  }
+  .meta-grid .k {
+    font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+  .meta-grid .v {
+    font-family: var(--mono); font-size: 0.95rem; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── 레이아웃: 목차 + 본문 ── */
+  .layout { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+  @media (min-width: 68rem) {
+    .layout { grid-template-columns: 15rem minmax(0, 1fr); gap: 3.5rem; }
+    .toc { position: sticky; top: 2rem; align-self: start; max-height: calc(100vh - 4rem); overflow-y: auto; }
+  }
+  .toc { padding-top: 2.75rem; }
+  .toc-label {
+    font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--ink-faint);
+    border-bottom: 1px solid var(--rule); padding-bottom: 0.5rem; margin-bottom: 0.75rem;
+  }
+  .toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  .toc li { margin: 0; padding: 0; max-width: none; }
+  .toc a {
+    display: flex; gap: 0.6rem; padding: 0.3rem 0;
+    font-size: 0.86rem; color: var(--ink-soft); text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  .toc a::before {
+    counter-increment: toc; content: "§" counter(toc);
+    font-family: var(--mono); font-size: 0.72rem; color: var(--accent);
+    flex: 0 0 1.7rem; padding-top: 0.15rem;
+  }
+  .toc a:hover { color: var(--accent); }
+
+  /* ── 섹션 ── */
+  section { padding-top: clamp(2.5rem, 5vw, 4rem); scroll-margin-top: 1.5rem; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 0.6rem;
+  }
+  h2 {
+    margin: 0 0 1rem; font-size: clamp(1.4rem, 3.2vw, 1.8rem); line-height: 1.3;
+    letter-spacing: -0.015em; font-weight: 700; text-wrap: balance;
+    border-bottom: 1px solid var(--rule); padding-bottom: 0.6rem;
+  }
+  h3 {
+    margin: 1.75rem 0 0.5rem; font-size: 1.05rem; font-weight: 700;
+    line-height: 1.45; text-wrap: balance;
+  }
+  h4 {
+    margin: 1.25rem 0 0.4rem; font-size: 0.94rem; font-weight: 700; color: var(--ink-soft);
+  }
+  p, li { max-width: var(--measure); }
+  p { margin: 0 0 1rem; }
+  ul, ol { margin: 0 0 1rem; padding-left: 1.25rem; }
+  li { margin-bottom: 0.35rem; }
+  code {
+    font-family: var(--mono); font-size: 0.86em; background: var(--surface-alt);
+    border: 1px solid var(--rule); border-radius: 3px; padding: 0.08em 0.34em;
+    word-break: break-all;
+  }
+  strong { font-weight: 700; }
+
+  /* ── 파이프라인 스테이지 ── */
+  .pipeline { display: flex; flex-direction: column; gap: 0; margin: 1.5rem 0; }
+  .stage {
+    display: grid; grid-template-columns: 3.4rem minmax(0, 1fr);
+    gap: 0 1.25rem; background: var(--surface);
+    border: 1px solid var(--rule); border-bottom: none; padding: 1.1rem 1.2rem;
+  }
+  .stage:last-child { border-bottom: 1px solid var(--rule); }
+  .stage-n {
+    font-family: var(--mono); font-size: 1.1rem; font-weight: 700;
+    color: var(--accent); font-variant-numeric: tabular-nums; padding-top: 0.1rem;
+  }
+  .stage-body > *:last-child { margin-bottom: 0; }
+  .stage h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+  .stage p { margin: 0 0 0.5rem; font-size: 0.93rem; color: var(--ink-soft); }
+  .io {
+    display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem;
+    font-family: var(--mono); font-size: 0.71rem; color: var(--ink-faint);
+    margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--rule);
+  }
+  .io b { color: var(--accent); font-weight: 600; }
+  .io .guard { color: var(--critical); }
+
+  /* ── 카드 ── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-top: 3px solid var(--accent); padding: 1.05rem 1.1rem 1.2rem;
+    display: flex; flex-direction: column; gap: 0.45rem;
+  }
+  .card.crit { border-top-color: var(--critical); }
+  .card .id {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em;
+    color: var(--accent); font-weight: 700;
+  }
+  .card.crit .id { color: var(--critical); }
+  .card h3 { margin: 0; font-size: 0.98rem; }
+  .card p { margin: 0; font-size: 0.9rem; color: var(--ink-soft); max-width: none; }
+
+  /* ── 원인/수정 행 ── */
+  .row {
+    display: grid; grid-template-columns: 4.5rem minmax(0, 1fr);
+    gap: 0 1.25rem; padding: 1.15rem 0; border-top: 1px solid var(--rule);
+  }
+  .row:last-of-type { border-bottom: 1px solid var(--rule); }
+  .row-id {
+    font-family: var(--mono); font-size: 0.8rem; font-weight: 700;
+    letter-spacing: 0.06em; color: var(--accent); padding-top: 0.25rem;
+  }
+  .row-id.c { color: var(--critical); }
+  .row-id.f { color: var(--fixed); }
+  .row-body > *:last-child { margin-bottom: 0; }
+  .row-body h3 { margin: 0 0 0.4rem; font-size: 0.99rem; }
+  .row-body p { font-size: 0.93rem; color: var(--ink-soft); margin-bottom: 0.5rem; }
+  .kills {
+    font-family: var(--mono); font-size: 0.7rem; color: var(--ink-faint); margin-top: 0.5rem;
+  }
+  .kills b { color: var(--accent); font-weight: 600; }
+
+  /* ── 코드 ── */
+  pre.block {
+    margin: 0.85rem 0; background: var(--surface); border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule-strong); padding: 0.85rem 1rem;
+    overflow-x: auto; font-family: var(--mono); font-size: 0.78rem;
+    line-height: 1.68; color: var(--ink-soft); white-space: pre;
+  }
+  pre.block b { color: var(--fixed); font-weight: 700; }
+  pre.block em { font-style: normal; color: var(--critical); font-weight: 700; }
+  pre.block i { font-style: normal; color: var(--ink-faint); }
+
+  /* ── 표 ── */
+  .scroll { overflow-x: auto; border: 1px solid var(--rule); margin: 1.4rem 0; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 42rem; font-size: 0.87rem; }
+  th, td { text-align: left; padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--rule); vertical-align: top; max-width: none; }
+  thead th {
+    font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--ink-faint); font-weight: 600;
+    background: var(--surface-alt); border-bottom: 1px solid var(--rule-strong); white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pill {
+    display: inline-block; font-family: var(--mono); font-size: 0.67rem; font-weight: 700;
+    letter-spacing: 0.07em; padding: 0.14rem 0.42rem; border-radius: 2px; white-space: nowrap;
+  }
+  .pill.c { background: var(--critical-bg); color: var(--critical); }
+  .pill.f { background: var(--fixed-bg); color: var(--fixed); }
+  .pill.w { background: var(--warn-bg); color: var(--warn); }
+  .pill.a { background: var(--accent-soft); color: var(--accent-ink); }
+
+  /* ── 강조 블록 ── */
+  .callout {
+    background: var(--accent-soft); border: 1px solid var(--accent);
+    padding: clamp(1.1rem, 2.5vw, 1.6rem); margin: 1.4rem 0;
+  }
+  .callout p { color: var(--accent-ink); margin-bottom: 0.7rem; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .lede {
+    font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em;
+    text-transform: uppercase; margin-bottom: 0.5rem; color: var(--accent);
+  }
+  .warnbox {
+    background: var(--warn-bg); border: 1px solid var(--warn);
+    padding: 1.1rem 1.3rem; margin: 1.4rem 0;
+  }
+  .warnbox p { color: var(--ink); margin-bottom: 0.6rem; }
+  .warnbox p:last-child { margin-bottom: 0; }
+
+  .note {
+    border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.25rem;
+    font-size: 0.86rem; color: var(--ink-faint);
+  }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="stamp">
+      <span>System Dossier</span>
+      <span><b>ARC_-</b> / career-analysis</span>
+      <span>v3.1</span>
+      <span>2026-07-29</span>
+    </div>
+    <h1>종합 커리어 분석 — 전체 로직 · 장애 기록 · 검증 체계</h1>
+    <p class="standfirst">
+      종합 분석 모듈의 파이프라인 전체 구조, v2.0 에서 발생한 환각 장애의 원인 분석과
+      수정 내역, 그리고 v3.1 에서 도입한 STAR 품질 채점까지를 한 문서에 모은
+      기술 도시에다. 필드 리포트(장애 기록)는 §4 에 포함되어 있다.
+    </p>
+    <div class="meta-grid">
+      <div><span class="k">파이프라인 단계</span><span class="v">8</span></div>
+      <div><span class="k">특정 원인</span><span class="v">13</span></div>
+      <div><span class="k">적용 수정</span><span class="v">8</span></div>
+      <div><span class="k">품질 루브릭</span><span class="v">10</span></div>
+      <div><span class="k">회귀 테스트</span><span class="v">43 / 43</span></div>
+      <div><span class="k">자격증 레지스트리</span><span class="v">113</span></div>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <nav class="toc" aria-label="목차">
+      <div class="toc-label">목차</div>
+      <ol>
+        <li><a href="#s1">시스템 개요</a></li>
+        <li><a href="#s2">신뢰 모델</a></li>
+        <li><a href="#s3">파이프라인 전체 로직</a></li>
+        <li><a href="#s4">장애 기록 (필드 리포트)</a></li>
+        <li><a href="#s5">환각 가드 레퍼런스</a></li>
+        <li><a href="#s6">STAR 파이프라인과 품질 채점</a></li>
+        <li><a href="#s7">출력 스키마</a></li>
+        <li><a href="#s8">테스트 커버리지</a></li>
+        <li><a href="#s9">운영과 설정</a></li>
+        <li><a href="#s10">한계와 남은 과제</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <!-- ═══════════ 1 ═══════════ -->
+      <section id="s1">
+        <p class="eyebrow">01</p>
+        <h2>시스템 개요</h2>
+        <p>
+          사용자의 경력·활동 기록을 받아 <strong>역량 분석 · 강점/약점 진단 · STAR
+          이력서 초안 · 추가 활동 추천</strong>을 생성하는 모듈이다. 입력은 직접 텍스트,
+          파일 경로(텍스트/PDF), 또는 URL(Notion 포함)이며, 출력은 단일 JSON envelope 다.
+        </p>
+
+        <div class="cards">
+          <div class="card">
+            <span class="id">INPUT</span>
+            <h3>세 가지 입력 경로</h3>
+            <p>직접 텍스트 · 파일(txt/pdf) · URL. URL 은 Notion 전용 크롤러와
+               일반 딥 크롤러로 분기한다.</p>
+          </div>
+          <div class="card">
+            <span class="id">ANALYSIS</span>
+            <h3>단일 LLM 호출</h3>
+            <p>Gemini 2.5 Pro 로 요약·클러스터링·시너지·강점·약점·STAR 를 한 번에
+               생성한다. 이 호출에는 검색을 붙이지 않는다.</p>
+          </div>
+          <div class="card">
+            <span class="id">VERIFY</span>
+            <h3>후보 검증 단계</h3>
+            <p>추천 항목은 '최종 추천'이 아니라 '검증 후보'로 생성되고, 별도 관문을
+               통과한 것만 살아남는다.</p>
+          </div>
+          <div class="card">
+            <span class="id">OUTPUT</span>
+            <h3>감사 추적 동반</h3>
+            <p>무엇이 왜 제거되었는지 <code>verification_audit</code> 으로 함께 나간다.</p>
+          </div>
+        </div>
+
+        <h3>산출물 구성</h3>
+        <ul>
+          <li><strong>요약·클러스터링</strong> — 한 줄 요약, 심층 요약, 성향/역량/직군 키워드</li>
+          <li><strong>시너지 조합</strong> — 보유 항목 간 결합 효과 2~5개</li>
+          <li><strong>강점 진단</strong> — 7개 카테고리, level 3단계, 근거 인용 필수</li>
+          <li><strong>보완점 진단</strong> — 7개 카테고리, severity 3단계, 완화 표현 금지</li>
+          <li><strong>STAR 이력서 초안</strong> — 근거 결속 + 품질 등급 (§6)</li>
+          <li><strong>추가 추천</strong> — 자격증 / 동아리·학회 / 공모전 (전부 검증 통과분만)</li>
+          <li><strong>채용공고</strong> — 검색 그라운딩 단계에서만 생성</li>
+          <li><strong>액션 플랜</strong> — 단기/중기/장기</li>
+        </ul>
+      </section>
+
+      <!-- ═══════════ 2 ═══════════ -->
+      <section id="s2">
+        <p class="eyebrow">02</p>
+        <h2>신뢰 모델</h2>
+
+        <div class="callout">
+          <p class="lede">제1 원칙</p>
+          <p>
+            <strong>모델의 자기 보고는 신뢰 원천이 아니다.</strong> 모델이
+            <code>"verified": true</code> 라고 말하는 것은 그 자체로 아무 효력이 없다.
+            환각을 막는 모든 판정은 결정론적 코드가 내리고, 프롬프트는 보조 수단으로만 쓴다.
+          </p>
+        </div>
+
+        <p>시스템이 인정하는 신뢰 원천은 셋뿐이다.</p>
+
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th class="mono">원천</th><th>무엇을 보증하는가</th><th>어디에 쓰이는가</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono"><span class="pill a">1</span> 사용자 입력 원문</td>
+                <td>사용자가 실제로 적은 사실</td>
+                <td>STAR 전 슬롯, 강점·약점 근거, 모든 수치</td>
+              </tr>
+              <tr>
+                <td class="mono"><span class="pill a">2</span> 검색 그라운딩</td>
+                <td>모델 주장이 아닌 실제 검색 결과 chunk</td>
+                <td>자격증·동아리·공모전 실재성, 채용공고 생성</td>
+              </tr>
+              <tr>
+                <td class="mono"><span class="pill a">3</span> 실제 HTTP 응답</td>
+                <td>링크가 지금 살아 있고 그 내용이 맞다는 사실</td>
+                <td>모든 URL 부착</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          이 셋 중 어느 것으로도 뒷받침되지 않는 값은 코드가 기계적으로 제거한다.
+          제거는 조용히 일어나지 않고 전부 감사 로그에 남는다.
+        </p>
+      </section>
+
+      <!-- ═══════════ 3 ═══════════ -->
+      <section id="s3">
+        <p class="eyebrow">03</p>
+        <h2>파이프라인 전체 로직</h2>
+        <p>
+          <code>main()</code> 은 8단계로 구성된다. 각 단계는 앞 단계의 실패를 삼키지 않고
+          fail-closed 로 전파한다.
+        </p>
+
+        <div class="pipeline">
+
+          <div class="stage">
+            <div class="stage-n">0</div>
+            <div class="stage-body">
+              <h3>입력 수집</h3>
+              <p>
+                단일 URL 이면 크롤링, 파일 경로면 읽기, 그 외에는 텍스트로 취급한다.
+                Notion URL 은 <code>__NEXT_DATA__</code> 블록 파싱 → OG 메타 → HTML 텍스트
+                순으로 시도한다. 일반 URL 은 같은 오리진을 BFS 로 훑고 PDF 를 우선 큐잉한다.
+              </p>
+              <p>
+                <strong>크롤링에 실패하면 추론하지 않는다.</strong> v2.0 은 URL 슬러그로
+                내용을 "최대한 추론"하라고 지시했는데, 그것이 환각 생성 지시였다. v3 는
+                데이터 부재를 그대로 하류에 알린다.
+              </p>
+              <div class="io">
+                <span><b>IN</b> lines[]</span>
+                <span><b>OUT</b> raw_content</span>
+                <span class="guard">GUARD 추론 금지 지시문</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-n">1</div>
+            <div class="stage-body">
+              <h3>STAR 적합성 사전 판정 — LLM 호출 전</h3>
+              <p>
+                입력을 경험 블록으로 쪼개고 5개 신호(분량·행동동사·수치성과·기간·역할)로
+                채점한다. 4개 이상을 만족하는 블록이 하나도 없으면
+                <strong>STAR 생성을 아예 요청하지 않고</strong> 스키마에서 필드를 제거한다.
+              </p>
+              <p>
+                "부족하면 만들지 말라"를 LLM 판단에 맡기지 않는 것이 핵심이다.
+                '부족'의 정의를 코드가 갖는다.
+              </p>
+              <div class="io">
+                <span><b>IN</b> raw_content</span>
+                <span><b>OUT</b> StarReadiness</span>
+                <span class="guard">GUARD assess_star_readiness()</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-n">2</div>
+            <div class="stage-body">
+              <h3>임베딩 생성</h3>
+              <p>
+                <code>gemini-embedding-001</code> 로 벡터화한다. SDK 시그니처 차이를 대비해
+                3가지 호출 형태를 순차 시도하고, 전부 실패해도 분석은 계속한다
+                (벡터는 검색용 부가 산출물이므로 분석을 막지 않는다).
+              </p>
+              <div class="io">
+                <span><b>IN</b> raw_content[:10000]</span>
+                <span><b>OUT</b> vector | None</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-n">3</div>
+            <div class="stage-body">
+              <h3>본 분석 — 검색 없는 단일 호출</h3>
+              <p>
+                요약·클러스터링·시너지·강점·약점·(조건부)STAR 를 생성한다.
+                추천 항목은 최종 추천이 아니라 <strong>검증 후보</strong>로 생성되며,
+                <code>verification_query</code> 를 함께 요구한다.
+              </p>
+              <p>
+                프롬프트 스키마에는 <code>url</code> 필드가 존재하지 않는다 — 모델이 URL 을
+                출력할 자리 자체를 없앴다. 그럼에도 URL 이 섞여 들어오는 경우를 대비해
+                호출 직후 <code>scrub_model_urls()</code> 로 1차 스크럽한다.
+              </p>
+              <div class="io">
+                <span><b>IN</b> raw_content, school, dept, star_ready</span>
+                <span><b>OUT</b> result dict</span>
+                <span class="guard">GUARD scrub_model_urls()</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-n">4</div>
+            <div class="stage-body">
+              <h3>추천 후보 검증</h3>
+              <p>
+                자격증 → 동아리 → 공모전 순으로 각각 독립 검증한다. 공통 구조는
+                <strong>반증형 이중 검증</strong>이다: "존재를 확인하라"가 아니라
+                "실재하지 않는다는 증거를 찾아라"로 프롬프트를 뒤집고, 온도가 다른
+                2회 호출(0.0 / 0.4)이 모두 통과해야 인정한다.
+              </p>
+              <p>
+                추천 이유 같은 생성 맥락은 검증 프롬프트에 넘기지 않는다 — 확증편향 차단.
+                자격증은 검색 전에 레지스트리·등급 문법으로 먼저 거른다(§5).
+              </p>
+              <p>
+                <strong>개수 쿼터는 없다.</strong> 0개도 정상 결과이며, 빈 결과에는
+                사유와 사용자가 직접 확인할 검색어가 붙는다.
+              </p>
+              <div class="io">
+                <span><b>IN</b> 후보 리스트</span>
+                <span><b>OUT</b> 통과분 + rejected_by_guard</span>
+                <span class="guard">GUARD 그라운딩 대조 · URL 프로브</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-n">5</div>
+            <div class="stage-body">
+              <h3>STAR 근거 검증 + 품질 채점</h3>
+              <p>
+                두 관문을 순서대로 통과시킨다. 먼저
+                <code>validate_star_entries()</code> 가 근거를 검사하고(위반 시 폐기),
+                살아남은 항목만 <code>evaluate_star_entries()</code> 가 품질을 채점한다
+                (미달이어도 폐기하지 않고 등급·개선 지시를 부착).
+              </p>
+              <div class="io">
+                <span><b>IN</b> resume_star_format, raw_content</span>
+                <span><b>OUT</b> 검증분 + quality + star_analysis_status</span>
+                <span class="guard">GUARD 인용 대조 · 수치 검사 · 중복도</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-n">6</div>
+            <div class="stage-body">
+              <h3>채용공고 — 검색 그라운딩 단계</h3>
+              <p>
+                본 분석에서 만들지 않는다. 직무 키워드로 그라운딩 검색을 돌려
+                <strong>검색 결과에서만</strong> 공고를 만들고, 회사명이 검색 근거에
+                등장하는지 대조한 뒤, 근거 URI 를 HTTP 프로브해 통과한 것만 남긴다.
+              </p>
+              <p>
+                채용공고는 링크 없이는 실행 불가능한 추천이므로, URL 검증 실패 시
+                항목 자체를 제외한다(동아리는 링크 없이도 유지).
+              </p>
+              <div class="io">
+                <span><b>IN</b> target_job_keywords</span>
+                <span><b>OUT</b> verified_jobs</span>
+                <span class="guard">GUARD 그라운딩 + probe_url()</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-n">7</div>
+            <div class="stage-body">
+              <h3>최종 스크럽 · 감사 · 직렬화</h3>
+              <p>
+                검증을 통과한 URL 집합을 allowlist 로 삼아 결과 전체를 다시 훑고
+                (2차 스크럽), 감사 로그와 제거 목록을 붙인 뒤 envelope 로 직렬화한다.
+                stdout 은 JSON 전용이고 요약 로그는 stderr 로 분리한다.
+              </p>
+              <div class="io">
+                <span><b>OUT</b> VectorSuccessResponse{ status, result, vector }</span>
+                <span class="guard">GUARD scrub_model_urls(allowlist)</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ═══════════ 4 ═══════════ -->
+      <section id="s4">
+        <p class="eyebrow">04 — 필드 리포트</p>
+        <h2>장애 기록: v2.0 환각 사고</h2>
+
+        <h3>보고된 증상</h3>
+        <div class="cards">
+          <article class="card crit">
+            <span class="id">H-1</span>
+            <h3>접속되지 않는 동아리·학회 링크</h3>
+            <p>추천 카드의 URL 이 404 이거나, 200 을 반환하지만 실제로는 존재하지 않는
+               페이지였다.</p>
+          </article>
+          <article class="card crit">
+            <span class="id">H-2</span>
+            <h3>재구조화에 불과한 STAR</h3>
+            <p>네 칸이 사용자가 쓴 한 문장을 표현만 바꿔 나눠 담았다. 입력이 빈약할 때는
+               없는 상황과 성과 수치를 지어냈다.</p>
+          </article>
+          <article class="card crit">
+            <span class="id">H-3</span>
+            <h3>존재하지 않는 자격증</h3>
+            <p>완전 허구보다 <strong>실재 자격증 + 없는 등급</strong> 조합이 더 많았고
+               더 오래 살아남았다.</p>
+          </article>
+        </div>
+
+        <div class="callout">
+          <p class="lede">핵심 진단</p>
+          <p>
+            v2.0 의 환각 방지 규칙 9개는 잘 쓰인 규칙이었다. 문제는 그것이 전부
+            <strong>모델에게 하는 부탁</strong>이었고, 같은 파일 안에서 코드가 강제한 것은
+            정반대였다는 점이다 — 개수를 채우라는 쿼터, 채울 자리가 있는 스키마,
+            모델의 자기 보고를 그대로 믿는 검증기.
+          </p>
+          <p><strong>규칙은 요청이고 구조는 강제다. 둘이 충돌하면 항상 구조가 이긴다.</strong></p>
+        </div>
+
+        <h3>구조적 원인 13건</h3>
+
+        <div class="row">
+          <div class="row-id c">C-1</div>
+          <div class="row-body">
+            <h3>쿼터가 "확실하지 않으면 제외"를 무력화</h3>
+            <p>
+              규칙 3("최소 3개")과 규칙 1·4("확실하지 않으면 제외")가 정면 충돌한다.
+              확실한 항목이 1개뿐일 때 둘을 동시에 만족시킬 방법은 없고, 정량 목표가
+              정성 목표를 이긴다. 게다가 이 쿼터는 코드에도 있었다 — 검증 탈락으로 개수가
+              모자라면 <strong>더 지어내라고 다시 요청</strong>했다.
+            </p>
+            <pre class="block">"실재 여부가 확실하지 않으면 제외하되,
+ <em>제외로 인해 3개 미만이 되면 ... 보충하여 3개를 채울 것</em>"
+
+if len(result) &lt; min_clubs and school:
+    extra_raw = <em>_request_broader_clubs</em>(school, department, existing_names)</pre>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-2</div>
+          <div class="row-body">
+            <h3>생성자와 검증자가 같은 모델·같은 기억</h3>
+            <p>
+              항목을 만든 바로 그 <code>gemini-2.5-pro</code> 에게
+              <code>"verified": true/false</code> 를 물었다. 같은 파라메트릭 메모리를
+              공유하는 두 호출은 독립 검증이 아니라 확증편향 증폭기다. 추천 이유까지
+              함께 넘겨 맥락을 주었다.
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-3</div>
+          <div class="row-body">
+            <h3>검색 도구를 붙였을 뿐, 검색했는지는 확인하지 않음</h3>
+            <p>
+              가장 큰 착시. <code>use_google_search=True</code> 는 도구를 사용할 수 있게
+              할 뿐 사용을 보장하지 않는다. 모델은 검색 없이 기억으로 답하고 거기에
+              <code>verified: true</code> 를 붙일 수 있으며, v2.0 은
+              <code>grounding_metadata</code> 를 한 번도 읽지 않았다.
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-4</div>
+          <div class="row-body">
+            <h3>동아리·공모전·자격증 URL 은 접속 확인을 거치지 않음</h3>
+            <p>
+              <code>_verify_url_content()</code> 는 채용공고에만 적용되었다. 나머지 세
+              카테고리는 모델이 말한 <code>official_url</code> 을 그대로 실었다.
+              H-1 의 직접 경로다.
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-5</div>
+          <div class="row-body">
+            <h3>채용공고 URL 검사조차 soft-404 를 통과시킴</h3>
+            <p>
+              <code>status &lt; 400</code> 만 확인해, 200 을 주면서 "페이지를 찾을 수
+              없습니다"를 보여주는 페이지가 전부 통과했다. <code>is_job</code> 은 페이지
+              어딘가에 "채용" 한 단어만 있으면 참이 되는데, 그 단어는 거의 모든 기업
+              사이트의 전역 내비게이션에 있다.
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-6</div>
+          <div class="row-body">
+            <h3>누락된 판정값이 '통과'로 기본 처리 (fail-open)</h3>
+            <pre class="block">if not vr.get("deadline_ok", <em>True</em>):   <i># 필드 누락 → 통과</i>
+    continue
+<i># upcoming 은 프롬프트에만 존재, 코드에서 미검사 → 끝난 공모전이 나감</i>
+
+except ValueError:
+    <em>valid.append(job)</em>              <i># 마감일 파싱 실패 → 유효 처리</i></pre>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-7</div>
+          <div class="row-body">
+            <h3>검증 결과를 원문 문자열 그대로 매칭</h3>
+            <p>
+              <code>vmap = {r.get("name",""): r}</code> — 검증자가 <code>(사)한국OO협회</code>
+              를 <code>한국 OO 협회</code> 로 되돌려주면 매칭이 실패한다. 결과가 무작위로
+              흔들렸고 추적할 방법도 없었다.
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-8</div>
+          <div class="row-body">
+            <h3>규칙은 "만들지 말라", 스키마에는 채울 자리가 있음</h3>
+            <p>
+              H-2 의 핵심. 규칙 7 은 데이터가 부족하면 STAR 를 만들지 말라고 했는데,
+              출력 스키마에는 <code>resume_star_format</code> 이 <strong>예시 객체와 함께
+              항상</strong> 있었고 "부족하다"를 담을 필드는 없었다.
+              모델이 스키마를 지키면서 규칙을 지킬 방법이 없으면 스키마가 이긴다.
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-9</div>
+          <div class="row-body">
+            <h3>STAR 만 근거 인용 의무에서 제외</h3>
+            <p>
+              강점·약점 진단은 항목마다 <code>evidence</code> 를 요구했는데 STAR 의
+              S·T·A·R 에는 근거 요구가 없었다. 출처를 묻지 않으면 모델은 가장 쉬운 길을
+              간다 — 있는 문장을 네 칸에 나눠 담거나(재구조화), 빈 칸을 지어낸다(창작).
+              <strong>두 증상이 한 원인에서 나왔다.</strong>
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-10</div>
+          <div class="row-body">
+            <h3>크롤링 실패 시 "추론하라"고 지시</h3>
+            <pre class="block">f"[크롤링 실패]\n"
+f"<em>URL 경로명과 도메인을 바탕으로 내용을 최대한 추론하십시오.</em>\n"</pre>
+            <p>환각 방지 규칙이 아니라 환각 생성 지시문이었다.</p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-11</div>
+          <div class="row-body">
+            <h3>채용공고를 검색 없이 먼저 만들고 나중에 지움</h3>
+            <p>
+              본 분석 호출은 <code>use_google_search=False</code> 였다. 존재하지 않는
+              공고를 기억으로 먼저 만들어 놓고 사후 필터에 전부를 걸었다.
+              생성-후-필터링은 추천 도메인에서 잘못된 순서다.
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-12</div>
+          <div class="row-body">
+            <h3>쿼터 보충 경로가 검증을 더 느슨하게 통과</h3>
+            <p>
+              보충 루프에서는 <code>wrong_school</code> 과 <code>verified</code> 만 확인하고
+              교차 학교 확인을 생략했다. <strong>가장 지어낼 가능성이 높은 경로에 가장 약한
+              검증</strong>이 걸려 있었다.
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id c">C-13</div>
+          <div class="row-body">
+            <h3>무엇이 왜 걸러졌는지 산출물에 남지 않음</h3>
+            <p>
+              드롭 사유는 전부 <code>print()</code> 로만 나갔다. 최종 JSON 만 보면 추천이
+              왜 비었는지 알 수 없다. 측정되지 않는 환각은 개선 여부도 확인할 수 없다.
+            </p>
+          </div>
+        </div>
+
+        <p style="margin-top:1.25rem">
+          이 밖에 운영 결함으로 API 키 소스 하드코딩, import 시점 클라이언트 생성(키 없으면
+          모듈 로딩 실패), <code>main()</code> 인자 불일치로 인한 <code>TypeError</code>,
+          tool-call 파트 혼입 시 <code>resp.text</code> 예외 미처리가 함께 발견되어 정리했다.
+        </p>
+
+        <h3>적용된 수정 8건</h3>
+
+        <div class="row">
+          <div class="row-id f">F-1</div>
+          <div class="row-body">
+            <h3>쿼터 전면 폐지</h3>
+            <p>
+              규칙 3, <code>min_clubs</code> 보충 루프, <code>_request_broader_clubs()</code>
+              를 모두 삭제. 0개도 정상 결과로 취급하고 <code>recommendation_notices</code> 로
+              사유와 검색어를 제공한다.
+            </p>
+            <p class="kills">해소 <b>C-1</b> <b>C-12</b></p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id f">F-2</div>
+          <div class="row-body">
+            <h3>URL 무생성 원칙</h3>
+            <p>
+              스키마에서 <code>url</code> 필드 제거. URL 은 그라운딩 소스 URI 만 후보가
+              되고 <code>probe_url()</code> 의 3중 검사(200 · soft-404 마커 17종 · 항목명
+              토큰 본문 대조)를 통과해야 부착된다. 사설 IP 로 해석되는 호스트는 프로브하지
+              않는다(SSRF 방어). 진입 직후와 직렬화 직전 두 번 스크럽한다.
+            </p>
+            <p class="kills">해소 <b>C-4</b> <b>C-5</b></p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id f">F-3</div>
+          <div class="row-body">
+            <h3>그라운딩 강제</h3>
+            <p>
+              <code>extract_grounding()</code> 이 <code>grounding_chunks</code> 를 파싱해
+              실제 검색 여부를 확인하고, <code>grounding_mentions()</code> 가 항목명 토큰이
+              검색 근거에 등장하는지 코드가 직접 대조한다. 모델의 <code>verified: true</code>
+              는 무효.
+            </p>
+            <p class="kills">해소 <b>C-3</b></p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id f">F-4</div>
+          <div class="row-body">
+            <h3>반증형 이중 검증</h3>
+            <p>
+              "실재하지 않는다는 증거를 찾아라"로 프롬프트를 뒤집고 생성 맥락은 넘기지 않는다.
+              온도 0.0 / 0.4 두 호출이 모두 통과해야 인정 — 환각은 재현성이 낮으므로 이중
+              통과 요구가 비용 대비 효과가 가장 크다.
+            </p>
+            <p class="kills">해소 <b>C-2</b></p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id f">F-5</div>
+          <div class="row-body">
+            <h3>자격증 레지스트리 + 등급 문법</h3>
+            <p>
+              113개 자격증의 <strong>유효 등급 집합</strong>을 코드가 보유한다. 등급 체계가
+              없는 자격증에 급수가 붙었거나 없는 등급이면 네트워크 호출 없이 즉시 제외.
+              검색으로는 잡히지 않던 유형이다 — <code>빅데이터분석기사 2급</code> 을
+              검색하면 상위 결과에 원본 자격증이 잡히므로 LLM 검증이 가장 잘 속는 지점이었다.
+            </p>
+            <p class="kills">해소 <b>H-3 주 유형</b></p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id f">F-6</div>
+          <div class="row-body">
+            <h3>STAR 근거 결속</h3>
+            <p>상세는 §6.</p>
+            <p class="kills">해소 <b>C-8</b> <b>C-9</b></p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id f">F-7</div>
+          <div class="row-body">
+            <h3>fail-closed 일관화 · 정규화 매칭</h3>
+            <p>
+              누락 필드 기본값을 전부 불합격으로 통일. <code>upcoming</code> 실제 검사,
+              마감일 파싱 실패는 무효 처리. 매핑은 <code>norm_name()</code> 키 사용.
+              크롤링 실패 시 지시문을 "추론 금지"로 교체. 채용공고 생성 순서 변경.
+            </p>
+            <p class="kills">해소 <b>C-6</b> <b>C-7</b> <b>C-10</b> <b>C-11</b></p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-id f">F-8</div>
+          <div class="row-body">
+            <h3>감사 추적</h3>
+            <p>
+              <code>VerificationAudit</code> 이 모든 통과·제거·강등을 사유와 함께 기록하고
+              <code>verification_audit</code> / <code>rejected_by_guard</code> 로 노출한다.
+            </p>
+            <p class="kills">해소 <b>C-13</b></p>
+          </div>
+        </div>
+
+        <h3>추적 매트릭스</h3>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th class="mono">증상</th><th class="mono">원인</th><th class="mono">수정</th><th>차단 지점</th><th>회귀 테스트</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="mono"><span class="pill c">H-1</span></td><td class="mono">C-1, C-12</td><td class="mono"><span class="pill f">F-1</span></td><td>쿼터·보충 루프 삭제 — 지어낼 동기 제거</td><td class="mono">프롬프트 불변식</td></tr>
+              <tr><td class="mono"><span class="pill c">H-1</span></td><td class="mono">C-4, C-5</td><td class="mono"><span class="pill f">F-2</span></td><td><code>probe_url()</code></td><td class="mono">TestUrlGuard (3)</td></tr>
+              <tr><td class="mono"><span class="pill c">H-1</span></td><td class="mono">C-3</td><td class="mono"><span class="pill f">F-3</span></td><td><code>grounding_mentions()</code></td><td class="mono">TestGroundingGate (2)</td></tr>
+              <tr><td class="mono"><span class="pill c">H-2</span></td><td class="mono">C-8</td><td class="mono"><span class="pill f">F-6</span></td><td><code>assess_star_readiness()</code></td><td class="mono">TestStarReadiness (4)</td></tr>
+              <tr><td class="mono"><span class="pill c">H-2</span></td><td class="mono">C-9</td><td class="mono"><span class="pill f">F-6</span></td><td><code>validate_star_entries()</code></td><td class="mono">TestStarEvidenceBinding (7)</td></tr>
+              <tr><td class="mono"><span class="pill c">H-3</span></td><td class="mono">C-2, C-3</td><td class="mono"><span class="pill f">F-4</span></td><td>반증형 이중 검증</td><td class="mono">TestGroundingGate</td></tr>
+              <tr><td class="mono"><span class="pill c">H-3</span></td><td class="mono">C-2</td><td class="mono"><span class="pill f">F-5</span></td><td><code>check_certification_name()</code></td><td class="mono">TestCertificationGuard (6)</td></tr>
+              <tr><td class="mono"><span class="pill w">공통</span></td><td class="mono">C-6·7·10·11</td><td class="mono"><span class="pill f">F-7</span></td><td>fail-closed · 정규화 매칭</td><td class="mono">TestUtils (3)</td></tr>
+              <tr><td class="mono"><span class="pill w">공통</span></td><td class="mono">C-13</td><td class="mono"><span class="pill f">F-8</span></td><td><code>verification_audit</code></td><td class="mono">TestUtils</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══════════ 5 ═══════════ -->
+      <section id="s5">
+        <p class="eyebrow">05</p>
+        <h2>환각 가드 레퍼런스</h2>
+        <p><code>hallucination_guard.py</code> 의 공개 함수와 각각이 차단하는 실패 유형.</p>
+
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th class="mono">함수</th><th>동작</th><th>차단 대상</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="mono">probe_url()</td><td>HTTP 200 + soft-404 마커 17종 + 항목명 토큰 본문 대조 + SSRF 차단</td><td>죽은 링크, 지어낸 링크, soft-404</td></tr>
+              <tr><td class="mono">pick_verified_url()</td><td>후보를 순차 프로브해 최초 통과분만 채택, 없으면 <code>None</code></td><td>URL 강제 부착</td></tr>
+              <tr><td class="mono">is_plausible_url()</td><td>스킴·호스트 검사 + 범용 검색 URL 배제</td><td>google.com/search 류 만능 URL</td></tr>
+              <tr><td class="mono">scrub_model_urls()</td><td>결과 트리 전체를 훑어 allowlist 밖 URL 을 <code>None</code> 으로</td><td>프롬프트 규칙 위반</td></tr>
+              <tr><td class="mono">extract_grounding()</td><td><code>grounding_chunks / supports / queries</code> 파싱</td><td>검색하지 않고 답하기</td></tr>
+              <tr><td class="mono">grounding_mentions()</td><td>항목명 토큰이 검색 근거에 실제 등장하는지 대조 (60% 이상)</td><td>모델의 거짓 verified 주장</td></tr>
+              <tr><td class="mono">check_certification_name()</td><td>레지스트리 113종 + 등급 문법 검사</td><td>등급 환각, 허구 자격증</td></tr>
+              <tr><td class="mono">split_cert_grade()</td><td>명칭에서 등급 분리 (<code>1급 / 심화 / 전문가</code> 등)</td><td>—</td></tr>
+              <tr><td class="mono">assess_star_readiness()</td><td>경험 블록 5신호 채점, 4개 미만이면 STAR 생성 차단</td><td>데이터 부족 시 창작</td></tr>
+              <tr><td class="mono">validate_star_entries()</td><td>인용 대조 · 수치 검증 · 슬롯 중복도</td><td>재구조화, 수치 각색</td></tr>
+              <tr><td class="mono">quote_supported()</td><td>공백·구두점 무시 후 원문 부분문자열 검사</td><td>지어낸 근거 인용</td></tr>
+              <tr><td class="mono">numbers_grounded()</td><td>생성 문장의 모든 수치가 원문에 있는지</td><td>성과 수치 창작</td></tr>
+              <tr><td class="mono">overlap_ratio()</td><td>Jaccard 와 포함도 중 큰 값</td><td>짧은 슬롯이 긴 슬롯에 포함된 중복</td></tr>
+              <tr><td class="mono">norm_name()</td><td>공백·괄호·구두점 제거 후 소문자화</td><td>표기 흔들림으로 인한 매칭 실패</td></tr>
+              <tr><td class="mono">VerificationAudit</td><td>통과·제거·강등 전량 기록</td><td>관측 불가</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>등급 환각 판정 예</h4>
+        <pre class="block">check_certification_name("빅데이터분석기사 2급")
+<b>→ grade_invalid</b>  "'빅데이터분석기사'는 등급 체계가 없는 자격증인데
+                     '2급' 표기가 붙음 (등급 환각)"        <i># 네트워크 호출 0회</i>
+
+check_certification_name("컴퓨터활용능력 3급")
+<b>→ grade_invalid</b>  "유효 등급은 1급/2급 — '3급'는 존재하지 않음"
+
+check_certification_name("데이터마케팅전문가")
+<b>→ unknown</b>        "레지스트리 미등재 → 검색 검증 필요"   <i># 자동 통과 아님</i></pre>
+      </section>
+
+      <!-- ═══════════ 6 ═══════════ -->
+      <section id="s6">
+        <p class="eyebrow">06</p>
+        <h2>STAR 파이프라인과 품질 채점</h2>
+
+        <p>
+          STAR 는 네 관문을 통과한다. 앞의 둘은 <strong>환각</strong>을, 뒤의 둘은
+          <strong>품질</strong>을 다룬다.
+        </p>
+
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th class="mono">관문</th><th>시점</th><th>판정</th><th>실패 시</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="mono">① 적합성 사전 판정</td><td>LLM 호출 <strong>전</strong></td><td>경험 블록 5신호 중 4개 이상</td><td>생성 요청 자체를 하지 않음 + 코칭 반환</td></tr>
+              <tr><td class="mono">② 근거 결속</td><td>생성 후</td><td>인용 대조 · 수치 · 슬롯 중복</td><td>슬롯 삭제 또는 항목 폐기</td></tr>
+              <tr><td class="mono">③ 파생 필드 검증</td><td>근거 통과분</td><td>headline 수치 / 회고 근거</td><td>해당 필드만 삭제</td></tr>
+              <tr><td class="mono">④ 품질 채점</td><td>마지막</td><td>10개 루브릭 → A~D</td><td><strong>폐기하지 않고</strong> 등급·개선 지시 부착</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="warnbox">
+          <p>
+            <strong>왜 품질 미달을 폐기하지 않는가.</strong> 버리면 사용자는 자기 기록의
+            무엇이 부족한지 알 수 없다. 이 도구의 목적은 완성된 STAR 를 주는 것이 아니라
+            <strong>제출 가능한 STAR 를 쓸 수 있게 만드는 것</strong>이므로, 미달 항목은
+            등급과 함께 남기고 무엇을 어떻게 고칠지 알려준다.
+          </p>
+        </div>
+
+        <h3>전문성은 사실을 늘려서 만들지 않는다</h3>
+        <p>
+          "전문적인 STAR"를 만드는 흔한 방법은 그럴듯한 배경과 성과를 덧붙이는 것이고,
+          그것이 정확히 v2.0 이 실패한 방식이다. v3.1 은 반대 경로를 쓴다.
+        </p>
+
+        <div class="scroll">
+          <table>
+            <thead><tr><th class="mono">축</th><th>무엇을 하는가</th><th>사실을 늘리는가</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">선택</td><td>어떤 경험을 STAR 로 쓸지 고르는 판단</td><td class="mono">아니오</td></tr>
+              <tr><td class="mono">배분</td><td>Action 이 절반을 차지하도록 분량 재배치</td><td class="mono">아니오</td></tr>
+              <tr><td class="mono">표현</td><td>"~를 했습니다"를 성취문 형태로</td><td class="mono">아니오</td></tr>
+              <tr><td class="mono">진단</td><td>부족한 요소는 지어내지 않고 채우는 법을 안내</td><td class="mono">아니오</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>채점 루브릭 10항목</h3>
+        <div class="scroll">
+          <table>
+            <thead><tr><th class="mono">키</th><th>기준</th><th>근거</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">action_dominant</td><td>Action 이 전체의 35% 이상 (권장 40~50%)</td><td>Action 이 답변의 절반</td></tr>
+              <tr><td class="mono">context_concise</td><td>S+T 합계 45% 이하 (권장 30%)</td><td>배경 과다가 가장 흔한 실패</td></tr>
+              <tr><td class="mono">first_person</td><td>Action 에 공동 주어 없음, 또는 역할 분담 명시</td><td>"가장 흔하고 가장 고치기 쉬운 실수"</td></tr>
+              <tr><td class="mono">action_method</td><td>도구·방법·판단 기준 중 하나 이상</td><td>'무엇을' 만이 아니라 '어떻게'</td></tr>
+              <tr><td class="mono">strong_verb</td><td>성취 동사 있고 약한 서술 없음</td><td>이력서 성취문 공식</td></tr>
+              <tr><td class="mono">result_quantified</td><td>Result 에 수치 지표 존재</td><td>수치 없는 결과는 감점</td></tr>
+              <tr><td class="mono">result_impact</td><td>수치 외 파급 서술</td><td>그 수치가 만든 변화</td></tr>
+              <tr><td class="mono">no_vague</td><td>모호 표현이 수치 없이 쓰이지 않음</td><td>"성공적" 류 무의미</td></tr>
+              <tr><td class="mono">slots_distinct</td><td>S·T 중복도 50% 미만</td><td>슬롯별 역할 분리</td></tr>
+              <tr><td class="mono">context_scale</td><td>기간·인원·규모 중 하나 명시</td><td>맥락 = 성과 크기의 척도</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          등급은 통과 비율로 결정된다 — <strong>A</strong> 85%↑ · <strong>B</strong> 65%↑ ·
+          <strong>C</strong> 45%↑ · <strong>D</strong> 그 미만.
+        </p>
+
+        <h4>실제 채점 출력</h4>
+        <pre class="block"><em>── 나열식 STAR: D (0/10)</em>
+   "사실상 경험 나열에 가깝습니다. 구조적 재작성이 필요합니다."
+   ✗ Action 비중: Action 이 전체의 12% (권장 40~50%)
+   ✗ 배경 간결성: Situation+Task 가 전체의 74% (권장 30% 이하)
+   ✗ 개인 기여 명시: Action 에 공동 주어 1회, 개인 주체 표현 없음
+   ✗ 방법 구체성: Action 에 사용한 도구·방법·접근이 드러나는지
+   ✗ 성취 동사: 강한 동사 0개, 약한 서술 2개
+   ✗ 결과 정량화: Result 에 수치 지표가 있는지
+   ✗ 결과의 파급: 수치 외에 그 결과가 만든 변화가 서술되는지
+   ✗ 모호 표현 배제: 수치 없이 모호 표현 사용: 성공적, 큰 도움
+   ✗ 슬롯 역할 분리: Situation·Task 내용 중복도 80%
+   ✗ 맥락 규모: 기간·인원·규모 중 하나라도 명시되는지
+
+<b>── 전문 수준 STAR: A (10/10)</b>
+   "제출 가능한 수준. 구조·주체·수치가 모두 갖춰져 있습니다."</pre>
+
+        <h3>요약 계층</h3>
+        <ul>
+          <li>
+            <strong><code>headline</code></strong> — 이력서에 그대로 넣을 수 있는 한 줄
+            성취문(강한 동사 + 맥락 + 결과). S/T/A/R 에 이미 있는 사실만으로 구성하며,
+            원문에 없는 수치가 들어가면 자동 삭제된다.
+          </li>
+          <li>
+            <strong><code>competency_evidence</code></strong> — 이 경험이 증명하는 역량과
+            판단 근거. 사실이 아니라 해석이므로 창작이 아니지만 근거는 S/T/A/R 안에 있어야 한다.
+          </li>
+          <li>
+            <strong><code>L</code> (회고)</strong> — 표준 STAR 에 회고 한 겹을 더한
+            STARR / STAR-L 형태. <strong>원문에 배움이 명시된 경우에만</strong> 남고,
+            없으면 삭제된다. "무엇을 느꼈을 것이다"는 추측이므로 금지.
+          </li>
+        </ul>
+
+        <h4>중복도 지표 결함과 수정</h4>
+        <p>
+          Jaccard 만으로는 짧은 슬롯이 긴 슬롯에 통째로 포함된 중복을 놓친다 — 합집합이
+          커져 비율이 희석되기 때문이다. Task 가 Situation 의 축약본인 경우가 정확히 이
+          형태이고, 이것이 "재구조화"의 전형이다. 포함도를 함께 재도록 수정했다.
+        </p>
+        <pre class="block"><i># Task 가 Situation 의 축약본인 경우</i>
+jaccard(S, T)     = 0.32   <em>→ 통과 (놓침)</em>
+containment(S, T) = 0.82   <b>→ 차단</b>
+overlap_ratio     = max(둘) <b>→ 재구조화로 판정</b></pre>
+      </section>
+
+      <!-- ═══════════ 7 ═══════════ -->
+      <section id="s7">
+        <p class="eyebrow">07</p>
+        <h2>출력 스키마</h2>
+        <p>
+          최상위는 envelope 다. <code>result</code> 안에는 <code>status</code> 와
+          <code>vector</code> 를 넣지 않는다.
+        </p>
+
+        <pre class="block">{
+  "status": "success",
+  "vector": [ ... ],
+  "result": {
+    "brief_summary": "...",  "detailed_summary": "...",
+    "keyword_clustering": { "personality_tendency": [], "core_competency": [], "job_industry": [] },
+    "experience_insights": { "motivation": "...", "learning_points": "..." },
+    "synergy_combinations": [ ... ],
+
+    "additional_recommendations": {
+      "certifications":       [ { name, reason, expected_effect, issuer, <b>url</b>, <b>verified_by</b> } ],
+      "clubs_and_societies":  [ { name, type, school_affiliation, description,
+                                  <b>url</b>, <b>url_note</b>, <b>verified_by</b> } ],
+      "projects_and_contests":[ { name, organizer, deadline, <b>url</b>, <b>verified_by</b> } ]
+    },
+    <i>// 검증 통과분만. url 은 HTTP 프로브를 통과한 것 또는 null.</i>
+
+    "resume_star_format": [ {
+      title, <b>headline</b>, S, S_source_quote, T, T_source_quote,
+      A, A_source_quote, R, R_source_quote, L, L_source_quote,
+      <b>competency_evidence</b>: [ { competency, why } ],
+      <b>evidence_status</b>: { supported_slots, unsupported_slots,
+                         restructuring_only, restructuring_detail },
+      <b>quality</b>: { grade, score, verdict, criteria[], priority_fixes[] },
+      quality_warning
+    } ],
+
+    "star_analysis_status": {
+      generated, reason, experience_block_count, star_eligible_block_count,
+      coaching[], rejected_entries[],
+      <b>quality_review</b>: { evaluated, grade_distribution, portfolio_verdict, top_fixes[] }
+    },
+
+    "action_plan": { "단기": "...", "중기": "...", "장기": "..." },
+    "strength_diagnosis": { one_line_verdict, strengths[], no_strength_diagnosis,
+                            standout_experience_types[], content_quality_highlights[],
+                            competitor_advantage },
+    "critical_diagnosis": { one_line_verdict, weaknesses[], missing_experience_types[],
+                            content_quality_issues[], competitor_gap },
+
+    "verified_jobs": [ { company, role, deadline, why_match, <b>url</b>, <b>verified_by</b> } ],
+    <b>"recommendation_notices"</b>: [ "자격증: 실재가 확인된 항목이 없어 추천하지 않았습니다..." ],
+    <b>"verification_audit"</b>:      { summary: { by_stage, total_kept, total_dropped,
+                                            total_degraded }, records[] },
+    <b>"rejected_by_guard"</b>:       { certifications[], clubs_and_societies[],
+                                  projects_and_contests[], jobs[] },
+    "embedding_dim": 3072,
+    "guard_version": "v3.0"
+  }
+}</pre>
+
+        <p>
+          굵게 표시한 필드가 v3 에서 추가된 것이다. 특히 <code>recommendation_notices</code>
+          와 <code>rejected_by_guard</code> 는 <strong>결과가 비었을 때 그 이유를 설명하기
+          위해</strong> 존재한다 — 쿼터를 없앤 대가로 반드시 필요한 필드다.
+        </p>
+      </section>
+
+      <!-- ═══════════ 8 ═══════════ -->
+      <section id="s8">
+        <p class="eyebrow">08</p>
+        <h2>테스트 커버리지</h2>
+        <p>
+          전부 네트워크·API 키 없이 실행된다. v2.0 에서 실제로 새어 나갔던 환각 유형이
+          재현 케이스로 고정되어 있다.
+        </p>
+
+        <div class="scroll">
+          <table>
+            <thead><tr><th class="mono">스위트</th><th class="mono">건수</th><th>고정하는 실패</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">TestCertificationGuard</td><td class="mono">6</td><td>등급 환각, 유효 등급 오판, 별칭 해석, 미등재 자동통과 방지</td></tr>
+              <tr><td class="mono">TestUrlGuard</td><td class="mono">3</td><td>부적격 URL, 범용 검색 URL, 미검증 URL 스크럽</td></tr>
+              <tr><td class="mono">TestGroundingGate</td><td class="mono">2</td><td>그라운딩 부재 시 전량 미검증, 근거 미등장 이름 차단</td></tr>
+              <tr><td class="mono">TestStarReadiness</td><td class="mono">4</td><td>빈약·공백 입력에서 STAR 생성 차단</td></tr>
+              <tr><td class="mono">TestStarEvidenceBinding</td><td class="mono">7</td><td>창작 STAR 폐기, 수치 환각, 재구조화(동일·포함 인용)</td></tr>
+              <tr><td class="mono">TestUtils</td><td class="mono">3</td><td>정규화 매칭, 수치 추출, 감사 집계</td></tr>
+              <tr><td class="mono">TestScoring</td><td class="mono">10</td><td>루브릭 10항목 판정 + 개선 지시 존재</td></tr>
+              <tr><td class="mono">TestDerivedFields</td><td class="mono">4</td><td>headline 수치 환각, 근거 없는 회고 삭제</td></tr>
+              <tr><td class="mono">TestPortfolioEvaluation</td><td class="mono">4</td><td>등급 분포, 공통 결손 집계, 품질 미달 항목 보존</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <pre class="block">python3 tests/test_hallucination_guard.py   <b># 25 tests — OK</b>
+python3 tests/test_star_quality.py         <b># 18 tests — OK</b></pre>
+      </section>
+
+      <!-- ═══════════ 9 ═══════════ -->
+      <section id="s9">
+        <p class="eyebrow">09</p>
+        <h2>운영과 설정</h2>
+
+        <h3>파일 구성</h3>
+        <div class="scroll">
+          <table>
+            <thead><tr><th class="mono">파일</th><th>역할</th><th class="mono">규모</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">career_analysis_comprehensive.py</td><td>파이프라인 전체</td><td class="mono">~1,900행</td></tr>
+              <tr><td class="mono">hallucination_guard.py</td><td>환각 차단 가드</td><td class="mono">~910행</td></tr>
+              <tr><td class="mono">star_quality.py</td><td>STAR 품질 채점</td><td class="mono">~400행</td></tr>
+              <tr><td class="mono">analysis_response.py</td><td>응답 envelope (pydantic 선택 의존)</td><td class="mono">83행</td></tr>
+              <tr><td class="mono">tests/</td><td>회귀 테스트 43건</td><td class="mono">~600행</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>실행</h3>
+        <pre class="block">export GEMINI_API_KEY="..."          <i># 소스 하드코딩 제거됨</i>
+export USER_SCHOOL="서울대학교"        <i># 선택</i>
+export USER_DEPARTMENT="경영학과"      <i># 선택</i>
+
+cat my_career.txt | python3 career_analysis_comprehensive.py</pre>
+
+        <h3>주요 설정 상수</h3>
+        <div class="scroll">
+          <table>
+            <thead><tr><th class="mono">상수</th><th class="mono">값</th><th>의미</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">_ANALYSIS_MODEL</td><td class="mono">gemini-2.5-pro</td><td>분석·검증 모델</td></tr>
+              <tr><td class="mono">_EMBEDDING_MODEL</td><td class="mono">gemini-embedding-001</td><td>임베딩</td></tr>
+              <tr><td class="mono">_DUAL_PASS_VERIFY</td><td class="mono">True</td><td>반증형 이중 검증 — 끄면 호출 절반, 정확도 하락</td></tr>
+              <tr><td class="mono">_URL_PROBE_TIMEOUT</td><td class="mono">10초</td><td>URL 프로브 타임아웃</td></tr>
+              <tr><td class="mono">_MAX_URL_PROBES</td><td class="mono">40</td><td>실행당 HTTP 프로브 상한</td></tr>
+              <tr><td class="mono">_MAX_PAGES / _MAX_PDFS</td><td class="mono">30 / 5</td><td>크롤러 한도</td></tr>
+              <tr><td class="mono">_FETCH_TIMEOUT</td><td class="mono">15초</td><td>크롤링 타임아웃</td></tr>
+              <tr><td class="mono">_MAX_RETRIES / _RETRY_BASE_SEC</td><td class="mono">4 / 5</td><td>레이트리밋 지수 백오프</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>비용 특성</h3>
+        <p>
+          v2.0 대비 검증 호출이 늘었다. 카테고리(자격증·동아리·공모전)당 최대 2회 +
+          채용공고 1회의 그라운딩 호출이 발생하고, 여기에 URL 프로브가 더해진다.
+          <code>_DUAL_PASS_VERIFY = False</code> 로 검증 호출을 절반으로 줄일 수 있으나
+          agreement gate 가 사라지므로 환각 통과율이 올라간다.
+        </p>
+      </section>
+
+      <!-- ═══════════ 10 ═══════════ -->
+      <section id="s10">
+        <p class="eyebrow">10</p>
+        <h2>한계와 남은 과제</h2>
+
+        <div class="warnbox">
+          <p>
+            <strong>파이프라인 전체가 실제 API 로 실행된 적이 없다.</strong> 결정론적
+            가드는 테스트 43건으로 고정되어 있고 그라운딩 필드명은
+            <code>google-genai 2.14.0</code> 기준으로 대조 확인했으나, 통합 동작은 설계대로일
+            것이라는 판단이지 관측된 사실이 아니다. 실제 키로 1회 실행해
+            <code>verification_audit</code> 의 드롭 사유 분포를 확인하는 것이 가장 값어치
+            있는 다음 단계다.
+          </p>
+        </div>
+
+        <h3>알려진 구멍</h3>
+        <ul>
+          <li>
+            <strong>인용↔본문 함의 미검사</strong> — 인용문이 원문에 존재하는지는 검사하지만,
+            본문이 그 인용문에서 실제로 도출되는지는 검사하지 않는다. 원문 문장을 정직하게
+            복사해 놓고 본문에 다른 이야기를 쓰면 통과한다. 수치는 막히지만 서술은 안 막힌다.
+          </li>
+          <li>
+            <strong>재구조화는 원리상 완전 제거 불가</strong> — 입력에 실질적인 문장이
+            하나뿐이면 정직한 STAR 는 반드시 그 문장의 재배치처럼 보인다. 없는 정보를
+            만들지 않으면서 네 칸을 채울 방법은 없다. 시스템은 이를 <em>보이게</em> 만들 뿐
+            제거하지 못한다.
+          </li>
+          <li>
+            <strong>레지스트리는 수동 관리 목록</strong> — 113종은 한국의 전체 자격증에
+            비하면 일부다. 미등재 항목은 검색 검증만으로 방어하므로, 웹 존재감이 있는
+            그럴듯한 가짜는 통과할 수 있다. 반대로 실재하는데 목록에 없어 탈락하기도 한다.
+            등급 표도 공식 등록 데이터가 아니라 지식 기반이므로 양방향 오류 가능성이 있다.
+          </li>
+          <li>
+            <strong>수치 검사는 맨 숫자 비교</strong> — 원문 "3년치"와 생성 "3개월"이 모두
+            <code>3</code> 이라 통과한다. 노골적 창작은 잡지만 미묘한 오귀속은 못 잡는다.
+          </li>
+          <li>
+            <strong>이중 검증도 안정적 환각은 통과</strong> — 온도에 걸쳐 재현되는 잘못된
+            믿음(그럴듯한 이름의 유명한 가짜)은 두 패스 모두 통과한다.
+          </li>
+          <li>
+            <strong>루브릭은 표면 신호 기반</strong> — 한국어는 주어를 자주 생략해 1인칭
+            판정이 어휘 표지에 의존하고, 방법 구체성은 도구명·수단 조사를 프록시로 쓴다.
+            문장이 실제로 얼마나 설득력 있는지는 재지 못한다. 임계값도 실사용 데이터로
+            조정된 값이 아니다.
+          </li>
+          <li>
+            <strong>동아리 추천은 구조적으로 비기 쉽다</strong> — 한국 대학 동아리는 색인된
+            공개 정보가 희소해 검증 통과율이 낮다. H-1 이 해소되는 방식의 일부는
+            그 기능이 조용해지는 것이다.
+          </li>
+        </ul>
+
+        <h3>다음 단계</h3>
+        <ol>
+          <li>실제 키로 1회 실행 → <code>verification_audit</code> 드롭 사유 분포 확인.
+              어느 게이트가 일하고 어느 게이트가 과잉 차단하는지는 이 로그로만 알 수 있다.</li>
+          <li>인용→본문 함의 검사 추가 (별도 호출로 "이 인용문이 이 서술을 뒷받침하는가"만 판정)</li>
+          <li>자격증 레지스트리를 Q-Net 등 공식 등록 데이터와 동기화</li>
+          <li>학교별 공식 동아리 목록 사전 수집 — 동아리 검증의 근본 해법</li>
+          <li>루브릭 임계값을 실사용 샘플로 보정</li>
+        </ol>
+      </section>
+
+      <div class="note">
+        <p style="max-width:70ch">
+          <strong>STAR 품질 기준 출처.</strong> 루브릭은 공개 커리어 가이드·대학 커리어센터
+          자료에서 반복 확인되는 규칙을 코드화한 것이다 —
+          <a href="https://capd.mit.edu/resources/the-star-method-for-behavioral-interviews/">MIT CAPD</a> ·
+          <a href="https://case.edu/studentlife/careercenter/career-educationtips-job-seekersinterviewingbehavior-based-interviewing/star-strategy-examples">Case Western Reserve</a> ·
+          <a href="https://career.unm.edu/career-tools/the-star-method-2020.pdf">UNM Career Services</a> ·
+          <a href="https://ocs.yale.edu/resources/writing-impactful-resume-bullets/">Yale OCS</a> ·
+          <a href="https://www.careereducation.columbia.edu/resources/resumes-impact-creating-strong-bullet-points">Columbia CCE</a> ·
+          <a href="https://careercenter.ucdavis.edu/resumes-and-materials/resumes/accomplishment-statements">UC Davis Career Center</a> ·
+          <a href="https://blog.theinterviewguys.com/the-star-method/">The Interview Guys</a> ·
+          <a href="https://www.monster.com/career-advice/resume/star-method-resume">Monster</a> ·
+          <a href="https://www.toolshero.com/personal-development/starr-method/">Toolshero (STARR)</a> ·
+          <a href="https://www.ddi.com/solutions/behavioral-interviewing/star-method">DDI</a>
+        </p>
+        <p style="max-width:70ch; margin-top:0.75rem">
+          관련 문서 — <code>docs/field_report_hallucination_v3.html</code>(장애 기록 단독본),
+          <code>README.md</code>(요약과 실행법).
+        </p>
+      </div>
+
+    </main>
+  </div>
+</div>
