@@ -1,0 +1,439 @@
+<title>종합 분석 (Comprehensive) — 출력 데이터 필드 명세 v3.1</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "Segoe UI", "Malgun Gothic", sans-serif; font-size: 13.5px; line-height: 1.65; color: #1a1a1a; background: #fafaf8; padding: 40px 52px; max-width: 1100px; }
+h1 { font-size: 21px; font-weight: 600; margin-bottom: 4px; }
+.meta { font-size: 12px; color: #888; margin-bottom: 20px; border-bottom: 1px solid #e5e3dc; padding-bottom: 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11px; color: #999; margin-bottom: 20px; }
+.legend b { color: #666; font-weight: 600; }
+.diffnote { background: #fff3cd; border: 1px solid #f0dca0; border-radius: 8px; padding: 12px 16px; margin-bottom: 30px; font-size: 12.5px; color: #6b5416; }
+.diffnote b { color: #4d3c0f; }
+.diffnote code { background: #ffe8a8; padding: 1px 5px; border-radius: 3px; }
+.sec { margin-bottom: 36px; }
+.sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.snum { font-size: 11px; font-weight: 700; background: #1a1a1a; color: #fff; padding: 2px 8px; border-radius: 3px; }
+.stitle { font-size: 15px; font-weight: 600; }
+.skey { font-size: 11px; color: #999; font-family: monospace; margin-left: auto; }
+.secnote { font-size: 12px; color: #7a7568; margin: 4px 0 12px; border-left: 2px solid #e0ddd5; padding-left: 10px; }
+.ch { display: grid; grid-template-columns: 40px 250px 92px 82px 1fr; gap: 0 8px; padding: 5px 8px; background: #f0ede6; border-radius: 4px 4px 0 0; }
+.ch span { font-size: 10px; font-weight: 700; color: #888; letter-spacing: 0.07em; text-transform: uppercase; }
+.fr { display: grid; grid-template-columns: 40px 250px 92px 82px 1fr; gap: 0 8px; padding: 8px 8px; border-bottom: 0.5px solid #e8e5de; align-items: start; }
+.fr:hover { background: #faf8f3; }
+.fn { font-size: 11px; color: #bbb; font-family: monospace; padding-top: 1px; }
+.fk { font-size: 12px; font-family: monospace; color: #2a2a2a; word-break: break-all; }
+.fk .p { color: #bbb; }
+.fk .s { color: #b5651d; }
+.tc { display: flex; flex-direction: column; gap: 3px; }
+.b { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 3px; display: inline-block; white-space: nowrap; background: #ebebeb; color: #555; }
+.req { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 3px; display: inline-block; white-space: nowrap; background: #fde8de; color: #b84012; }
+.opt { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 3px; display: inline-block; white-space: nowrap; background: #ebebeb; color: #666; }
+.sys { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 3px; display: inline-block; white-space: nowrap; background: #e4eefe; color: #1255a4; }
+.cond { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 3px; display: inline-block; white-space: nowrap; background: #fff3cd; color: #856404; }
+.en { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 3px; background: #edf7ed; color: #267326; display: inline-block; white-space: nowrap; }
+.nl { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 3px; background: #f5f0ff; color: #5533aa; display: inline-block; white-space: nowrap; }
+.ar { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 3px; background: #fff3cd; color: #856404; display: inline-block; white-space: nowrap; }
+.bl { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 3px; background: #e8f4f8; color: #1a6080; display: inline-block; white-space: nowrap; }
+.new { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; background: #1a7a3a; color: #fff; display: inline-block; white-space: nowrap; }
+.rmv { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; background: #b83030; color: #fff; display: inline-block; white-space: nowrap; text-decoration: line-through; }
+.fd { font-size: 12.5px; color: #555; }
+.fd .note { font-size: 11px; color: #b5651d; display: block; margin-top: 3px; }
+.fd .diff { font-size: 11px; color: #1a7a3a; display: block; margin-top: 3px; }
+.sublabel { font-size: 10px; font-weight: 700; color: #aaa; letter-spacing: 0.07em; text-transform: uppercase; padding: 8px 8px 4px; }
+.sub  { margin: 0 0 0 12px; border-left: 3px solid #e0ddd5; padding-left: 12px; }
+.sub2 { margin: 0 0 0 24px; border-left: 3px solid #ded9c8; padding-left: 12px; }
+.frt  { background: #faf7f0; }
+.env { background: #eef4ff; border: 1px solid #cfe0fb; border-radius: 8px; padding: 12px 16px; margin-bottom: 30px; font-size: 12.5px; color: #244; }
+.env code { background:#dce9ff; padding:1px 5px; border-radius:3px; }
+.rmvsec { background: #fbeeee; border: 1px solid #edcaca; border-radius: 8px; padding: 12px 16px; margin: 10px 0 20px; font-size: 12px; color: #7a2f2f; }
+.rmvsec code { background:#f5d8d8; padding:1px 5px; border-radius:3px; text-decoration: line-through; }
+.sumbar { display: flex; margin-top: 40px; border: 0.5px solid #e0ddd5; border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+.si { flex: 1; min-width: 130px; padding: 14px 16px; border-right: 0.5px solid #e0ddd5; }
+.si:last-child { border-right: none; }
+.sn { font-size: 22px; font-weight: 700; color: #1a1a1a; font-variant-numeric: tabular-nums; }
+.sl { font-size: 11px; color: #888; margin-top: 2px; }
+</style>
+
+<h1>종합 분석 (Comprehensive) — 출력 데이터 필드 명세</h1>
+<p class="meta">종합 커리어 분석 v3.1 (환각 차단 재설계 + STAR 품질 채점) · career_analysis_comprehensive.py · <code>build_system_prompt_comprehensive()</code> · hallucination_guard.py / star_quality.py 검증 · <code>main()</code> envelope 반환</p>
+
+<p class="legend">
+  <span><b>필수</b> — LLM이 반드시 채워야 하는 값</span>
+  <span><b>선택</b> — 비어있을 수 있는 값</span>
+  <span><b>시스템</b> — LLM 출력과 무관하게 코드가 계산·강제 주입/덮어쓰기</span>
+  <span><b>조건부</b> — 특정 상태일 때만 값이 채워지고 그 외엔 null</span>
+  <span><span class="new" style="margin-right:4px">NEW</span>v3.1 신규 필드</span>
+  <span><span class="rmv" style="margin-right:4px">v2.0</span>v2.0 에서 삭제됨</span>
+</p>
+
+<div class="diffnote">
+  ⚠️ <b>이 문서는 v2.0 명세서가 아닙니다.</b> v2.0 스펙에 있던 <code>search_query</code> ·
+  <code>search_verified</code> · <code>expired_jobs</code> · <code>is_valid</code> 필드는
+  v3.1 코드에 더 이상 존재하지 않습니다 — 동아리·자격증·공모전은 자기검증(같은 모델이
+  스스로 <code>verified: true</code>를 매기는 방식) 대신 <b>반증형 이중 검증 + 그라운딩
+  대조 + HTTP 프로브</b>로 교체되었고, 채용공고는 만료 배열을 따로 두지 않고 애초에
+  마감 지난 공고를 생성 단계에서 만들지 않습니다. 모든 항목은 실제 소스 코드
+  (<code>career_analysis_comprehensive.py</code> 1,900행 + <code>hallucination_guard.py</code>
+  910행 + <code>star_quality.py</code> 400행)를 직접 읽어 검증했습니다.
+</div>
+
+<div class="env">
+  🧩 <b>공통 반환 형식(envelope)</b> — <code>main()</code>은 아래를 반환합니다.
+  성공: <code>{ "status":"success", "result":{…payload…}, "vector":[…] }</code> ·
+  실패: <code>{ "status":"error", "message":"…" }</code>.
+  아래 <b>02번 이후 필드는 전부 <code>result</code> 안쪽</b>입니다.
+  <code>vector</code> — 임베딩 3072차원 배열(<code>gemini-embedding-001</code>). <b>result 밖</b> 별도 필드.
+  <code>result</code> 안에는 status·vector 를 넣지 않습니다(§3.6 규약, <code>payload = {k:v for k,v in result.items() if k not in ("status","vector")}</code>).
+</div>
+
+<!-- ═══════════ 01 ═══════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="snum">01</span><span class="stitle">Envelope · 실행 상태 · 메타</span><span class="skey">root</span></div>
+  <div class="ch"><span>#</span><span>키 (JSON path)</span><span>타입</span><span>필수여부</span><span>설명</span></div>
+
+  <div class="fr"><span class="fn">1</span><span class="fk">status</span><div class="tc"><span class="en">enum</span></div><span class="sys">시스템</span><span class="fd">"success" | "error" — envelope 최상위 상태</span></div>
+  <div class="fr"><span class="fn">2</span><span class="fk">message</span><div class="tc"><span class="b">string</span></div><span class="cond">조건부</span><span class="fd">status="error"일 때만</span></div>
+  <div class="fr"><span class="fn">3</span><span class="fk">vector</span><div class="tc"><span class="ar">number[]</span></div><span class="sys">시스템</span><span class="fd">임베딩 3072차원. result 밖 별도 필드. 임베딩 3회 폴백 전부 실패 시 <span class="nl" style="margin-left:2px">null</span><span class="note">DB pgvector 컬럼용, 실패해도 분석은 계속 진행</span></span></div>
+  <div class="fr"><span class="fn">4</span><span class="fk"><span class="p">result.</span>user_school</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd"><code>normalize_school_name()</code>으로 정규화된 학교명. 별칭 사전(서울대→서울대학교 등) 34종 적용</span></div>
+  <div class="fr"><span class="fn">5</span><span class="fk"><span class="p">result.</span>user_department</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd">학과명 (입력 프로필 반영)</span></div>
+  <div class="fr"><span class="fn">6</span><span class="fk"><span class="p">result.</span>embedding_dim</span><div class="tc"><span class="b">number</span><span class="nl">nullable</span></div><span class="sys">시스템</span><span class="fd">임베딩 차원 수 — 코드 주입</span></div>
+  <div class="fr"><span class="fn">7</span><span class="fk"><span class="p">result.</span>guard_version</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>고정값 <code>"v3.1"</code> — 환각 가드 + 품질 가드 버전 태그</span></div>
+</div>
+
+<!-- ═══════════ 02 ═══════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="snum">02</span><span class="stitle">요약 · 클러스터링</span><span class="skey">result</span></div>
+  <div class="ch"><span>#</span><span>키 (JSON path)</span><span>타입</span><span>필수여부</span><span>설명</span></div>
+
+  <div class="fr"><span class="fn">8</span><span class="fk"><span class="p">result.</span>brief_summary</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">핵심 한 줄 요약</span></div>
+  <div class="fr"><span class="fn">9</span><span class="fk"><span class="p">result.</span>detailed_summary</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">심층 요약</span></div>
+
+  <div class="sublabel">▸ keyword_clustering — 역량 클러스터 (단일 객체)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">10</span><span class="fk"><span class="p">keyword_clustering.</span>personality_tendency</span><div class="tc"><span class="ar">string[]</span></div><span class="req">필수</span><span class="fd">성향 키워드</span></div>
+    <div class="fr"><span class="fn">11</span><span class="fk"><span class="p">keyword_clustering.</span>core_competency</span><div class="tc"><span class="ar">string[]</span></div><span class="req">필수</span><span class="fd">핵심 역량 키워드</span></div>
+    <div class="fr"><span class="fn">12</span><span class="fk"><span class="p">keyword_clustering.</span>job_industry</span><div class="tc"><span class="ar">string[]</span></div><span class="req">필수</span><span class="fd">직군 키워드 — 채용공고 검색 키워드 폴백으로도 사용(§08)</span></div>
+  </div>
+
+  <div class="sublabel">▸ experience_insights — 경험 인사이트 (단일 객체)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">13</span><span class="fk"><span class="p">experience_insights.</span>motivation</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">동기</span></div>
+    <div class="fr"><span class="fn">14</span><span class="fk"><span class="p">experience_insights.</span>learning_points</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">배움</span></div>
+  </div>
+
+  <div class="rmvsec">
+    <span class="rmv" style="margin-right:6px">v2.0</span>
+    <code>target_job_keywords</code> — 모델이 생성하지만 §08 채용공고 검색에 소비된 뒤
+    <code>result.pop("target_job_keywords", None)</code> 로 최종 payload 에서 제거됩니다.
+    출력에는 나타나지 않는 <b>내부 전용 필드</b>입니다.
+  </div>
+</div>
+
+<!-- ═══════════ 03 ═══════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="snum">03</span><span class="stitle">시너지 조합</span><span class="skey">result.synergy_combinations[ ]</span></div>
+  <p class="secnote">보유 항목 간 시너지 조합 (2~5개). v2.0 대비 구조 변경 없음.</p>
+  <div class="ch"><span>#</span><span>키 (JSON path)</span><span>타입</span><span>필수여부</span><span>설명</span></div>
+
+  <div class="fr"><span class="fn">15</span><span class="fk"><span class="p">synergy_combinations[n].</span>combination_title</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">조합명</span></div>
+  <div class="fr"><span class="fn">16</span><span class="fk"><span class="p">synergy_combinations[n].</span>items</span><div class="tc"><span class="ar">string[]</span></div><span class="req">필수</span><span class="fd">조합에 포함된 항목들</span></div>
+  <div class="fr"><span class="fn">17</span><span class="fk"><span class="p">synergy_combinations[n].</span>synergy_reason</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">시너지가 나는 이유</span></div>
+  <div class="fr"><span class="fn">18</span><span class="fk"><span class="p">synergy_combinations[n].</span>expected_effect</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">기대 효과</span></div>
+  <div class="fr"><span class="fn">19</span><span class="fk"><span class="p">synergy_combinations[n].</span>applicable_roles</span><div class="tc"><span class="ar">string[]</span></div><span class="req">필수</span><span class="fd">어필 가능한 직무</span></div>
+</div>
+
+<!-- ═══════════ 04 ═══════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="snum">04</span><span class="stitle">추가 추천 (검증 후보 → 검증 통과분)</span><span class="skey">result.additional_recommendations</span></div>
+  <p class="secnote">
+    v2.0 은 "Google Search로 검증"이라 했지만 실제로는 <b>같은 모델에게 물어보고 그 답을
+    그대로 신뢰</b>했습니다(자기검증). v3.1 은 온도를 달리한 2회 반증형 검색이 모두
+    통과해야 하고(<code>_dual_pass_verify</code>), 항목명이 검색 그라운딩 근거에
+    실제로 등장하는지 코드가 직접 대조합니다(<code>grounding_mentions()</code>).
+    <b>개수 쿼터가 없습니다</b> — 확실한 항목이 0개면 배열도 0개이며, 이는 정상 결과입니다.
+  </p>
+  <div class="ch"><span>#</span><span>키 (JSON path)</span><span>타입</span><span>필수여부</span><span>설명</span></div>
+
+  <div class="sublabel">▸ certifications[ ] — 자격증 (레지스트리 113종 + 반증 검증 통과분만)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">20</span><span class="fk"><span class="p">certifications[n].</span>name</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">자격증 공식 명칭. 등급 표기가 문법에 안 맞으면(예: 등급 없는 자격증에 '2급') <code>check_certification_name()</code>이 네트워크 호출 전에 즉시 제외</span></div>
+    <div class="fr"><span class="fn">21</span><span class="fk"><span class="p">certifications[n].</span>reason</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">연계 이유</span></div>
+    <div class="fr"><span class="fn">22</span><span class="fk"><span class="p">certifications[n].</span>expected_effect</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">기대 효과</span></div>
+    <div class="fr"><span class="fn">23</span><span class="fk"><span class="p">certifications[n].</span>estimated_duration</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">취득 소요 기간</span></div>
+    <div class="fr"><span class="fn">24</span><span class="fk"><span class="p">certifications[n].</span>issuer</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd">검증으로 확인된 주관기관 (레지스트리 등재분은 빈 문자열일 수 있음)</span></div>
+    <div class="fr"><span class="fn">25</span><span class="fk"><span class="p">certifications[n].</span>url</span><div class="tc"><span class="nl">nullable</span></div><span class="sys">시스템</span><span class="fd"><code>probe_url()</code> 3중 검사(HTTP 200 + soft-404 마커 17종 + 항목명 토큰 본문 대조) 통과분만. 레지스트리 등재 자격증은 검증 없이 항상 <code>null</code></span></div>
+    <div class="fr"><span class="fn">26</span><span class="fk"><span class="p">certifications[n].</span>verified_by</span><div class="tc"><span class="en">enum</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span><code>official_registry</code> | <code>grounded_search_dual_pass</code> — 어느 경로로 통과했는지</span></div>
+  </div>
+
+  <div class="sublabel">▸ clubs_and_societies[ ] — 동아리·학회 (개수 쿼터 없음, 0개도 정상)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">27</span><span class="fk"><span class="p">clubs_and_societies[n].</span>name</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">동아리/학회명</span></div>
+    <div class="fr"><span class="fn">28</span><span class="fk"><span class="p">clubs_and_societies[n].</span>type</span><div class="tc"><span class="en">enum</span></div><span class="req">필수</span><span class="fd">교내동아리 | 교내학회 | 연합동아리 | 연합학회 | 외부학회</span></div>
+    <div class="fr"><span class="fn">29</span><span class="fk"><span class="p">clubs_and_societies[n].</span>school_affiliation</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">소속 학교 — 사용자 학교와 불일치하면 1단계에서 즉시 제외(외부학회 예외)</span></div>
+    <div class="fr"><span class="fn">30</span><span class="fk"><span class="p">clubs_and_societies[n].</span>description</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd">LLM 초안이 아니라 <b>검증 단계에서 검색 근거로 덮어씀</b>. 확인 안 되면 빈 문자열<span class="diff">v2.0: LLM 원문 유지 → v3.1: 그라운딩 근거로 재작성</span></span></div>
+    <div class="fr"><span class="fn">31</span><span class="fk"><span class="p">clubs_and_societies[n].</span>reason</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">추천 이유</span></div>
+    <div class="fr"><span class="fn">32</span><span class="fk"><span class="p">clubs_and_societies[n].</span>expected_effect</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">기대 효과</span></div>
+    <div class="fr"><span class="fn">33</span><span class="fk"><span class="p">clubs_and_societies[n].</span>url</span><div class="tc"><span class="nl">nullable</span></div><span class="sys">시스템</span><span class="fd">검색 그라운딩 소스 URI 중 HTTP 프로브 통과분만. 실재는 확인됐지만 접속 가능한 링크가 없으면 <code>null</code></span></div>
+    <div class="fr"><span class="fn">34</span><span class="fk"><span class="p">clubs_and_societies[n].</span>url_note</span><div class="tc"><span class="b">string</span></div><span class="cond">조건부</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span><code>url</code>이 <code>null</code>일 때만 등장. "직접 확인하십시오: {검색어}" 형태</span></div>
+    <div class="fr"><span class="fn">35</span><span class="fk"><span class="p">clubs_and_societies[n].</span>verified_by</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>고정값 <code>"grounded_search_dual_pass"</code></span></div>
+  </div>
+
+  <div class="rmvsec">
+    <span class="rmv" style="margin-right:6px">v2.0</span> <code>search_query</code>,
+    <code>search_verified</code> — 더 이상 존재하지 않습니다. 모델이 제출하는
+    <code>verification_query</code>(내부 검증용 검색어)는 검증 완료 후
+    <code>club.pop("verification_query", None)</code> 로 삭제되며, 실패 시에만
+    그 값이 <code>url_note</code> 문구 안에 재활용됩니다.
+  </div>
+
+  <div class="sublabel">▸ projects_and_contests[ ] — 공모전·프로젝트 (현재 진행/예정만)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">36</span><span class="fk"><span class="p">projects_and_contests[n].</span>name</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">공모전명 (주관기관 확인된 것만)</span></div>
+    <div class="fr"><span class="fn">37</span><span class="fk"><span class="p">projects_and_contests[n].</span>organizer</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">주관기관명 — 검증에서 <code>organizer_confirmed</code> 불일치 시 제외</span></div>
+    <div class="fr"><span class="fn">38</span><span class="fk"><span class="p">projects_and_contests[n].</span>reason</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">추천 이유</span></div>
+    <div class="fr"><span class="fn">39</span><span class="fk"><span class="p">projects_and_contests[n].</span>expected_effect</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">기대 효과</span></div>
+    <div class="fr"><span class="fn">40</span><span class="fk"><span class="p">projects_and_contests[n].</span>is_regular</span><div class="tc"><span class="bl">boolean</span></div><span class="req">필수</span><span class="fd">정기 개최 여부</span></div>
+    <div class="fr"><span class="fn">41</span><span class="fk"><span class="p">projects_and_contests[n].</span>deadline</span><div class="tc"><span class="nl">nullable</span></div><span class="sys">시스템</span><span class="fd">검증에서 확인된 마감일(YYYY-MM-DD). 기준일 이후 종료 예정이 확인 안 되면(<code>upcoming: false</code>) 항목 자체가 제외</span></div>
+    <div class="fr"><span class="fn">42</span><span class="fk"><span class="p">projects_and_contests[n].</span>url</span><div class="tc"><span class="nl">nullable</span></div><span class="sys">시스템</span><span class="fd">검색 근거 URI 중 HTTP 프로브 통과분만</span></div>
+    <div class="fr"><span class="fn">43</span><span class="fk"><span class="p">projects_and_contests[n].</span>verified_by</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>고정값 <code>"grounded_search_dual_pass"</code></span></div>
+  </div>
+</div>
+
+<!-- ═══════════ 05 ═══════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="snum">05</span><span class="stitle">STAR 이력서 초안 — 근거 결속 + 품질 채점</span><span class="skey">result.resume_star_format[ ]</span></div>
+  <p class="secnote">
+    v2.0 은 <code>{title,S,T,A,R}</code> 다섯 필드가 전부였고, 데이터가 빈약해도
+    항상 같은 스키마로 채워졌습니다(창작 유인). v3.1 은 <b>생성 전 사전 적합성 판정</b>
+    으로 데이터 부족 시 이 배열 전체가 <code>[]</code>가 되며, 생성된 경우에도
+    슬롯마다 원문 인용을 강제하고 <b>10개 루브릭으로 작성 품질을 채점</b>합니다.
+    아래 필드는 <b>모두 v3.1 신규</b>입니다 — v2.0 대비 구조가 근본적으로 다릅니다.
+  </p>
+  <div class="ch"><span>#</span><span>키 (JSON path)</span><span>타입</span><span>필수여부</span><span>설명</span></div>
+
+  <div class="fr"><span class="fn">44</span><span class="fk">resume_star_format[n].title</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">경험명</span></div>
+  <div class="fr"><span class="fn">45</span><span class="fk">resume_star_format[n].headline</span><div class="tc"><span class="b">string</span><span class="nl">nullable</span></div><span class="cond">조건부</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>이력서용 한 줄 성취문(강한 동사+맥락+결과). 원문에 없는 수치가 섞이면 <code>validate_derived_fields()</code>가 자동 삭제해 <code>null</code></span></div>
+
+  <div class="fr"><span class="fn">46</span><span class="fk">resume_star_format[n].S</span><div class="tc"><span class="b">string</span><span class="nl">nullable</span></div><span class="cond">조건부</span><span class="fd">상황·배경. 원문 근거 없으면 <code>null</code></span></div>
+  <div class="fr"><span class="fn">47</span><span class="fk">resume_star_format[n].S_source_quote</span><div class="tc"><span class="b">string</span><span class="nl">nullable</span></div><span class="cond">조건부</span><span class="fd">S 의 근거가 되는 <b>원문 문장 그대로</b>. <code>quote_supported()</code>로 원문 존재 대조 — 불일치 시 S 와 함께 <code>null</code></span></div>
+  <div class="fr"><span class="fn">48</span><span class="fk">resume_star_format[n].T</span><div class="tc"><span class="b">string</span><span class="nl">nullable</span></div><span class="cond">조건부</span><span class="fd">과제 — 내가 해내야 했던 것 (S 와 역할 분리)</span></div>
+  <div class="fr"><span class="fn">49</span><span class="fk">resume_star_format[n].T_source_quote</span><div class="tc"><span class="b">string</span><span class="nl">nullable</span></div><span class="cond">조건부</span><span class="fd">T 의 원문 근거</span></div>
+  <div class="fr"><span class="fn">50</span><span class="fk">resume_star_format[n].A</span><div class="tc"><span class="b">string</span><span class="nl">nullable</span></div><span class="req">필수*</span><span class="fd">행동 — 1인칭, 방법 포함. <b>A 또는 R 중 근거 슬롯이 없으면 항목 자체가 폐기</b>되므로 살아남은 항목은 사실상 필수</span></div>
+  <div class="fr"><span class="fn">51</span><span class="fk">resume_star_format[n].A_source_quote</span><div class="tc"><span class="b">string</span><span class="nl">nullable</span></div><span class="cond">조건부</span><span class="fd">A 의 원문 근거. 원문에 없는 수치가 A 안에 있으면 슬롯 전체가 <code>null</code>로 삭제</span></div>
+  <div class="fr"><span class="fn">52</span><span class="fk">resume_star_format[n].R</span><div class="tc"><span class="b">string</span><span class="nl">nullable</span></div><span class="req">필수*</span><span class="fd">결과 — 원문 수치 + 파급. A 와 함께 근거 결속의 최소 요건</span></div>
+  <div class="fr"><span class="fn">53</span><span class="fk">resume_star_format[n].R_source_quote</span><div class="tc"><span class="b">string</span><span class="nl">nullable</span></div><span class="cond">조건부</span><span class="fd">R 의 원문 근거</span></div>
+  <div class="fr"><span class="fn">54</span><span class="fk">resume_star_format[n].L</span><div class="tc"><span class="b">string</span><span class="nl">nullable</span></div><span class="cond">조건부</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>배움·회고(STARR/STAR-L). <b>원문에 배움이 명시된 경우에만</b> — 추측성 회고는 금지되며 자동 삭제됨</span></div>
+  <div class="fr"><span class="fn">55</span><span class="fk">resume_star_format[n].L_source_quote</span><div class="tc"><span class="b">string</span><span class="nl">nullable</span></div><span class="cond">조건부</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>L 의 원문 근거. 미확인 시 L 과 함께 <code>null</code></span></div>
+
+  <div class="sublabel">▸ competency_evidence[ ] — 이 경험이 증명하는 역량 (반복 객체)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">56</span><span class="fk"><span class="p">competency_evidence[n].</span>competency</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>증명되는 역량명</span></div>
+    <div class="fr"><span class="fn">57</span><span class="fk"><span class="p">competency_evidence[n].</span>why</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>S/T/A/R 안의 어떤 사실이 그것을 증명하는지. 사실이 아니라 해석이므로 새 사실 생성은 아니지만 근거는 S/T/A/R 안에 있어야 함</span></div>
+  </div>
+
+  <div class="sublabel">▸ evidence_status — 근거 결속 검사 결과 (단일 객체, 시스템 부착)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">58</span><span class="fk"><span class="p">evidence_status.</span>supported_slots</span><div class="tc"><span class="ar">string[]</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>원문 근거를 확보한 슬롯 목록. 예: <code>["S","A","R"]</code></span></div>
+    <div class="fr"><span class="fn">59</span><span class="fk"><span class="p">evidence_status.</span>unsupported_slots</span><div class="tc"><span class="ar">object[]</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>근거 탈락 슬롯과 사유. 각 항목 <code>{slot,label,reason,claimed_quote?}</code></span></div>
+    <div class="fr"><span class="fn">60</span><span class="fk"><span class="p">evidence_status.</span>restructuring_only</span><div class="tc"><span class="bl">boolean</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>슬롯 간 인용 중복도가 60% 이상이면 <code>true</code> — "입력 문장 재배치"로 판정된 경우</span></div>
+    <div class="fr"><span class="fn">61</span><span class="fk"><span class="p">evidence_status.</span>restructuring_detail</span><div class="tc"><span class="ar">string[]</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>어느 슬롯 쌍이 얼마나 겹치는지. 예: <code>["S↔T (82% 중복)"]</code>. Jaccard 와 포함도(containment) 중 큰 값을 사용 — 짧은 슬롯이 긴 슬롯에 통째로 포함된 경우도 탐지</span></div>
+  </div>
+
+  <div class="fr"><span class="fn">62</span><span class="fk">resume_star_format[n].quality_warning</span><div class="tc"><span class="b">string</span></div><span class="cond">조건부</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span><code>restructuring_only=true</code> 일 때만 등장. "입력 문장을 슬롯별로 재배치한 수준입니다..." 형태</span></div>
+
+  <div class="sublabel">▸ quality — 작성 품질 채점 결과 (단일 객체, 시스템 부착)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">63</span><span class="fk"><span class="p">quality.</span>grade</span><div class="tc"><span class="en">enum</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>A | B | C | D — 10개 루브릭 통과율 기준(85%/65%/45%). 미달이어도 <b>항목을 폐기하지 않음</b></span></div>
+    <div class="fr"><span class="fn">64</span><span class="fk"><span class="p">quality.</span>score</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>"7/10" 형식</span></div>
+    <div class="fr"><span class="fn">65</span><span class="fk"><span class="p">quality.</span>verdict</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>등급별 고정 총평 문구</span></div>
+    <div class="sublabel" style="padding-left:0">▸▸ criteria[ ] — 루브릭 10항목 개별 판정</div>
+    <div class="sub2">
+      <div class="fr"><span class="fn">66</span><span class="fk"><span class="p">criteria[n].</span>key</span><div class="tc"><span class="en">enum</span></div><span class="sys">시스템</span><span class="fd">action_dominant | context_concise | first_person | action_method | strong_verb | result_quantified | result_impact | no_vague | slots_distinct | context_scale</span></div>
+      <div class="fr"><span class="fn">67</span><span class="fk"><span class="p">criteria[n].</span>label</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd">한글 라벨 (예: "Action 비중")</span></div>
+      <div class="fr"><span class="fn">68</span><span class="fk"><span class="p">criteria[n].</span>passed</span><div class="tc"><span class="bl">boolean</span></div><span class="sys">시스템</span><span class="fd">해당 기준 통과 여부</span></div>
+      <div class="fr"><span class="fn">69</span><span class="fk"><span class="p">criteria[n].</span>detail</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd">측정값 (예: "Action 이 전체의 12% (권장 40~50%)")</span></div>
+      <div class="fr"><span class="fn">70</span><span class="fk"><span class="p">criteria[n].</span>coaching</span><div class="tc"><span class="b">string</span></div><span class="cond">조건부</span><span class="fd"><code>passed=false</code> 일 때만. 구체적 개선 지시</span></div>
+    </div>
+    <div class="fr"><span class="fn">71</span><span class="fk"><span class="p">quality.</span>priority_fixes</span><div class="tc"><span class="ar">string[]</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>미달 기준의 coaching 상위 3개</span></div>
+    <div class="fr"><span class="fn">72</span><span class="fk"><span class="p">quality.</span>derived_field_notes</span><div class="tc"><span class="ar">string[]</span></div><span class="cond">조건부</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>headline/L 이 삭제된 경우에만. 삭제 사유 목록</span></div>
+  </div>
+
+  <div class="rmvsec">
+    <span class="rmv" style="margin-right:6px">v2.0</span> 데이터 부족 시에도 <code>{title,S,T,A,R}</code>
+    다섯 필드가 예시 문구로 채워지는 구조였습니다. v3.1 은 사전 판정 미달 시
+    이 배열 자체가 프롬프트 스키마에서 <b>제거</b>되어 모델이 채울 자리가 없습니다
+    (<code>_star_section()</code>이 <code>star_ready</code> 플래그로 분기).
+  </div>
+
+  <div class="sublabel">▸ action_plan — 단·중·장기 (단일 객체, 구조 불변)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">73</span><span class="fk"><span class="p">action_plan.</span>단기</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">3개월 이내</span></div>
+    <div class="fr"><span class="fn">74</span><span class="fk"><span class="p">action_plan.</span>중기</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">6개월~1년</span></div>
+    <div class="fr"><span class="fn">75</span><span class="fk"><span class="p">action_plan.</span>장기</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">1년 이상</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ 06 ═══════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="snum">06</span><span class="stitle">STAR 분석 상태 · 포트폴리오 총평</span><span class="skey">result.star_analysis_status</span></div>
+  <p class="secnote">
+    <span class="new" style="margin-right:4px">NEW</span>이 섹션 전체가 v3.1 신규입니다.
+    이 STAR 초안이 왜 생성됐는지/안 됐는지, 개별 항목이 아닌 <b>포트폴리오 전체</b>의
+    품질 분포를 사용자에게 설명하기 위한 메타 정보입니다. 전부 시스템이 계산합니다
+    (LLM 이 직접 채우는 필드 없음).
+  </p>
+  <div class="ch"><span>#</span><span>키 (JSON path)</span><span>타입</span><span>필수여부</span><span>설명</span></div>
+
+  <div class="fr"><span class="fn">76</span><span class="fk"><span class="p">star_analysis_status.</span>generated</span><div class="tc"><span class="bl">boolean</span></div><span class="sys">시스템</span><span class="fd">STAR 를 실제로 생성했는지. 사전 판정 미달이거나 근거 검증에서 전량 폐기되면 <code>false</code></span></div>
+  <div class="fr"><span class="fn">77</span><span class="fk"><span class="p">star_analysis_status.</span>reason</span><div class="tc"><span class="b">string</span></div><span class="cond">조건부</span><span class="fd">미생성 사유. 예: "경험 3건 중 STAR 기준(5개 신호 중 4개 이상) 충족 0건..."</span></div>
+  <div class="fr"><span class="fn">78</span><span class="fk"><span class="p">star_analysis_status.</span>experience_block_count</span><div class="tc"><span class="b">number</span></div><span class="sys">시스템</span><span class="fd"><code>split_experience_blocks()</code>로 원문에서 식별한 경험 단위 개수</span></div>
+  <div class="fr"><span class="fn">79</span><span class="fk"><span class="p">star_analysis_status.</span>star_eligible_block_count</span><div class="tc"><span class="b">number</span></div><span class="sys">시스템</span><span class="fd">5개 신호(분량·행동동사·수치·기간·역할) 중 4개 이상 충족한 블록 수</span></div>
+  <div class="fr"><span class="fn">80</span><span class="fk"><span class="p">star_analysis_status.</span>coaching</span><div class="tc"><span class="ar">string[]</span></div><span class="cond">조건부</span><span class="fd">미생성 시 "어떻게 적으면 STAR 가 가능해지는지" 구체 예시</span></div>
+  <div class="fr"><span class="fn">81</span><span class="fk"><span class="p">star_analysis_status.</span>rejected_entries</span><div class="tc"><span class="ar">object[]</span></div><span class="sys">시스템</span><span class="fd">근거 결속에 실패해 폐기된 항목. 각각 <code>{title,reason,unsupported_slots,coaching}</code></span></div>
+
+  <div class="sublabel">▸ quality_review — 포트폴리오 전체 품질 총평 (단일 객체)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">82</span><span class="fk"><span class="p">quality_review.</span>evaluated</span><div class="tc"><span class="b">number</span></div><span class="sys">시스템</span><span class="fd">채점된 STAR 항목 수</span></div>
+    <div class="fr"><span class="fn">83</span><span class="fk"><span class="p">quality_review.</span>grade_distribution</span><div class="tc"><span class="b">object</span></div><span class="sys">시스템</span><span class="fd">등급별 개수. 예: <code>{"A":1,"D":1}</code></span></div>
+    <div class="fr"><span class="fn">84</span><span class="fk"><span class="p">quality_review.</span>portfolio_verdict</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd">전체/일부/전무 미달 여부에 따른 3분기 총평 문장</span></div>
+    <div class="fr"><span class="fn">85</span><span class="fk"><span class="p">quality_review.</span>top_fixes</span><div class="tc"><span class="ar">string[]</span></div><span class="sys">시스템</span><span class="fd">포트폴리오 전체에서 가장 많이 미달한 기준 상위 3개. 예: "Action 비중 — 1/2건에서 미달"</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ 07 ═══════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="snum">07</span><span class="stitle">강점 진단</span><span class="skey">result.strength_diagnosis</span></div>
+  <p class="secnote">critical_diagnosis 보다 먼저 출력. 강점 없으면 strengths=[], no_strength_diagnosis에 사유 기재. v2.0 대비 구조 변경 없음 — evidence 필드에 "입력 원문 그대로 인용" 요구가 프롬프트 수준에서 강화됨(코드 강제 아님).</p>
+  <div class="ch"><span>#</span><span>키 (JSON path)</span><span>타입</span><span>필수여부</span><span>설명</span></div>
+
+  <div class="fr"><span class="fn">86</span><span class="fk"><span class="p">strength_diagnosis.</span>one_line_verdict</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">강점 전반 상태 한 문장</span></div>
+
+  <div class="sublabel">▸ strengths[ ] — 강점 상세 (반복 객체)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">87</span><span class="fk"><span class="p">strengths[n].</span>id</span><div class="tc"><span class="b">number</span></div><span class="req">필수</span><span class="fd">식별 번호</span></div>
+    <div class="fr"><span class="fn">88</span><span class="fk"><span class="p">strengths[n].</span>category</span><div class="tc"><span class="en">enum</span></div><span class="req">필수</span><span class="fd">활동_수량 | 활동_깊이 | 직무_연관성 | 스킬_보유 | 기간_연속성 | 서류_품질 | 경쟁력_우위</span></div>
+    <div class="fr"><span class="fn">89</span><span class="fk"><span class="p">strengths[n].</span>level</span><div class="tc"><span class="en">enum</span></div><span class="req">필수</span><span class="fd">outstanding | strong | notable</span></div>
+    <div class="fr"><span class="fn">90</span><span class="fk"><span class="p">strengths[n].</span>title</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">강점 제목 (10자 이내)</span></div>
+    <div class="fr"><span class="fn">91</span><span class="fk"><span class="p">strengths[n].</span>diagnosis</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">왜 강점인지 근거</span></div>
+    <div class="fr"><span class="fn">92</span><span class="fk"><span class="p">strengths[n].</span>evidence</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">판단한 구체적 근거 — 프롬프트가 "원문 그대로 인용"을 요구하나 §04·05 와 달리 코드 대조는 없음(강제 아님)</span></div>
+    <div class="fr"><span class="fn">93</span><span class="fk"><span class="p">strengths[n].</span>impact</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">취업·커리어 긍정 영향</span></div>
+    <div class="fr"><span class="fn">94</span><span class="fk"><span class="p">strengths[n].</span>leverage_action</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">강점 극대화 행동 (동사 시작)</span></div>
+  </div>
+
+  <div class="sublabel">▸ no_strength_diagnosis — 강점 없음 사유 (단일 객체)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">95</span><span class="fk"><span class="p">no_strength_diagnosis.</span>has_issue</span><div class="tc"><span class="bl">boolean</span></div><span class="req">필수</span><span class="fd">강점 식별 불가 여부</span></div>
+    <div class="fr"><span class="fn">96</span><span class="fk"><span class="p">no_strength_diagnosis.</span>reason</span><div class="tc"><span class="b">string</span></div><span class="cond">조건부</span><span class="fd">식별 불가 이유 (강점 있으면 빈 문자열)</span></div>
+    <div class="fr"><span class="fn">97</span><span class="fk"><span class="p">no_strength_diagnosis.</span>improvement_direction</span><div class="tc"><span class="b">string</span></div><span class="cond">조건부</span><span class="fd">강점 생성 개선 방향 (강점 있으면 빈 문자열)</span></div>
+  </div>
+
+  <div class="fr"><span class="fn">98</span><span class="fk"><span class="p">strength_diagnosis.</span>standout_experience_types</span><div class="tc"><span class="ar">string[]</span></div><span class="req">필수</span><span class="fd">특히 돋보이는 경험 유형 (없으면 [])</span></div>
+
+  <div class="sublabel">▸ content_quality_highlights[ ] — 서류 품질 강점 (반복 객체)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">99</span><span class="fk"><span class="p">content_quality_highlights[n].</span>item</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">잘 작성된 항목명</span></div>
+    <div class="fr"><span class="fn">100</span><span class="fk"><span class="p">content_quality_highlights[n].</span>highlight</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">무엇이 강한가</span></div>
+    <div class="fr"><span class="fn">101</span><span class="fk"><span class="p">content_quality_highlights[n].</span>why_effective</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">설득력 있는 이유</span></div>
+  </div>
+
+  <div class="fr"><span class="fn">102</span><span class="fk"><span class="p">strength_diagnosis.</span>competitor_advantage</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">경쟁자 대비 결정적 차별점</span></div>
+</div>
+
+<!-- ═══════════ 08 ═══════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="snum">08</span><span class="stitle">냉정 보완점 진단</span><span class="skey">result.critical_diagnosis</span></div>
+  <p class="secnote">강점 섹션과 독립적으로 판단 — 강점이 약점을 상쇄하지 않음(앵커링 저항). v2.0 대비 구조 변경 없음.</p>
+  <div class="ch"><span>#</span><span>키 (JSON path)</span><span>타입</span><span>필수여부</span><span>설명</span></div>
+
+  <div class="fr"><span class="fn">103</span><span class="fk"><span class="p">critical_diagnosis.</span>one_line_verdict</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">이력 전반 상태 냉정하게 한 문장</span></div>
+
+  <div class="sublabel">▸ weaknesses[ ] — 약점 상세 (반복 객체)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">104</span><span class="fk"><span class="p">weaknesses[n].</span>id</span><div class="tc"><span class="b">number</span></div><span class="req">필수</span><span class="fd">식별 번호</span></div>
+    <div class="fr"><span class="fn">105</span><span class="fk"><span class="p">weaknesses[n].</span>category</span><div class="tc"><span class="en">enum</span></div><span class="req">필수</span><span class="fd">활동_수량 | 활동_깊이 | 직무_연관성 | 스킬_공백 | 기간_연속성 | 서류_품질 | 경쟁력_격차</span></div>
+    <div class="fr"><span class="fn">106</span><span class="fk"><span class="p">weaknesses[n].</span>severity</span><div class="tc"><span class="en">enum</span></div><span class="req">필수</span><span class="fd">critical | major | minor</span></div>
+    <div class="fr"><span class="fn">107</span><span class="fk"><span class="p">weaknesses[n].</span>title</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">약점 제목 (10자 이내)</span></div>
+    <div class="fr"><span class="fn">108</span><span class="fk"><span class="p">weaknesses[n].</span>diagnosis</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">왜 약점인지 근거</span></div>
+    <div class="fr"><span class="fn">109</span><span class="fk"><span class="p">weaknesses[n].</span>evidence</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">판단한 구체적 근거 (인용 또는 '없음')</span></div>
+    <div class="fr"><span class="fn">110</span><span class="fk"><span class="p">weaknesses[n].</span>impact</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">취업/커리어 실질적 영향</span></div>
+    <div class="fr"><span class="fn">111</span><span class="fk"><span class="p">weaknesses[n].</span>priority_action</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">지금 당장 할 행동 (동사 시작)</span></div>
+  </div>
+
+  <div class="fr"><span class="fn">112</span><span class="fk"><span class="p">critical_diagnosis.</span>missing_experience_types</span><div class="tc"><span class="ar">string[]</span></div><span class="req">필수</span><span class="fd">완전히 빠진 경험 유형</span></div>
+
+  <div class="sublabel">▸ content_quality_issues[ ] — 서류 품질 문제 (반복 객체)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">113</span><span class="fk"><span class="p">content_quality_issues[n].</span>item</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">문제 있는 항목명</span></div>
+    <div class="fr"><span class="fn">114</span><span class="fk"><span class="p">content_quality_issues[n].</span>issue</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">무엇이 부실한가</span></div>
+    <div class="fr"><span class="fn">115</span><span class="fk"><span class="p">content_quality_issues[n].</span>improvement_hint</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">개선 표현 예시</span></div>
+  </div>
+
+  <div class="fr"><span class="fn">116</span><span class="fk"><span class="p">critical_diagnosis.</span>competitor_gap</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">경쟁자 대비 갖지 못한 결정적 차이</span></div>
+</div>
+
+<!-- ═══════════ 09 ═══════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="snum">09</span><span class="stitle">채용공고</span><span class="skey">result.verified_jobs[ ]</span></div>
+  <p class="secnote">
+    v2.0 은 검색 없는 본 분석 단계에서 공고를 먼저 만들고 사후 필터링했습니다
+    (URL 검증 실패분은 <code>expired_jobs</code>가 아니라 그냥 버려졌고, 마감 지난
+    공고만 <code>expired_jobs</code>에 담겼습니다). v3.1 은 공고 자체를 <b>검색
+    그라운딩 단계에서만</b> 생성합니다 — 회사명이 검색 근거에 등장하는지 대조 후
+    근거 URI 를 HTTP 프로브해 통과분만 반환합니다. 별도 만료 배열이 없습니다.
+  </p>
+  <div class="ch"><span>#</span><span>키 (JSON path)</span><span>타입</span><span>필수여부</span><span>설명</span></div>
+
+  <div class="fr"><span class="fn">117</span><span class="fk">verified_jobs[n].company</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd">회사명 — 검색 그라운딩 근거에 등장 확인된 것만</span></div>
+  <div class="fr"><span class="fn">118</span><span class="fk">verified_jobs[n].role</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd">직무</span></div>
+  <div class="fr"><span class="fn">119</span><span class="fk">verified_jobs[n].deadline</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd">YYYY-MM-DD 또는 "상시채용". 파싱 불가하거나 기준일 이전이면 항목 자체가 제외(fail-closed)</span></div>
+  <div class="fr"><span class="fn">120</span><span class="fk">verified_jobs[n].why_match</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd">매칭 근거</span></div>
+  <div class="fr"><span class="fn">121</span><span class="fk">verified_jobs[n].url</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd"><code>probe_url()</code> 통과 필수. <b>실패 시 nullable 이 아니라 항목 자체가 제외</b> — 채용공고는 링크 없는 추천이 무의미하므로</span></div>
+  <div class="fr"><span class="fn">122</span><span class="fk">verified_jobs[n].verified_by</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>고정값 <code>"grounded_search + http_probe"</code></span></div>
+
+  <div class="rmvsec">
+    <span class="rmv" style="margin-right:6px">v2.0</span> <code>expired_jobs[ ]</code>,
+    <code>verified_jobs[n].is_valid</code> — 더 이상 존재하지 않습니다. 마감 지난
+    공고는 그라운딩 검색 단계에서 <code>_parse_deadline()</code>이 즉시 걸러
+    <code>rejected_by_guard.jobs</code>(§10)로 이동하며, 별도 "만료 배열"로
+    사용자에게 노출하지 않습니다.
+  </div>
+</div>
+
+<!-- ═══════════ 10 ═══════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="snum">10</span><span class="stitle">추천 사유 · 검증 감사 로그</span><span class="skey">result</span></div>
+  <p class="secnote">
+    <span class="new" style="margin-right:4px">NEW</span>전체 섹션 신규. v2.0 은 무엇이
+    왜 걸러졌는지 stdout <code>print()</code> 로만 남기고 최종 JSON 에는 흔적이
+    없었습니다 — 추천이 왜 비었는지 산출물만 봐서는 알 수 없었습니다. v3.1 은
+    개수 쿼터를 없앤 대신, 빈 결과의 이유와 전체 검증 과정을 구조화된 필드로 노출합니다.
+  </p>
+  <div class="ch"><span>#</span><span>키 (JSON path)</span><span>타입</span><span>필수여부</span><span>설명</span></div>
+
+  <div class="fr"><span class="fn">123</span><span class="fk"><span class="p">result.</span>recommendation_notices</span><div class="tc"><span class="ar">string[]</span></div><span class="sys">시스템</span><span class="fd">자격증·동아리·공모전 중 결과가 빈 카테고리마다 사유 1문장. 동아리는 학교가 있으면 직접 검색어 힌트 포함</span></div>
+
+  <div class="sublabel">▸ verification_audit — 검증 전 과정 감사 로그 (단일 객체)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">124</span><span class="fk"><span class="p">verification_audit.</span>summary</span><div class="tc"><span class="b">object</span></div><span class="sys">시스템</span><span class="fd"><code>{by_stage, total_dropped, total_degraded, total_kept}</code>. <code>by_stage</code> 는 <code>certifications|clubs|contests|jobs|star|star_quality|url</code> 별 kept/dropped/degraded 집계</span></div>
+    <div class="fr"><span class="fn">125</span><span class="fk"><span class="p">verification_audit.</span>records</span><div class="tc"><span class="ar">object[]</span></div><span class="sys">시스템</span><span class="fd">개별 레코드 전량. 각각 <code>{stage, item, outcome, reason}</code> — outcome 은 kept | dropped | degraded</span></div>
+  </div>
+
+  <div class="sublabel">▸ rejected_by_guard — 카테고리별 탈락 항목 (단일 객체)</div>
+  <div class="sub">
+    <div class="fr"><span class="fn">126</span><span class="fk"><span class="p">rejected_by_guard.</span>certifications</span><div class="tc"><span class="ar">object[]</span></div><span class="sys">시스템</span><span class="fd">각각 <code>{name, reason, detected_by}</code>. detected_by: <code>registry_grade_rule</code> | <code>grounding_absent</code> | <code>falsification_search</code> | <code>grounding_name_mismatch</code></span></div>
+    <div class="fr"><span class="fn">127</span><span class="fk"><span class="p">rejected_by_guard.</span>clubs_and_societies</span><div class="tc"><span class="ar">object[]</span></div><span class="sys">시스템</span><span class="fd">각각 <code>{name, reason, detected_by}</code>. detected_by 에 <code>school_match_rule</code> 추가</span></div>
+    <div class="fr"><span class="fn">128</span><span class="fk"><span class="p">rejected_by_guard.</span>projects_and_contests</span><div class="tc"><span class="ar">object[]</span></div><span class="sys">시스템</span><span class="fd">각각 <code>{name, reason, detected_by}</code></span></div>
+    <div class="fr"><span class="fn">129</span><span class="fk"><span class="p">rejected_by_guard.</span>jobs</span><div class="tc"><span class="ar">object[]</span></div><span class="sys">시스템</span><span class="fd">각각 <code>{company, role, reason}</code> — 다른 카테고리와 달리 <code>detected_by</code> 없음</span></div>
+  </div>
+
+  <div class="fr"><span class="fn">130</span><span class="fk"><span class="p">result.</span>missing_info_warning</span><div class="tc"><span class="nl">nullable</span></div><span class="cond">조건부</span><span class="fd">데이터 부족 경고 — 없으면 null (구조 v2.0 과 동일)</span></div>
+</div>
+
+<div class="sumbar">
+  <div class="si"><div class="sn">130</div><div class="sl">result payload 필드 수</div></div>
+  <div class="si"><div class="sn">10</div><div class="sl">섹션 (envelope + 01~09)</div></div>
+  <div class="si"><div class="sn">48</div><div class="sl">시스템 주입/재계산 필드</div></div>
+  <div class="si"><div class="sn">21</div><div class="sl">v3.1 신규 필드</div></div>
+  <div class="si"><div class="sn">4</div><div class="sl">v2.0 삭제 필드</div></div>
+  <div class="si"><div class="sn">있음</div><div class="sl">vector 필드</div></div>
+</div>
+

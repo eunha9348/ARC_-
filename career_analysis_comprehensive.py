@@ -1747,10 +1747,11 @@ def main(user_input: list[str] | None = None, school: str = "", department: str 
     audit = VerificationAudit()
 
     print("=" * 65)
-    print("  Career Analysis AI - COMPREHENSIVE Edition v3.0")
+    print("  Career Analysis AI - COMPREHENSIVE Edition v3.1")
     print(f"  모델: {_ANALYSIS_MODEL}  |  임베딩: {_EMBEDDING_MODEL}")
     print(f"  기준일: {rd} (자동)")
     print("  환각 가드: URL 무생성 / 그라운딩 강제 / 반증 이중 검증 / STAR 근거 결속")
+    print("  품질 가드: STAR 10개 루브릭 채점 (A~D)")
     print("=" * 65)
 
     school, department = get_user_profile(school, department)
@@ -1884,7 +1885,7 @@ def main(user_input: list[str] | None = None, school: str = "", department: str 
         "jobs": job_rejected,
     }
     result["embedding_dim"] = len(vector) if vector else None
-    result["guard_version"] = "v3.0"
+    result["guard_version"] = "v3.1"
 
     print("\n[8] 분석 완료!\n", flush=True)
     _log_strength_summary(result)
