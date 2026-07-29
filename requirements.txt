@@ -1,0 +1,9 @@
+# 종합 커리어 분석 모듈 실행 의존성
+# career_analysis_comprehensive.py / hallucination_guard.py /
+# star_quality.py / analysis_response.py 4개 파일 실행에 필요
+
+google-genai>=1.0        # Gemini 클라이언트. 이 세션에서 검증한 버전: 2.14.0
+pypdf>=4.0                # PDF 입력 파싱
+
+# 선택 — 없으면 analysis_response.py 가 자체 경량 구현으로 대체
+pydantic>=2.0              # 이 세션에서 검증한 버전: 2.13.4

@@ -1,0 +1,640 @@
+<title>종합 커리어 분석 — 백엔드 연동 안내서</title>
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:      #F4F7F7;
+    --surface:     #FFFFFF;
+    --surface-alt: #EDF2F2;
+    --ink:         #14181A;
+    --ink-soft:    #454F52;
+    --ink-faint:   #6E797C;
+    --rule:        #D2DCDC;
+    --rule-strong: #B4C3C3;
+
+    --accent:      #0F5F63;
+    --accent-soft: #DCEBEB;
+    --accent-ink:  #0B4B4E;
+
+    --critical:    #A32E1F;
+    --critical-bg: #F7E4E1;
+    --fixed:       #2C6B44;
+    --fixed-bg:    #DFEDE4;
+    --warn:        #8A6116;
+    --warn-bg:     #F5EAD5;
+
+    --sans: "Pretendard", "Pretendard Variable", -apple-system, BlinkMacSystemFont,
+            "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "맑은 고딕",
+            system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono",
+            "Cascadia Mono", Menlo, Consolas, monospace;
+
+    --measure: 68ch;
+    --pad: clamp(1.1rem, 4vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0E1213; --surface: #161C1D; --surface-alt: #1D2526;
+      --ink: #E6ECEC; --ink-soft: #AEBBBB; --ink-faint: #7E8C8C;
+      --rule: #2A3435; --rule-strong: #3C4849;
+      --accent: #5FB6B8; --accent-soft: #12302F; --accent-ink: #8FD3D4;
+      --critical: #E08578; --critical-bg: #33201C;
+      --fixed: #7FBE96; --fixed-bg: #172B20;
+      --warn: #D6AC63; --warn-bg: #2E2415;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E1213; --surface: #161C1D; --surface-alt: #1D2526;
+    --ink: #E6ECEC; --ink-soft: #AEBBBB; --ink-faint: #7E8C8C;
+    --rule: #2A3435; --rule-strong: #3C4849;
+    --accent: #5FB6B8; --accent-soft: #12302F; --accent-ink: #8FD3D4;
+    --critical: #E08578; --critical-bg: #33201C;
+    --fixed: #7FBE96; --fixed-bg: #172B20;
+    --warn: #D6AC63; --warn-bg: #2E2415;
+  }
+  :root[data-theme="light"] {
+    --ground: #F4F7F7; --surface: #FFFFFF; --surface-alt: #EDF2F2;
+    --ink: #14181A; --ink-soft: #454F52; --ink-faint: #6E797C;
+    --rule: #D2DCDC; --rule-strong: #B4C3C3;
+    --accent: #0F5F63; --accent-soft: #DCEBEB; --accent-ink: #0B4B4E;
+    --critical: #A32E1F; --critical-bg: #F7E4E1;
+    --fixed: #2C6B44; --fixed-bg: #DFEDE4;
+    --warn: #8A6116; --warn-bg: #F5EAD5;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  .wrap { max-width: 82rem; margin: 0 auto; padding: 0 var(--pad) 6rem; }
+
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: clamp(2.25rem, 5vw, 4rem) 0 1.5rem;
+    display: flex; flex-direction: column; gap: 1.25rem;
+  }
+  .stamp {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--accent);
+    display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem;
+  }
+  .stamp b { font-weight: 600; color: var(--ink-soft); }
+  h1 {
+    margin: 0; font-size: clamp(1.75rem, 4.6vw, 2.6rem); line-height: 1.2;
+    letter-spacing: -0.02em; font-weight: 700; text-wrap: balance; max-width: 24ch;
+  }
+  .standfirst {
+    margin: 0; max-width: var(--measure);
+    font-size: clamp(1rem, 2.1vw, 1.08rem); color: var(--ink-soft);
+  }
+
+  .layout { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+  @media (min-width: 68rem) {
+    .layout { grid-template-columns: 15.5rem minmax(0, 1fr); gap: 3.5rem; }
+    .toc { position: sticky; top: 2rem; align-self: start; max-height: calc(100vh - 4rem); overflow-y: auto; }
+  }
+  .toc { padding-top: 2.5rem; }
+  .toc-label {
+    font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--ink-faint);
+    border-bottom: 1px solid var(--rule); padding-bottom: 0.5rem; margin-bottom: 0.75rem;
+  }
+  .toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  .toc a {
+    display: flex; gap: 0.6rem; padding: 0.3rem 0;
+    font-size: 0.85rem; color: var(--ink-soft); text-decoration: none;
+  }
+  .toc a::before {
+    counter-increment: toc; content: counter(toc);
+    font-family: var(--mono); font-size: 0.72rem; color: var(--accent);
+    flex: 0 0 1.1rem; padding-top: 0.15rem;
+  }
+  .toc a:hover { color: var(--accent); }
+
+  section { padding-top: clamp(2.25rem, 5vw, 3.5rem); scroll-margin-top: 1.5rem; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 0.6rem;
+  }
+  h2 {
+    margin: 0 0 1rem; font-size: clamp(1.3rem, 3vw, 1.65rem); line-height: 1.3;
+    letter-spacing: -0.015em; font-weight: 700; text-wrap: balance;
+    border-bottom: 1px solid var(--rule); padding-bottom: 0.6rem;
+  }
+  h3 { margin: 1.6rem 0 0.5rem; font-size: 1.03rem; font-weight: 700; text-wrap: balance; }
+  h4 { margin: 1.1rem 0 0.4rem; font-size: 0.92rem; font-weight: 700; color: var(--ink-soft); }
+  p, li { max-width: var(--measure); }
+  p { margin: 0 0 1rem; }
+  ul, ol { margin: 0 0 1rem; padding-left: 1.25rem; }
+  li { margin-bottom: 0.35rem; }
+  code {
+    font-family: var(--mono); font-size: 0.86em; background: var(--surface-alt);
+    border: 1px solid var(--rule); border-radius: 3px; padding: 0.08em 0.34em;
+    word-break: break-all;
+  }
+  strong { font-weight: 700; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  pre.block {
+    margin: 0.9rem 0; background: var(--surface); border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule-strong); padding: 0.95rem 1.1rem;
+    overflow-x: auto; font-family: var(--mono); font-size: 0.82rem;
+    line-height: 1.68; color: var(--ink-soft); white-space: pre;
+  }
+  pre.block .c { color: var(--ink-faint); }
+  pre.block .k { color: var(--accent); font-weight: 600; }
+  pre.block .s { color: var(--fixed); }
+  pre.block .bad { color: var(--critical); font-weight: 700; }
+  .code-label {
+    font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--ink-faint); margin: 1rem 0 -0.4rem;
+  }
+
+  .step {
+    display: grid; grid-template-columns: 2.6rem minmax(0, 1fr);
+    gap: 0 1.1rem; padding: 1.1rem 0; border-top: 1px solid var(--rule);
+  }
+  .step:last-of-type { border-bottom: 1px solid var(--rule); }
+  .step-n {
+    font-family: var(--mono); font-size: 1rem; font-weight: 700;
+    color: var(--accent); font-variant-numeric: tabular-nums; padding-top: 0.15rem;
+  }
+  .step-body > *:last-child { margin-bottom: 0; }
+  .step h3 { margin: 0 0 0.4rem; font-size: 0.98rem; }
+
+  .callout {
+    padding: clamp(1rem, 2.5vw, 1.4rem) clamp(1.1rem, 3vw, 1.5rem);
+    margin: 1.3rem 0; border: 1px solid; border-radius: 2px;
+  }
+  .callout .lede {
+    font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em;
+    text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 700;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout.info  { background: var(--accent-soft);   border-color: var(--accent); }
+  .callout.info  .lede, .callout.info  p { color: var(--accent-ink); }
+  .callout.warn  { background: var(--warn-bg);       border-color: var(--warn); }
+  .callout.warn  .lede { color: var(--warn); }
+  .callout.warn  p { color: var(--ink); }
+  .callout.crit  { background: var(--critical-bg);   border-color: var(--critical); }
+  .callout.crit  .lede { color: var(--critical); }
+  .callout.crit  p { color: var(--ink); }
+
+  .scroll { overflow-x: auto; border: 1px solid var(--rule); margin: 1.3rem 0; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 40rem; font-size: 0.87rem; }
+  th, td { text-align: left; padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--rule); vertical-align: top; max-width: none; }
+  thead th {
+    font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-faint); font-weight: 600;
+    background: var(--surface-alt); border-bottom: 1px solid var(--rule-strong); white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .pill {
+    display: inline-block; font-family: var(--mono); font-size: 0.67rem; font-weight: 700;
+    letter-spacing: 0.06em; padding: 0.14rem 0.42rem; border-radius: 2px; white-space: nowrap;
+  }
+  .pill.ok   { background: var(--fixed-bg);    color: var(--fixed); }
+  .pill.no   { background: var(--critical-bg); color: var(--critical); }
+  .pill.warn { background: var(--warn-bg);     color: var(--warn); }
+  .pill.info { background: var(--accent-soft); color: var(--accent-ink); }
+
+  .filelist { display: flex; flex-direction: column; gap: 1px; background: var(--rule);
+    border: 1px solid var(--rule); margin: 1.3rem 0; }
+  .filelist > div { background: var(--surface); padding: 0.8rem 1rem;
+    display: grid; grid-template-columns: 13rem 1fr; gap: 0.3rem 1rem; align-items: baseline; }
+  .filelist code { font-size: 0.85rem; font-weight: 600; }
+  .filelist span { font-size: 0.86rem; color: var(--ink-soft); }
+
+  .note { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.25rem;
+    font-size: 0.86rem; color: var(--ink-faint); }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="stamp">
+      <span>Integration Guide</span>
+      <span><b>ARC_-</b> / career-analysis</span>
+      <span>v3.1</span>
+      <span>2026-07-29</span>
+    </div>
+    <h1>종합 커리어 분석 — 백엔드 연동 안내서</h1>
+    <p class="standfirst">
+      <code>career_analysis_comprehensive.py</code> 4파일 세트를 백엔드에 붙이는 절차를
+      코드에서 직접 검증한 사실만으로 정리했다. 설치·환경변수 같은 준비 단계보다
+      <strong>§5 호출 방식</strong>과 <strong>§7 stdout 함정</strong>이 실제로 연동을
+      망가뜨리는 지점이니 먼저 읽을 것.
+    </p>
+  </header>
+
+  <div class="layout">
+
+    <nav class="toc" aria-label="목차">
+      <div class="toc-label">목차</div>
+      <ol>
+        <li><a href="#s0">30초 요약</a></li>
+        <li><a href="#s1">파일 반입</a></li>
+        <li><a href="#s2">설치</a></li>
+        <li><a href="#s3">환경변수</a></li>
+        <li><a href="#s4">런타임 요구사항</a></li>
+        <li><a href="#s5">호출 방식</a></li>
+        <li><a href="#s6">입출력 계약</a></li>
+        <li><a href="#s7">stdout / stderr 함정</a></li>
+        <li><a href="#s8">오류 처리</a></li>
+        <li><a href="#s9">재시도·타임아웃</a></li>
+        <li><a href="#s10">통합 테스트</a></li>
+        <li><a href="#s11">알려진 한계</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <!-- §0 -->
+      <section id="s0">
+        <p class="eyebrow">00</p>
+        <h2>30초 요약</h2>
+        <p>급하면 이 블록만 보고 시작해도 된다. 나머지 섹션은 이 안의 각 줄이 왜 그런지에 대한 근거다.</p>
+        <pre class="block"><span class="c"># 1. 4개 파일을 같은 디렉터리에</span>
+career_analysis_comprehensive.py
+hallucination_guard.py
+star_quality.py
+analysis_response.py
+
+<span class="c"># 2. 설치</span>
+pip install -r requirements.txt
+
+<span class="c"># 3. 환경변수 (필수는 이것 하나)</span>
+export GEMINI_API_KEY="..."
+
+<span class="c"># 4. 같은 프로세스 안에서 함수로 직접 호출 — 서브프로세스로 띄우지 말 것 (§5·§7)</span>
+from career_analysis_comprehensive import main
+
+resp = main(user_input=["사용자 경력 텍스트..."], school="서울대학교", department="경영학과")
+resp.result       <span class="c"># dict — API 응답으로 그대로 내보내면 됨</span>
+resp.status        <span class="c"># "success" | "error"</span></pre>
+      </section>
+
+      <!-- §1 -->
+      <section id="s1">
+        <p class="eyebrow">01</p>
+        <h2>파일 반입</h2>
+        <p>
+          4개가 한 세트다. <code>career_analysis_comprehensive.py</code> 가 나머지 셋을
+          <code>import</code> 하고, <code>star_quality.py</code> 는 다시
+          <code>hallucination_guard.py</code> 를 가져다 쓴다 — 상대 경로가 아니라 같은
+          디렉터리 안의 평범한 모듈 import이므로 폴더를 나누면 그 자리에서 <code>ImportError</code>.
+        </p>
+        <pre class="block">career_analysis_comprehensive.py   <span class="c"># 진입점 — main()</span>
+        │
+        ├─ import analysis_response      <span class="c">(VectorSuccessResponse, ErrorResponse)</span>
+        ├─ import hallucination_guard    <span class="c">(검증 함수 12개)</span>
+        └─ import star_quality ──────┐
+                                      └─ import hallucination_guard  <span class="c">(재사용)</span></pre>
+        <div class="filelist">
+          <div><code>career_analysis_comprehensive.py</code><span>진입점. 크롤러 · 프롬프트 빌더 · 검증 오케스트레이션 · <code>main()</code>. 약 1,900행</span></div>
+          <div><code>hallucination_guard.py</code><span>URL 프로브 · 그라운딩 대조 · 자격증 레지스트리 · STAR 근거 검증. 약 910행. LLM을 직접 호출하지 않음</span></div>
+          <div><code>star_quality.py</code><span>STAR 작성 품질 채점 10개 루브릭. 약 400행. LLM을 직접 호출하지 않음</span></div>
+          <div><code>analysis_response.py</code><span>응답 envelope 모델. pydantic 있으면 사용, 없으면 자체 대체 구현. 83행</span></div>
+        </div>
+        <p>
+          <code>tests/</code>, <code>docs/</code>, <code>cover_letter_ai_all_in_one.py</code>(다른 기능)는
+          실행에 불필요하니 넘기지 않아도 된다.
+        </p>
+      </section>
+
+      <!-- §2 -->
+      <section id="s2">
+        <p class="eyebrow">02</p>
+        <h2>설치</h2>
+        <p>저장소 루트의 <code>requirements.txt</code> 그대로 쓰면 된다.</p>
+        <pre class="block">google-genai&gt;=1.0   <span class="c"># 이 문서 작성 시점 검증 버전: 2.14.0</span>
+pypdf&gt;=4.0
+pydantic&gt;=2.0       <span class="c"># 선택 — 없으면 analysis_response.py 가 자체 구현으로 대체 (§6)</span></pre>
+        <div class="callout warn">
+          <p class="lede">Python 버전</p>
+          <p>
+            이 세션에서는 3.11 로 전체 테스트를 통과시켰다. 코드가
+            <code>from __future__ import annotations</code> 를 선언해 최신 타입힌트
+            문법(<code>list[str] | None</code> 등)을 어노테이션에서만 쓰므로 3.9 이상이면
+            동작할 것으로 예상하지만, <strong>3.9/3.10 에서 직접 실행 검증은 하지 않았다.</strong>
+            3.11 이상을 쓰는 것을 권장한다.
+          </p>
+        </div>
+      </section>
+
+      <!-- §3 -->
+      <section id="s3">
+        <p class="eyebrow">03</p>
+        <h2>환경변수</h2>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>변수</th><th class="mono">필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">GEMINI_API_KEY</td><td><span class="pill no">필수</span></td><td>없으면 <code>get_client()</code> 가 <code>RuntimeError</code> 를 던진다. 이 에러는 main() 내부에서 잡혀 <code>ErrorResponse</code> 로 변환되므로 프로세스가 죽지는 않는다 (§8에서 실측 확인)</td></tr>
+              <tr><td class="mono">USER_SCHOOL</td><td><span class="pill warn">선택</span></td><td>CLI 진입점(<code>__main__</code>)에서만 읽음. 함수로 직접 호출할 때는 <code>school=</code> 인자로 전달하므로 무관</td></tr>
+              <tr><td class="mono">USER_DEPARTMENT</td><td><span class="pill warn">선택</span></td><td>위와 동일</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>키를 소스에 하드코딩하지 말 것 — v2.0 이 그렇게 했다가 모듈 import 자체가
+           키 없이는 실패하는 사고가 있었다. v3.1 은 <code>get_client()</code> 에서
+           지연 초기화하므로 키가 없어도 모듈은 정상 로드된다.</p>
+      </section>
+
+      <!-- §4 -->
+      <section id="s4">
+        <p class="eyebrow">04</p>
+        <h2>런타임 요구사항</h2>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>항목</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><td>실행 모델</td><td><strong>동기·블로킹.</strong> <code>asyncio</code> 이벤트 루프 안에서 직접 호출하면 그 스레드가 전체 요청 동안(수십 초~) 막힌다. FastAPI 등 비동기 서버라면 <code>run_in_executor</code> / 별도 워커 프로세스로 돌릴 것</td></tr>
+              <tr><td>네트워크</td><td>Gemini API(고정 호스트) + <strong>임의의 외부 호스트</strong> — URL 크롤링(<code>deep_crawl_site</code>)과 링크 실재 검증(<code>probe_url</code>)이 사용자가 준 도메인·검증 후보 URL로 직접 아웃바운드 HTTP 요청을 보낸다. 아웃바운드가 화이트리스트로 막힌 환경이면 이 두 경로가 전부 실패로 처리된다(안전하게 실패 — 크래시 아님)</td></tr>
+              <tr><td>동시성</td><td><code>_client</code> 가 모듈 전역 싱글턴(지연 초기화). 멀티스레드 워커에서 최초 호출이 동시에 여러 번 겹치면 초기화 경합 가능성이 있다 — 멀티프로세스 워커(각 프로세스가 독립된 <code>_client</code>)를 쓰거나, 앱 시작 시 <code>get_client()</code> 를 한 번 미리 불러 워밍업할 것</td></tr>
+              <tr><td>LLM 호출 횟수</td><td>요청 1건당 <strong>최소 2회, 최대 약 9회.</strong> 임베딩 1 + 본 분석 1 + (자격증/동아리/공모전 각 카테고리에 검증 대상이 있을 때만 반증 이중 검증 2회씩, 최대 6) + 채용공고 검색 1</td></tr>
+              <tr><td>HTTP 프로브</td><td>검증 통과 후보당 URL 접속 확인 1회 이상. 실행당 상한 <code>_MAX_URL_PROBES = 40</code>, 개별 타임아웃 10초</td></tr>
+              <tr><td>소요 시간</td><td><strong>실측하지 않았다.</strong> LLM 호출 수·크롤링 페이지 수·URL 프로브 수가 요청마다 달라 정확한 범위를 제시할 수 없다. 방금 열거한 호출 수 상한으로 대략적인 감을 잡되, 타임아웃 예산은 넉넉히(수 분 단위) 잡을 것을 권장한다</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- §5 -->
+      <section id="s5">
+        <p class="eyebrow">05</p>
+        <h2>호출 방식</h2>
+
+        <div class="callout info">
+          <p class="lede">권장</p>
+          <p>같은 Python 프로세스 안에서 <code>main()</code> 을 함수로 직접 호출하고,
+             반환된 객체를 그대로 쓴다. stdout 을 파싱할 필요가 전혀 없다.</p>
+        </div>
+
+        <pre class="block">from career_analysis_comprehensive import main
+
+resp = main(
+    user_input=["사용자가 적은 경력/활동 텍스트..."],  <span class="c"># list[str]</span>
+    school="서울대학교",       <span class="c"># 선택, 없으면 ""</span>
+    department="경영학과",     <span class="c"># 선택, 없으면 ""</span>
+)
+
+resp.status          <span class="c"># "success" | "error"</span>
+resp.result           <span class="c"># dict — status=="success" 일 때 채워짐</span>
+resp.vector            <span class="c"># list[float] | None — 3072차원 임베딩</span>
+resp.message           <span class="c"># status=="error" 일 때만</span>
+
+<span class="c"># API 응답으로 그대로 내보낼 거면:</span>
+resp.model_dump_json(exclude_none=True)</pre>
+
+        <p>
+          <code>user_input</code> 은 <code>list[str]</code> 이다 — 한 줄짜리 URL 하나만
+          담긴 리스트면 그 URL을 크롤링하고(Notion URL은 전용 크롤러), 한 줄짜리이면서
+          로컬 파일 경로로 존재하면 그 파일을(txt/pdf) 읽는다. 그 외에는 리스트를
+          줄바꿈으로 합친 텍스트 그대로를 분석 대상으로 쓴다 — 이 자동 분기는
+          <code>get_user_input()</code> 안에 있다.
+        </p>
+
+        <h3>CLI/서브프로세스로 띄워야 한다면</h3>
+        <p><code>__main__</code> 블록이 stdin을 읽어 실행하는 경로도 있다.</p>
+        <pre class="block">export GEMINI_API_KEY="..."
+export USER_SCHOOL="서울대학교"
+cat career_text.txt | python3 career_analysis_comprehensive.py</pre>
+        <p>
+          이 경로를 쓸 경우 <strong>§7 로 반드시 넘어갈 것</strong> — stdout에
+          진행 로그와 최종 JSON이 섞여 나온다. 서브프로세스의 stdout을 그대로
+          <code>json.loads()</code> 하면 파싱이 깨진다.
+        </p>
+      </section>
+
+      <!-- §6 -->
+      <section id="s6">
+        <p class="eyebrow">06</p>
+        <h2>입출력 계약</h2>
+        <p>
+          <code>resp</code> 는 pydantic이 설치돼 있으면 <code>BaseModel</code>,
+          없으면 <code>analysis_response.py</code> 의 경량 대체 클래스다 — 둘 다
+          <code>.model_dump()</code> / <code>.model_dump_json()</code> 인터페이스가
+          동일하므로 호출부 코드는 어느 쪽이든 똑같이 쓰면 된다.
+        </p>
+
+        <div class="code-label">성공</div>
+        <pre class="block">{
+  "status": "success",
+  "vector": [0.0123, -0.0456, ...],  <span class="c">// 3072차원, 임베딩 실패 시 생략(exclude_none)</span>
+  "result": {
+    "brief_summary": "...", "detailed_summary": "...",
+    "additional_recommendations": { "certifications": [...], "clubs_and_societies": [...], "projects_and_contests": [...] },
+    "resume_star_format": [...],
+    "star_analysis_status": { "generated": true, "quality_review": {...} },
+    "strength_diagnosis": {...}, "critical_diagnosis": {...},
+    "verified_jobs": [...],
+    "recommendation_notices": [...],
+    "verification_audit": { "summary": {...}, "records": [...] },
+    "rejected_by_guard": {...},
+    "guard_version": "v3.1"
+    <span class="c">// … 총 130개 필드. 전체 스키마는 comprehensive_field_spec_v3.1.html 참조</span>
+  }
+}</pre>
+
+        <div class="code-label">실패</div>
+        <pre class="block">{ "status": "error", "message": "사람이 읽을 수 있는 실패 사유" }</pre>
+
+        <p>
+          <code>result</code> 안에는 <code>status</code> 와 <code>vector</code> 가
+          들어가지 않는다 — <code>main()</code> 마지막에
+          <code>{k:v for k,v in result.items() if k not in ("status","vector")}</code>
+          로 명시적으로 제거한다. 백엔드가 <code>result</code> 를 그대로 DB에 저장하거나
+          프론트로 넘겨도 이 두 키가 중복으로 섞여 들어올 일은 없다.
+        </p>
+
+        <div class="callout info">
+          <p class="lede">전체 필드 명세</p>
+          <p>
+            <code>result</code> 안의 130개 필드를 하나하나(타입·필수여부·시스템/모델
+            출처)까지 문서화한 레퍼런스가 별도로 있다 —
+            <code>docs/comprehensive_field_spec_v3.1.html</code>. DB 스키마나
+            직렬화 모델을 만들 때는 그 문서를 기준으로 삼을 것.
+          </p>
+        </div>
+      </section>
+
+      <!-- §7 -->
+      <section id="s7">
+        <p class="eyebrow">07</p>
+        <h2>stdout / stderr 함정</h2>
+
+        <div class="callout crit">
+          <p class="lede">가장 흔히 터지는 연동 버그</p>
+          <p>
+            <code>main()</code> 은 진행 상황을 <strong>88곳</strong>에서 평범한
+            <code>print()</code> 로 stdout에 씁니다. 최종 결과 JSON도
+            <code>print(resp.model_dump_json(...))</code> 로 <strong>같은 stdout</strong>에
+            찍힙니다. stderr로 명시적으로 보내는 로그는 강점·약점·감사 요약
+            3종(<code>_log_*_summary</code>) 총 10곳뿐입니다.
+          </p>
+        </div>
+
+        <p>
+          즉 서브프로세스를 띄워 <strong>stdout 전체를 캡처해 <code>json.loads()</code></strong>
+          하면 아래처럼 진행 로그 뒤에 JSON이 붙은 텍스트를 받게 되고, 파싱이 그 자리에서 깨집니다.
+        </p>
+        <pre class="block">=================================================================
+  Career Analysis AI - COMPREHENSIVE Edition v3.1
+  모델: gemini-2.5-pro  |  임베딩: gemini-embedding-001
+  ...
+[1] 입력 데이터 STAR 적합성 사전 판정...
+  경험 블록 3개 중 STAR 기준 충족 2개 → 생성 진행
+...
+{
+  "status": "success",
+  ...
+}</pre>
+
+        <h3>해결책 우선순위</h3>
+        <ol>
+          <li><strong>가장 확실함</strong> — §5의 권장대로 같은 프로세스에서 함수로 직접 호출하고 반환값을 쓴다. stdout을 볼 필요 자체가 없다.</li>
+          <li>어쩔 수 없이 서브프로세스여야 한다면, stdout에서 <strong>마지막 줄부터 거슬러 올라가며 최상위 <code>{</code> 로 시작하는 지점을 찾아</strong> 그 뒤부터만 파싱한다(<code>clean_json_response()</code> 가 내부적으로 하는 것과 같은 방식 — 중괄호 깊이를 세어 최상위 JSON 블록만 추출).</li>
+          <li>또는 <code>main()</code> 호출부의 <code>print()</code> 들을 로깅 모듈로 바꿔치기하는 몽키패치를 백엔드 쪽에서 감싸 적용한다(코드 수정 없이 <code>builtins.print</code> 를 컨텍스트 매니저로 리다이렉트).</li>
+        </ol>
+      </section>
+
+      <!-- §8 -->
+      <section id="s8">
+        <p class="eyebrow">08</p>
+        <h2>오류 처리</h2>
+        <p>아래 표는 전부 이 환경에서 실제로 재현해 확인한 값이다(추정 아님).</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>상황</th><th class="mono">status</th><th>message (실측)</th></tr></thead>
+            <tbody>
+              <tr><td>입력 10자 미만</td><td class="mono"><span class="pill no">error</span></td><td><code>"입력 데이터가 너무 짧습니다. 최소 10자 이상 입력하세요."</code></td></tr>
+              <tr><td><code>GEMINI_API_KEY</code> 미설정</td><td class="mono"><span class="pill no">error</span></td><td><code>"GEMINI_API_KEY 환경변수가 설정되지 않았습니다. export GEMINI_API_KEY='...' 후 다시 실행하십시오."</code></td></tr>
+              <tr><td>Gemini 응답이 JSON 파싱 불가</td><td class="mono"><span class="pill no">error</span></td><td><code>"JSON parse failed: {상세}"</code> + <code>raw_response</code>(앞 1000자, 내부 처리용, 최종 payload에는 미포함)</td></tr>
+              <tr><td>레이트리밋(429 등)</td><td class="mono">—</td><td>예외로 전파되지 않음 — §9의 백오프로 자동 재시도. 4회 모두 실패하면 위 "JSON parse failed" 또는 일반 예외 메시지로 귀결</td></tr>
+              <tr><td>임베딩 3종 폴백 전부 실패</td><td class="mono"><span class="pill ok">success 유지</span></td><td>크래시하지 않음. <code>vector: null</code>, <code>embedding_dim: null</code> 로 분석은 계속 진행</td></tr>
+              <tr><td>크롤링 실패(URL 접속 불가 등)</td><td class="mono"><span class="pill ok">success 유지</span></td><td>크래시하지 않음. "크롤링 실패" 안내문을 원문으로 대체해 분석에 넘기고, 모델에게 추론 금지를 명시</td></tr>
+              <tr><td>동아리/자격증/공모전 검증 통과 0건</td><td class="mono"><span class="pill ok">success 유지</span></td><td>빈 배열 반환. <code>recommendation_notices</code> 에 사유 문장 추가 (정상 결과로 취급)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- §9 -->
+      <section id="s9">
+        <p class="eyebrow">09</p>
+        <h2>재시도 · 타임아웃</h2>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>대상</th><th class="mono">설정값</th><th>동작</th></tr></thead>
+            <tbody>
+              <tr><td>LLM 호출 재시도</td><td class="mono">최대 4회</td><td>레이트리밋(429/quota/resource_exhausted)에만 재시도. 지수 백오프 5s → 10s → 20s → (4번째는 대기 없이 마지막 시도, 실패 시 예외 전파). <strong>단일 요청이 최악의 경우 백오프만으로 35초 이상 지연될 수 있다</strong></td></tr>
+              <tr><td>웹 크롤링 fetch</td><td class="mono">15초</td><td>페이지·PDF 요청당. 최대 30페이지 + 5개 PDF까지 순회</td></tr>
+              <tr><td>URL 실재성 프로브</td><td class="mono">10초</td><td>검증 통과 후보 URL 접속 확인당. 실행당 상한 40회</td></tr>
+              <tr><td>레이트리밋이 아닌 예외</td><td class="mono">재시도 없음</td><td>즉시 상위로 전파 → 해당 호출을 감싼 <code>_call_model</code>/<code>_call_model_grounded</code> 가 캐치해 빈 결과 또는 에러로 처리</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- §10 -->
+      <section id="s10">
+        <p class="eyebrow">10</p>
+        <h2>통합 테스트</h2>
+
+        <div class="step">
+          <div class="step-n">1</div>
+          <div class="step-body">
+            <h3>API 비용 없이: 결정론적 가드 단위 테스트</h3>
+            <p>네트워크·API 키 없이 43건 전부 통과해야 한다. 이게 실패하면 파일이 손상됐거나 버전이 어긋난 것이다.</p>
+            <pre class="block">python3 tests/test_hallucination_guard.py   <span class="s"># 25 tests — OK</span>
+python3 tests/test_star_quality.py         <span class="s"># 18 tests — OK</span></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">2</div>
+          <div class="step-body">
+            <h3>모듈 로드만 확인 (키 없이)</h3>
+            <p><code>GEMINI_API_KEY</code> 가 없어도 import는 성공해야 한다 — 지연 초기화이므로.</p>
+            <pre class="block">python3 -c "import career_analysis_comprehensive"  <span class="s"># ImportError 없이 종료되면 OK</span></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">3</div>
+          <div class="step-body">
+            <h3>짧은 입력으로 에러 경로 확인 (키 없이도 가능)</h3>
+            <pre class="block">from career_analysis_comprehensive import main
+resp = main(["짧음"], "", "")
+assert resp.status == "error"
+assert "10자" in resp.message</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-n">4</div>
+          <div class="step-body">
+            <h3>실제 키로 종단 1회 실행</h3>
+            <p>
+              짧은 텍스트 하나로 실제 Gemini 호출까지 태워
+              <code>resp.status == "success"</code> 와 <code>result</code> 안에
+              §6의 필드들이 채워지는지 확인한다.
+              <strong>이 단계는 이 안내서를 작성하는 동안 수행하지 않았다</strong>
+              (§11 참조) — 백엔드 쪽에서 최초 1회는 반드시 직접 확인할 것을 권장한다.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- §11 -->
+      <section id="s11">
+        <p class="eyebrow">11</p>
+        <h2>알려진 한계</h2>
+
+        <div class="callout warn">
+          <p class="lede">실제 API로 종단 실행된 적이 없다</p>
+          <p>
+            이 저장소의 환각 가드·품질 채점 로직은 43건의 단위 테스트로 검증됐고,
+            그라운딩 응답 필드명(<code>grounding_chunks</code>, <code>web_search_queries</code> 등)은
+            <code>google-genai 2.14.0</code> 소스와 직접 대조했다. 그러나
+            <strong><code>main()</code> 을 실제 <code>GEMINI_API_KEY</code> 로 처음부터 끝까지
+            실행해 본 적은 없다.</strong> §10-4 를 백엔드 쪽에서 반드시 수행할 것.
+          </p>
+        </div>
+
+        <ul>
+          <li><strong>비용 미측정</strong> — 요청 1건당 LLM 호출 2~9회, 이 중 검색 그라운딩이 걸린 호출은 일반 호출보다 비용이 높다. 실사용 트래픽으로 비용을 먼저 추정해 볼 것.</li>
+          <li><strong>동시 요청 처리량 미측정</strong> — 워커 수·큐잉 전략은 §4의 블로킹·싱글턴 특성을 감안해 백엔드 쪽에서 설계해야 한다.</li>
+          <li><strong>레이트리밋 임계값 실측 없음</strong> — 4회 재시도·지수 백오프가 실제 Gemini 쿼터 하에서 충분한지는 트래픽을 걸어봐야 안다.</li>
+          <li><strong>인용↔본문 함의 미검사</strong> — STAR 슬롯의 <code>*_source_quote</code> 가 원문에 실제로 존재하는지는 검사하지만, 본문 서술이 그 인용문에서 논리적으로 도출되는지는 검사하지 않는다.</li>
+        </ul>
+      </section>
+
+      <div class="note">
+        <p style="max-width:70ch">
+          관련 문서 — <code>docs/comprehensive_field_spec_v3.1.html</code>(출력 130필드 전수 명세),
+          <code>docs/comprehensive_analysis_dossier.html</code>(파이프라인 전체 로직 + 장애 기록),
+          <code>docs/field_report_hallucination_v3.html</code>(장애 원인 분석 단독본),
+          <code>README.md</code>(요약).
+        </p>
+      </div>
+
+    </main>
+  </div>
+</div>
