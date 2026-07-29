@@ -64,6 +64,72 @@ Google AI Studio의 **Gemini(`gemini-2.5-flash`)** 를 사용해, **사용자 �
 - **`main`**: Colab 복붙용 단일 파일 (`cover_letter_ai_all_in_one.py`) ← 이 파일을 쓰세요
 - **`claude/cover-letter-ai-generator-7uvjuj`**: 동일 로직의 모듈형 패키지 (로컬/서버·DB 연동용)
 
+---
+
+# Career Analysis AI — COMPREHENSIVE Edition v3.0
+
+종합 커리어 분석 모듈. v2.0 에서 발생한 **환각(Hallucination) 장애**를 구조적으로
+재설계한 버전입니다.
+
+## 구성 파일
+
+| 파일 | 역할 |
+|---|---|
+| `career_analysis_comprehensive.py` | 분석 파이프라인 (크롤링 → 분석 → 검증 → 출력) |
+| `hallucination_guard.py` | 환각 차단 가드 (URL 프로브·그라운딩 대조·자격증 레지스트리·STAR 근거 결속) |
+| `analysis_response.py` | 응답 envelope 모델 (pydantic 선택 의존) |
+| `tests/test_hallucination_guard.py` | 회귀 테스트 24건 (네트워크·API 키 불필요) |
+| `docs/field_report_hallucination_v3.html` | 장애 원인 분석 필드 리포트 |
+
+## 실행
+
+```bash
+export GEMINI_API_KEY="..."          # 소스 하드코딩 금지 (v3.0에서 제거)
+export USER_SCHOOL="서울대학교"        # 선택
+export USER_DEPARTMENT="경영학과"      # 선택
+
+cat my_career.txt | python3 career_analysis_comprehensive.py
+
+python3 tests/test_hallucination_guard.py   # 회귀 테스트
+```
+
+## v2.0 에서 무엇이 문제였나
+
+프롬프트에 9개의 환각 방지 규칙이 있었지만, **코드가 규칙과 반대 방향으로 강제**하고
+있었습니다.
+
+| 증상 | 구조적 원인 |
+|---|---|
+| 동아리·학회 추천에 접속 불가 URL | "최소 3개 추천" 쿼터가 "확실하지 않으면 제외"를 무력화. URL 은 HTTP 확인 없이 모델 주장을 그대로 부착 |
+| STAR 가 입력 문장 재구조화 / 없는 내용 창작 | 규칙은 "부족하면 만들지 말라"였지만 스키마에 `resume_star_format` 이 예시와 함께 항상 존재. STAR 만 근거 인용 의무에서 제외 |
+| 존재하지 않는 자격증 추천 | 생성자와 검증자가 같은 모델. `use_google_search=True` 만 넘기고 실제 검색 여부(`grounding_metadata`)는 미확인 |
+
+전체 13개 결함의 코드 근거는 필드 리포트를 참고하십시오.
+
+## v3.0 의 환각 차단 구조
+
+신뢰 원천을 셋으로 한정하고, 그 밖의 값은 코드가 기계적으로 제거합니다 —
+**사용자 입력 원문 / 검색 그라운딩 메타데이터 / 실제 HTTP 응답**.
+
+- **F-1 쿼터 폐지** — 최소 개수 요구와 재추천 루프 삭제. 0개도 정상 결과이며 사유를 함께 반환
+- **F-2 URL 무생성** — 스키마에서 `url` 필드 제거. 검색 근거 URI 만 후보가 되며
+  `probe_url()` 의 200 + soft-404 탐지 + 본문 토큰 대조를 통과해야 부착
+- **F-3 그라운딩 강제** — `grounding_chunks` 파싱으로 실제 검색 여부 확인, 항목명이
+  검색 근거에 등장하는지 코드가 직접 대조. 모델의 `"verified": true` 는 무효
+- **F-4 반증형 이중 검증** — "존재하지 않는다는 증거를 찾아라"로 프롬프트를 뒤집고,
+  온도가 다른 2회 호출이 모두 통과해야 인정
+- **F-5 자격증 레지스트리** — 자격증별 유효 등급 집합을 코드가 보유해
+  `빅데이터분석기사 2급` 류 등급 환각을 네트워크 호출 없이 차단
+- **F-6 STAR 근거 결속** — 생성 전 입력 적합성 판정(미달 시 요청 자체를 생략),
+  생성 후 슬롯별 원문 인용 대조 · 수치 환각 삭제 · 슬롯 간 중복 시 '재구조화' 강등
+- **F-7 fail-closed 일관화** — 누락 필드 기본값을 전부 불합격으로 통일
+- **F-8 감사 추적** — `verification_audit` / `rejected_by_guard` 로 제거 사유 전량 노출
+
+### 트레이드오프
+
+검증을 통과한 항목만 남으므로 **추천 개수가 줄고 빈 결과가 늘어납니다.** 의도된
+교환이며, 빈 결과에는 항상 사유와 사용자가 직접 확인할 검색어가 따라붙습니다.
+
 ## 주의
 
 - 모범 자소서 원문은 저작권/개인정보에 유의해 적법하게 수집·보관하세요.

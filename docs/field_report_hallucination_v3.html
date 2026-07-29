@@ -1,0 +1,1098 @@
+<title>필드 리포트 — 종합 커리어 분석 환각 장애 (v2.0 → v3.0)</title>
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:      #F4F7F7;
+    --surface:     #FFFFFF;
+    --surface-alt: #EDF2F2;
+    --ink:         #14181A;
+    --ink-soft:    #454F52;
+    --ink-faint:   #6E797C;
+    --rule:        #D2DCDC;
+    --rule-strong: #B4C3C3;
+
+    --accent:      #0F5F63;
+    --accent-soft: #DCEBEB;
+    --accent-ink:  #0B4B4E;
+
+    --critical:    #A32E1F;
+    --critical-bg: #F7E4E1;
+    --fixed:       #2C6B44;
+    --fixed-bg:    #DFEDE4;
+    --warn:        #8A6116;
+    --warn-bg:     #F5EAD5;
+
+    --sans: "Pretendard", "Pretendard Variable", -apple-system, BlinkMacSystemFont,
+            "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "맑은 고딕",
+            system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono",
+            "Cascadia Mono", Menlo, Consolas, monospace;
+
+    --measure: 68ch;
+    --pad: clamp(1.1rem, 4vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #0E1213;
+      --surface:     #161C1D;
+      --surface-alt: #1D2526;
+      --ink:         #E6ECEC;
+      --ink-soft:    #AEBBBB;
+      --ink-faint:   #7E8C8C;
+      --rule:        #2A3435;
+      --rule-strong: #3C4849;
+
+      --accent:      #5FB6B8;
+      --accent-soft: #12302F;
+      --accent-ink:  #8FD3D4;
+
+      --critical:    #E08578;
+      --critical-bg: #33201C;
+      --fixed:       #7FBE96;
+      --fixed-bg:    #172B20;
+      --warn:        #D6AC63;
+      --warn-bg:     #2E2415;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0E1213;
+    --surface:     #161C1D;
+    --surface-alt: #1D2526;
+    --ink:         #E6ECEC;
+    --ink-soft:    #AEBBBB;
+    --ink-faint:   #7E8C8C;
+    --rule:        #2A3435;
+    --rule-strong: #3C4849;
+    --accent:      #5FB6B8;
+    --accent-soft: #12302F;
+    --accent-ink:  #8FD3D4;
+    --critical:    #E08578;
+    --critical-bg: #33201C;
+    --fixed:       #7FBE96;
+    --fixed-bg:    #172B20;
+    --warn:        #D6AC63;
+    --warn-bg:     #2E2415;
+  }
+
+  :root[data-theme="light"] {
+    --ground:      #F4F7F7;
+    --surface:     #FFFFFF;
+    --surface-alt: #EDF2F2;
+    --ink:         #14181A;
+    --ink-soft:    #454F52;
+    --ink-faint:   #6E797C;
+    --rule:        #D2DCDC;
+    --rule-strong: #B4C3C3;
+    --accent:      #0F5F63;
+    --accent-soft: #DCEBEB;
+    --accent-ink:  #0B4B4E;
+    --critical:    #A32E1F;
+    --critical-bg: #F7E4E1;
+    --fixed:       #2C6B44;
+    --fixed-bg:    #DFEDE4;
+    --warn:        #8A6116;
+    --warn-bg:     #F5EAD5;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  .wrap {
+    max-width: 78rem;
+    margin: 0 auto;
+    padding: 0 var(--pad) 6rem;
+  }
+
+  /* ── 머리말 ─────────────────────────────────────── */
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: clamp(2.5rem, 6vw, 4.5rem) 0 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .stamp {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+  }
+
+  .stamp b { font-weight: 600; color: var(--ink-soft); }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.9rem, 5.2vw, 3.1rem);
+    line-height: 1.18;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+    text-wrap: balance;
+    max-width: 20ch;
+  }
+
+  .standfirst {
+    margin: 0;
+    max-width: var(--measure);
+    font-size: clamp(1rem, 2.2vw, 1.12rem);
+    color: var(--ink-soft);
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin-top: 0.5rem;
+  }
+
+  .meta-grid div {
+    background: var(--surface);
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .meta-grid dt,
+  .meta-grid .k {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  .meta-grid .v {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── 섹션 ───────────────────────────────────────── */
+  section { padding-top: clamp(2.75rem, 6vw, 4.25rem); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.6rem;
+  }
+
+  h2 {
+    margin: 0 0 1rem;
+    font-size: clamp(1.4rem, 3.4vw, 1.85rem);
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.06rem;
+    font-weight: 700;
+    line-height: 1.45;
+    text-wrap: balance;
+  }
+
+  p, li { max-width: var(--measure); }
+  p { margin: 0 0 1rem; }
+  section > p:last-child { margin-bottom: 0; }
+
+  ul { margin: 0 0 1rem; padding-left: 1.2rem; }
+  li { margin-bottom: 0.35rem; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--surface-alt);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.08em 0.34em;
+    word-break: break-all;
+  }
+
+  strong { font-weight: 700; }
+
+  /* ── 증상 카드 ──────────────────────────────────── */
+  .symptoms {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .symptom {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--critical);
+    padding: 1.1rem 1.15rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .symptom .id {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    color: var(--critical);
+    font-weight: 700;
+  }
+
+  .symptom h3 { margin: 0; }
+  .symptom p { margin: 0; font-size: 0.93rem; color: var(--ink-soft); }
+
+  /* ── 원인 항목 ──────────────────────────────────── */
+  .cause {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    gap: 0 1.5rem;
+    padding: 1.5rem 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .cause:last-of-type { border-bottom: 1px solid var(--rule); }
+
+  .cause-id {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    padding-top: 0.28rem;
+  }
+
+  .cause-id span {
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 0.2rem;
+  }
+
+  .cause-body > *:last-child { margin-bottom: 0; }
+
+  .evidence {
+    margin: 0.85rem 0 0;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule-strong);
+    padding: 0.8rem 0.95rem;
+    overflow-x: auto;
+  }
+
+  .evidence .label {
+    font-family: var(--mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+
+  .evidence pre {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.79rem;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    white-space: pre;
+  }
+
+  .evidence pre b { color: var(--critical); font-weight: 700; }
+
+  /* ── 수정 항목 ──────────────────────────────────── */
+  .fix {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--fixed);
+    padding: 1.15rem 1.25rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .fix-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .fix-head .id {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--fixed);
+  }
+
+  .fix-head h3 { margin: 0; }
+  .fix p { margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--ink-soft); }
+  .fix p:last-child { margin-bottom: 0; }
+
+  .kills {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-faint);
+    margin-top: 0.7rem;
+  }
+
+  .kills b { color: var(--accent); font-weight: 600; }
+
+  /* ── before / after ─────────────────────────────── */
+  .ba {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 1.5rem 0;
+  }
+
+  @media (min-width: 56rem) {
+    .ba { grid-template-columns: 1fr 1fr; }
+  }
+
+  .ba > div {
+    background: var(--surface);
+    padding: 1rem 1.1rem 1.15rem;
+    min-width: 0;
+  }
+
+  .ba .tag {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 700;
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    margin-bottom: 0.7rem;
+  }
+
+  .ba .before .tag { background: var(--critical-bg); color: var(--critical); }
+  .ba .after  .tag { background: var(--fixed-bg);    color: var(--fixed); }
+
+  .ba pre {
+    margin: 0;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    line-height: 1.68;
+    color: var(--ink-soft);
+    white-space: pre;
+  }
+
+  .ba pre em { font-style: normal; color: var(--critical); font-weight: 700; }
+  .ba pre b  { color: var(--fixed); font-weight: 700; }
+  .ba pre i  { font-style: normal; color: var(--ink-faint); }
+
+  /* ── 표 ─────────────────────────────────────────── */
+  .scroll {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    margin: 1.5rem 0;
+    background: var(--surface);
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 44rem;
+    font-size: 0.88rem;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    max-width: none;
+  }
+
+  thead th {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  td.mono, th.mono {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  .pill.c { background: var(--critical-bg); color: var(--critical); }
+  .pill.f { background: var(--fixed-bg);    color: var(--fixed); }
+  .pill.w { background: var(--warn-bg);     color: var(--warn); }
+
+  /* ── 결과 요약 ──────────────────────────────────── */
+  .verdict {
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    padding: clamp(1.25rem, 3vw, 2rem);
+    margin-top: 1.5rem;
+  }
+
+  .verdict p { color: var(--accent-ink); margin-bottom: 0.75rem; }
+  .verdict p:last-child { margin-bottom: 0; }
+
+  .note {
+    border-top: 1px solid var(--rule);
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    font-size: 0.86rem;
+    color: var(--ink-faint);
+  }
+
+  .note p { max-width: var(--measure); }
+
+  a { color: var(--accent); }
+  a:focus-visible,
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="stamp">
+      <span>Field Report</span>
+      <span><b>ARC_-</b> / career-analysis</span>
+      <span>2026-07-29</span>
+    </div>
+
+    <h1>추천 파이프라인 환각 장애 원인 분석 및 재설계</h1>
+
+    <p class="standfirst">
+      v2.0 은 환각을 막기 위해 9개의 프롬프트 규칙을 두었지만, 존재하지 않는 링크·자격증이
+      그대로 사용자에게 전달되었고 STAR 분석은 입력 문장의 재배치에 머물렀다. 규칙이 부족했던
+      것이 아니라, 규칙과 반대 방향으로 작동하는 구조가 파이프라인 안에 있었다.
+      이 리포트는 그 구조를 특정하고, v3.0 에서 무엇을 바꿨는지 기록한다.
+    </p>
+
+    <div class="meta-grid">
+      <div><span class="k">보고 증상</span><span class="v">3건</span></div>
+      <div><span class="k">특정된 구조적 원인</span><span class="v">13건</span></div>
+      <div><span class="k">적용 수정</span><span class="v">8건</span></div>
+      <div><span class="k">회귀 테스트</span><span class="v">24 / 24 통과</span></div>
+    </div>
+  </header>
+
+  <!-- ══════════════ 1. 증상 ══════════════ -->
+  <section>
+    <p class="eyebrow">01 — 보고된 증상</p>
+    <h2>무엇이 사용자에게 도달했는가</h2>
+    <p>
+      세 증상은 서로 다른 기능에서 나타났지만, 뒤에서 보듯 상당 부분 같은 뿌리를 공유한다.
+    </p>
+
+    <div class="symptoms">
+      <article class="symptom">
+        <span class="id">H-1</span>
+        <h3>접속되지 않는 동아리·학회 링크</h3>
+        <p>
+          추천 카드에 붙은 URL 이 404 이거나, 200 을 반환하지만 실제로는 존재하지 않는
+          페이지였다. 사용자가 링크를 눌러보기 전까지는 알 수 없었다.
+        </p>
+      </article>
+
+      <article class="symptom">
+        <span class="id">H-2</span>
+        <h3>재구조화에 불과한 STAR 분석</h3>
+        <p>
+          S·T·A·R 네 칸이 사용자가 쓴 한 문장을 표현만 바꿔 나눠 담았다. 반대로 입력이
+          빈약할 때는 없는 상황과 성과 수치를 지어냈다.
+        </p>
+      </article>
+
+      <article class="symptom">
+        <span class="id">H-3</span>
+        <h3>존재하지 않는 자격증 추천</h3>
+        <p>
+          완전 허구 명칭보다, 실재하는 자격증에 없는 등급을 붙인 형태
+          (<code>빅데이터분석기사 2급</code>)가 더 많았고 더 오래 살아남았다.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ══════════════ 2. 핵심 진단 ══════════════ -->
+  <section>
+    <p class="eyebrow">02 — 핵심 진단</p>
+    <h2>규칙은 요청이었고, 구조는 강제였다</h2>
+    <p>
+      v2.0 의 <code>_STRICT_HALLUCINATION_RULES</code> 는 잘 쓰인 규칙이다. 문제는 그 규칙이
+      전부 <strong>모델에게 하는 부탁</strong>이었다는 점이다. 같은 파일 안에서 코드가
+      강제한 것은 정반대였다 — 개수를 채우라는 쿼터, 채울 자리가 있는 스키마, 그리고
+      모델의 자기 보고를 그대로 믿는 검증기.
+    </p>
+    <p>
+      모델과 코드가 충돌하면 항상 코드가 이긴다. v3.0 의 원칙은 하나다:
+      <strong>환각을 막는 모든 판정은 결정론적 코드가 내리고, 프롬프트는 보조 수단으로만 쓴다.</strong>
+    </p>
+  </section>
+
+  <!-- ══════════════ 3. 원인 ══════════════ -->
+  <section>
+    <p class="eyebrow">03 — 구조적 원인</p>
+    <h2>코드에서 특정된 13개 결함</h2>
+
+    <div class="cause">
+      <div class="cause-id">C-1<span>Quota</span></div>
+      <div class="cause-body">
+        <h3>"최소 3개" 쿼터가 "확실하지 않으면 제외"를 무력화했다</h3>
+        <p>
+          규칙 3 은 규칙 1·4 와 정면으로 충돌한다. 확실한 항목이 1개뿐일 때 모델이 규칙을
+          동시에 만족시킬 방법은 없고, 정량 목표가 정성 목표를 이긴다. 더 나쁜 것은 이
+          쿼터가 코드에도 박혀 있었다는 점이다 — 검증에서 탈락해 개수가 모자라면
+          <code>_request_broader_clubs()</code> 로 <strong>더 지어내라고 다시 요청</strong>했다.
+          검증 실패가 추가 환각을 유발하는 양성 피드백 루프였다.
+        </p>
+        <div class="evidence">
+          <span class="label">v2.0 / 프롬프트 규칙 3 · verify_clubs_with_search</span>
+<pre>"실재 여부가 확실하지 않으면 해당 항목은 제외하되,
+ <b>제외로 인해 3개 미만이 되면 ... 보충하여 3개를 채울 것</b>"
+
+if len(result) &lt; min_clubs and school:
+    extra_raw = <b>_request_broader_clubs</b>(school, department, existing_names)</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-2<span>Self-verify</span></div>
+      <div class="cause-body">
+        <h3>생성자와 검증자가 같은 모델·같은 기억이었다</h3>
+        <p>
+          <code>verify_clubs_with_search</code> 계열은 항목을 만든 바로 그
+          <code>gemini-2.5-pro</code> 에게 <code>"verified": true/false</code> 를 물었다.
+          같은 파라메트릭 메모리를 공유하는 두 호출은 독립 검증이 아니라 확증편향 증폭기다.
+          게다가 추천 이유까지 함께 넘겨 "이미 추천된 것"이라는 맥락을 검증자에게 주었다.
+        </p>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-3<span>Grounding</span></div>
+      <div class="cause-body">
+        <h3>검색 도구를 붙였을 뿐, 검색했는지는 확인하지 않았다</h3>
+        <p>
+          가장 큰 착시였다. <code>use_google_search=True</code> 는 도구를 <em>사용할 수 있게</em>
+          할 뿐 사용을 보장하지 않는다. 모델은 검색 없이 기억으로 답하고 거기에
+          <code>"verified": true</code> 를 붙일 수 있으며, v2.0 은 응답의
+          <code>grounding_metadata</code> 를 한 번도 읽지 않았다. 검색 검증처럼 보였지만
+          실제로는 기억 기반 자기확신이었다.
+        </p>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-4<span>URL</span></div>
+      <div class="cause-body">
+        <h3>동아리·공모전·자격증 URL 은 단 한 번도 접속 확인을 거치지 않았다</h3>
+        <p>
+          <code>_verify_url_content()</code> 는 채용공고에만 적용되었다. 나머지 세 카테고리는
+          모델이 말한 <code>official_url</code> 을 그대로 결과에 실었다. H-1 의 직접 경로다.
+        </p>
+        <div class="evidence">
+          <span class="label">v2.0 / verify_clubs_with_search — HTTP 요청 없음</span>
+<pre>official_url = vr.get("official_url")
+club["url"] = <b>official_url</b> if official_url and official_url != "null" else None</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-5<span>Soft-404</span></div>
+      <div class="cause-body">
+        <h3>채용공고 URL 검사조차 soft-404 를 통과시켰다</h3>
+        <p>
+          <code>status &lt; 400</code> 만 확인했기 때문에, 200 을 주면서 "페이지를 찾을 수
+          없습니다"를 보여주는 페이지가 전부 통과했다. 콘텐츠 대조도 느슨했다 —
+          <code>is_job</code> 은 페이지 어딘가에 "채용" 한 단어만 있으면 참이 되는데, 그 단어는
+          거의 모든 기업 사이트의 전역 내비게이션에 있다.
+        </p>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-6<span>Fail-open</span></div>
+      <div class="cause-body">
+        <h3>누락된 판정값이 '통과'로 기본 처리되었다</h3>
+        <p>
+          <code>vr.get("deadline_ok", <b>True</b>)</code> — 검증자가 필드를 빠뜨리면 마감 검사를
+          통과한다. <code>upcoming</code> 은 프롬프트로 요구했지만 코드에서 아예 읽지 않아,
+          이미 끝난 공모전이 그대로 나갔다. 채용 마감일 파싱 실패도 마찬가지로 유효 처리했다.
+        </p>
+        <div class="evidence">
+          <span class="label">v2.0 / verify_contests_with_search · filter_valid_jobs</span>
+<pre>if not vr.get("deadline_ok", <b>True</b>):   # 필드 누락 → 통과
+    continue
+# upcoming 은 프롬프트에만 존재, <b>코드에서 미검사</b>
+
+except ValueError:
+    <b>valid.append(job)</b>              # 파싱 실패 → 유효 처리</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-7<span>Mapping</span></div>
+      <div class="cause-body">
+        <h3>검증 결과를 원문 문자열 그대로 매칭했다</h3>
+        <p>
+          <code>vmap = {r.get("name",""): r}</code> — 검증자가
+          <code>(사)한국OO협회</code> 를 <code>한국 OO 협회</code> 로 되돌려주면 매칭이 실패한다.
+          이 실패는 결과를 무작위로 흔들었고, 어느 방향으로 흔들렸는지 추적할 방법도 없었다.
+        </p>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-8<span>Schema</span></div>
+      <div class="cause-body">
+        <h3>규칙 7 은 "만들지 말라"고 했지만 스키마에는 채울 자리가 있었다</h3>
+        <p>
+          H-2 의 핵심 원인이다. 규칙 7 은 데이터가 부족하면 STAR 를 만들지 말고 그 사실을
+          알리라고 했는데, 출력 스키마에는 <code>resume_star_format</code> 이 <strong>예시
+          객체와 함께 항상</strong> 존재했고, "부족하다"는 사실을 담을 필드는 어디에도 없었다.
+          모델이 스키마를 지키면서 규칙을 지킬 방법이 없으면, 스키마가 이긴다.
+        </p>
+        <div class="evidence">
+          <span class="label">v2.0 / build_system_prompt_comprehensive — 조건 없이 항상 포함</span>
+<pre>'  "resume_star_format": [\n'
+'    {"title":"경험명","S":"상황","T":"과제","A":"행동","R":"결과"}\n'
+'  ],\n'
+<b># star_skipped / insufficient_data 를 담을 필드가 스키마에 없음</b></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-9<span>Evidence</span></div>
+      <div class="cause-body">
+        <h3>STAR 만 근거 인용 의무에서 빠져 있었다</h3>
+        <p>
+          <code>strength_diagnosis</code> 와 <code>critical_diagnosis</code> 는 항목마다
+          <code>evidence</code> 를 요구했다. 그런데 STAR 의 S·T·A·R 에는 아무 근거 요구가 없었다.
+          출처를 묻지 않으면 모델은 가장 쉬운 길을 간다 — 있는 문장을 네 칸에 나눠 담거나
+          (재구조화), 빈 칸을 그럴듯한 이야기로 채운다(창작). 두 증상이 한 원인에서 나왔다.
+        </p>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-10<span>Inference</span></div>
+      <div class="cause-body">
+        <h3>크롤링에 실패하면 "추론하라"고 지시했다</h3>
+        <p>
+          Notion 크롤링이 빈약하거나 실패했을 때 v2.0 은 URL 슬러그와 도메인으로 내용을
+          "최대한 추론"하라고 지시했다. 이것은 환각 방지 규칙이 아니라
+          <strong>환각 생성 지시문</strong>이었다.
+        </p>
+        <div class="evidence">
+          <span class="label">v2.0 / get_user_input — 크롤링 실패 경로</span>
+<pre>f"[크롤링 실패]\n"
+f"<b>URL 경로명과 도메인을 바탕으로 내용을 최대한 추론하십시오.</b>\n"</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-11<span>Order</span></div>
+      <div class="cause-body">
+        <h3>채용공고를 검색 없이 먼저 만들고 나중에 지웠다</h3>
+        <p>
+          본 분석 호출은 <code>use_google_search=False</code> 였다. 즉 존재하지 않는 공고를
+          기억으로 먼저 만들어 놓고, 사후 필터가 얼마나 촘촘한지에 전부를 걸었다.
+          생성-후-필터링은 추천 도메인에서 잘못된 순서다.
+        </p>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-12<span>Bypass</span></div>
+      <div class="cause-body">
+        <h3>쿼터 보충 경로는 검증을 더 느슨하게 통과시켰다</h3>
+        <p>
+          개수를 채우는 보충 루프에서는 <code>wrong_school</code> 과 <code>verified</code> 만
+          확인하고 <strong>교차 학교 확인을 생략</strong>했다. 가장 지어낼 가능성이 높은
+          경로에 가장 약한 검증이 걸려 있었다.
+        </p>
+      </div>
+    </div>
+
+    <div class="cause">
+      <div class="cause-id">C-13<span>Blind</span></div>
+      <div class="cause-body">
+        <h3>무엇이 왜 걸러졌는지 산출물에 남지 않았다</h3>
+        <p>
+          드롭 사유는 전부 <code>print()</code> 로만 나갔다. 최종 JSON 만 보면 추천이 왜 비었는지,
+          환각이 몇 건 걸러졌는지 알 수 없다. 측정되지 않는 환각은 개선 여부도 확인할 수 없다.
+        </p>
+      </div>
+    </div>
+
+    <p style="margin-top:1.5rem">
+      이 밖에 운영상 결함으로 API 키 소스 하드코딩, import 시점 클라이언트 생성(키 없으면 모듈
+      로딩 자체가 실패), <code>main()</code> 의 인자 불일치(<code>if __name__ == "__main__"</code>
+      에서 <code>TypeError</code>), tool-call 파트 혼입 시 <code>resp.text</code> 예외 미처리가
+      함께 발견되어 v3.0 에서 정리했다.
+    </p>
+  </section>
+
+  <!-- ══════════════ 4. 수정 ══════════════ -->
+  <section>
+    <p class="eyebrow">04 — 적용된 수정</p>
+    <h2>v3.0 재설계</h2>
+    <p>
+      신뢰 원천을 셋으로 한정했다: <strong>사용자 입력 원문</strong>,
+      <strong>검색 그라운딩 메타데이터</strong>, <strong>실제 HTTP 응답</strong>.
+      이 셋 중 무엇으로도 뒷받침되지 않는 값은 코드가 기계적으로 제거한다.
+    </p>
+
+    <div class="fix">
+      <div class="fix-head"><span class="id">F-1</span><h3>쿼터 전면 폐지</h3></div>
+      <p>
+        규칙 3 과 <code>min_clubs</code> 보충 루프, <code>_request_broader_clubs()</code> 를 모두
+        삭제했다. 0개도 정상 결과로 취급하고, 대신 <code>recommendation_notices</code> 로
+        "확인되지 않은 항목을 채워 넣지 않았다"는 사실과 사용자가 직접 확인할 검색어를 제공한다.
+      </p>
+      <p class="kills">해소: <b>C-1</b> · <b>C-12</b> — H-1 의 1차 원인</p>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head"><span class="id">F-2</span><h3>URL 무생성 원칙 (Zero-Trust URL)</h3></div>
+      <p>
+        스키마에서 <code>url</code> 필드를 제거해 모델이 URL 을 <em>출력할 자리 자체를</em> 없앴다.
+        URL 은 검색 그라운딩이 반환한 실제 소스 URI 만 후보가 되고,
+        <code>probe_url()</code> 의 3중 검사 — HTTP 200 · soft-404 마커 탐지 · 항목명 토큰 본문
+        대조 — 를 통과해야만 부착된다. SSRF 방지를 위해 사설 IP 로 해석되는 호스트는 프로브하지
+        않는다. 모델이 규칙을 어기고 URL 을 넣는 경우에 대비해
+        <code>scrub_model_urls()</code> 가 파이프라인 진입 직후와 직렬화 직전 두 번 훑는다.
+      </p>
+      <p class="kills">해소: <b>C-4</b> · <b>C-5</b> — H-1 직접 차단</p>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head"><span class="id">F-3</span><h3>그라운딩 강제</h3></div>
+      <p>
+        검증 호출은 <code>extract_grounding()</code> 으로 응답의
+        <code>grounding_chunks</code> 를 파싱해 <strong>실제로 검색이 일어났는지</strong> 확인한다.
+        그라운딩이 없으면 그 배치 전체가 미검증으로 처리된다. 통과한 경우에도
+        <code>grounding_mentions()</code> 가 항목명 토큰이 검색 결과 제목·스니펫·URI 에
+        실제로 등장하는지 코드가 직접 대조한다. 모델의
+        <code>"verified": true</code> 는 그 자체로 아무 효력이 없다.
+      </p>
+      <p class="kills">해소: <b>C-3</b> — H-1 · H-3 공통 원인</p>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head"><span class="id">F-4</span><h3>반증형 이중 검증</h3></div>
+      <p>
+        검증 프롬프트를 "존재를 확인하라"에서 <strong>"실재하지 않는다는 증거를 찾아라"</strong>로
+        뒤집고, 추천 이유 등 생성 맥락은 일절 넘기지 않는다. 온도가 다른 2회 호출
+        (0.0 / 0.4)이 <strong>모두</strong> 통과해야 인정한다. 환각은 재현성이 낮으므로
+        이중 통과 요구가 비용 대비 효과가 가장 큰 필터다.
+      </p>
+      <p class="kills">해소: <b>C-2</b></p>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head"><span class="id">F-5</span><h3>자격증 레지스트리 + 등급 문법</h3></div>
+      <p>
+        국가기술자격·국가전문자격·주요 공인 민간/국제 자격 목록과 <strong>각 자격의 유효 등급
+        집합</strong>을 코드가 보유한다. <code>check_certification_name()</code> 이 명칭에서 등급을
+        분리해, 등급 체계가 없는 자격증에 급수가 붙었거나 존재하지 않는 등급이면
+        <strong>네트워크 호출 없이 즉시 제외</strong>한다. 검색으로는 잡히지 않던 유형이다 —
+        <code>빅데이터분석기사 2급</code> 을 검색하면 상위 결과에 원본 자격증이 잡히기 때문에
+        LLM 검증이 가장 잘 속는 지점이었다. 레지스트리 미등재 항목은 자동 통과가 아니라
+        F-3·F-4 검증 대상이 된다.
+      </p>
+      <p class="kills">해소: <b>H-3</b> 의 주 유형 — 결정론적 차단</p>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head"><span class="id">F-6</span><h3>STAR 근거 결속</h3></div>
+      <p>
+        생성 <em>전에</em> <code>assess_star_readiness()</code> 가 입력을 경험 블록으로 쪼개고
+        5개 신호(분량·행동동사·수치 성과·기간·역할)로 채점한다. 4개 미만이면
+        <strong>LLM 에 STAR 생성을 요청하지 않고</strong> 스키마에서 필드 자체를 제거한 뒤,
+        무엇을 더 적어야 하는지 코칭을 반환한다.
+      </p>
+      <p>
+        생성한 경우에도 각 슬롯에 <code>&lt;슬롯&gt;_source_quote</code> 를 강제하고,
+        <code>validate_star_entries()</code> 가 ① 인용문이 원문에 실제로 존재하는지 대조하고
+        ② 원문에 없는 수치를 쓴 슬롯을 삭제하며 ③ 슬롯 간 인용 중복도가 60% 를 넘으면
+        <strong>'단순 재구조화'</strong>로 판정해 품질 경고를 붙인다. Action·Result 가
+        근거를 잃으면 그 경험은 통째로 폐기된다.
+      </p>
+      <p class="kills">해소: <b>C-8</b> · <b>C-9</b> — H-2 의 두 얼굴(재구조화·창작)을 각각 차단</p>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head"><span class="id">F-7</span><h3>fail-closed 일관화 · 정규화 매칭</h3></div>
+      <p>
+        누락 필드의 기본값을 전부 '불합격'으로 통일했다. <code>upcoming</code> 을 실제로 검사하고,
+        마감일 파싱 실패는 무효 처리한다. 검증 결과 매핑은
+        <code>norm_name()</code> 으로 공백·괄호·구두점을 제거한 키를 쓴다. 크롤링 실패 시
+        "추론하라"는 지시문은 "추론을 금지하고 데이터 부재를 보고하라"로 교체했다.
+        채용공고는 본 분석에서 생성하지 않고 검색 그라운딩 단계에서만 만들어진다.
+      </p>
+      <p class="kills">해소: <b>C-6</b> · <b>C-7</b> · <b>C-10</b> · <b>C-11</b></p>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head"><span class="id">F-8</span><h3>감사 추적</h3></div>
+      <p>
+        <code>VerificationAudit</code> 이 모든 통과·제거·강등을 사유와 함께 기록하고,
+        결과 JSON 의 <code>verification_audit</code> 과 <code>rejected_by_guard</code> 로 노출한다.
+        이제 "환각이 몇 건 걸러졌고 추천이 왜 비었는지"를 산출물만 보고 답할 수 있다.
+      </p>
+      <p class="kills">해소: <b>C-13</b> — 개선 여부를 측정 가능하게 만듦</p>
+    </div>
+  </section>
+
+  <!-- ══════════════ 5. Before / After ══════════════ -->
+  <section>
+    <p class="eyebrow">05 — 코드 변화</p>
+    <h2>세 지점의 전후 비교</h2>
+
+    <h3 style="margin-top:1.75rem">URL 부착</h3>
+    <div class="ba">
+      <div class="before">
+        <span class="tag">v2.0</span>
+<pre><i># 모델이 말한 URL 을 그대로 신뢰</i>
+official_url = vr.get("official_url")
+club["url"] = <em>official_url</em> if official_url \
+    and official_url != "null" else None</pre>
+      </div>
+      <div class="after">
+        <span class="tag">v3.0</span>
+<pre><i># 검색 근거 URI 만 후보 → HTTP 검증 통과만 부착</i>
+club["url"], reason = <b>pick_verified_url</b>(
+    _collect_source_urls(name, evidences)[:4],
+    expect_tokens=name_tokens(name),
+    audit=audit, stage="clubs", label=name,
+)</pre>
+      </div>
+    </div>
+
+    <h3>STAR 스키마</h3>
+    <div class="ba">
+      <div class="before">
+        <span class="tag">v2.0</span>
+<pre><i># 조건 없이 항상 존재 — 빈 값을 표현할 통로 없음</i>
+'  "resume_star_format": [\n'
+'    {"title":"경험명","S":"상황",<em>"T":"과제"</em>,
+'     "A":"행동","R":"결과"}\n'
+'  ],\n'</pre>
+      </div>
+      <div class="after">
+        <span class="tag">v3.0</span>
+<pre><i># 사전 판정이 미달이면 필드 자체를 제거</i>
+star_schema = (
+    '  "resume_star_format": [ ... '
+    '<b>"S_source_quote"</b>: "원문 문장 그대로" ... ]'
+) <b>if star_ready else ""</b></pre>
+      </div>
+    </div>
+
+    <h3>마감 판정</h3>
+    <div class="ba">
+      <div class="before">
+        <span class="tag">v2.0</span>
+<pre><i># 누락·파싱 실패 → 통과</i>
+if not vr.get("deadline_ok", <em>True</em>):
+    continue
+...
+except ValueError:
+    <em>valid.append(job)</em></pre>
+      </div>
+      <div class="after">
+        <span class="tag">v3.0</span>
+<pre><i># 누락·파싱 실패 → 불합격</i>
+if not vr.get("<b>upcoming</b>"):
+    return False, "진행/예정 확인 불가"
+...
+except ValueError:
+    return <b>False</b>, f"마감일 형식 확인 불가('{s}')"</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 6. 추적 매트릭스 ══════════════ -->
+  <section>
+    <p class="eyebrow">06 — 추적 매트릭스</p>
+    <h2>증상 → 원인 → 수정 → 회귀 테스트</h2>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="mono">증상</th>
+            <th class="mono">원인</th>
+            <th class="mono">수정</th>
+            <th>차단 지점</th>
+            <th>회귀 테스트</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono"><span class="pill c">H-1</span></td>
+            <td class="mono">C-1, C-12</td>
+            <td class="mono"><span class="pill f">F-1</span></td>
+            <td>쿼터·보충 루프 삭제 — 지어낼 동기 제거</td>
+            <td class="mono">프롬프트 불변식 검사</td>
+          </tr>
+          <tr>
+            <td class="mono"><span class="pill c">H-1</span></td>
+            <td class="mono">C-4, C-5</td>
+            <td class="mono"><span class="pill f">F-2</span></td>
+            <td><code>probe_url()</code> — 200 + soft-404 + 토큰 대조</td>
+            <td class="mono">TestUrlGuard (3)</td>
+          </tr>
+          <tr>
+            <td class="mono"><span class="pill c">H-1</span></td>
+            <td class="mono">C-3</td>
+            <td class="mono"><span class="pill f">F-3</span></td>
+            <td><code>grounding_mentions()</code> — 코드가 근거 대조</td>
+            <td class="mono">TestGroundingGate (2)</td>
+          </tr>
+          <tr>
+            <td class="mono"><span class="pill c">H-2</span></td>
+            <td class="mono">C-8</td>
+            <td class="mono"><span class="pill f">F-6</span></td>
+            <td><code>assess_star_readiness()</code> — 사전 차단</td>
+            <td class="mono">TestStarReadiness (4)</td>
+          </tr>
+          <tr>
+            <td class="mono"><span class="pill c">H-2</span></td>
+            <td class="mono">C-9</td>
+            <td class="mono"><span class="pill f">F-6</span></td>
+            <td><code>validate_star_entries()</code> — 인용·수치·중복</td>
+            <td class="mono">TestStarEvidenceBinding (6)</td>
+          </tr>
+          <tr>
+            <td class="mono"><span class="pill c">H-3</span></td>
+            <td class="mono">C-2, C-3</td>
+            <td class="mono"><span class="pill f">F-4</span></td>
+            <td>반증형 이중 검증 — 두 패스 모두 통과 요구</td>
+            <td class="mono">TestGroundingGate</td>
+          </tr>
+          <tr>
+            <td class="mono"><span class="pill c">H-3</span></td>
+            <td class="mono">C-2</td>
+            <td class="mono"><span class="pill f">F-5</span></td>
+            <td><code>check_certification_name()</code> — 등급 문법</td>
+            <td class="mono">TestCertificationGuard (6)</td>
+          </tr>
+          <tr>
+            <td class="mono"><span class="pill w">공통</span></td>
+            <td class="mono">C-6, C-7, C-10, C-11</td>
+            <td class="mono"><span class="pill f">F-7</span></td>
+            <td>fail-closed 기본값 · 정규화 매칭 · 추론 지시 삭제</td>
+            <td class="mono">TestUtils (3)</td>
+          </tr>
+          <tr>
+            <td class="mono"><span class="pill w">공통</span></td>
+            <td class="mono">C-13</td>
+            <td class="mono"><span class="pill f">F-8</span></td>
+            <td><code>verification_audit</code> 산출물 노출</td>
+            <td class="mono">TestUtils</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══════════════ 7. 결과 ══════════════ -->
+  <section>
+    <p class="eyebrow">07 — 결과와 트레이드오프</p>
+    <h2>무엇이 좋아지고 무엇을 내주었나</h2>
+
+    <div class="verdict">
+      <p>
+        <strong>환각은 이제 프롬프트 준수가 아니라 코드 통과 여부로 결정된다.</strong>
+        모델이 규칙을 어겨도 산출물에는 반영되지 않는다 — 근거 없는 URL 은 제거되고,
+        원문에 없는 수치는 삭제되며, 없는 등급이 붙은 자격증은 네트워크 호출 전에 걸러진다.
+      </p>
+      <p>
+        대가는 <strong>추천 개수의 감소</strong>다. 검증을 통과하는 항목만 남으므로 결과가
+        비는 경우가 늘어난다. 이것은 결함이 아니라 의도된 교환이며, 그래서 빈 결과에는
+        항상 이유와 사용자가 직접 확인할 검색어가 따라붙는다. 지어낸 3개보다 검증된 1개가,
+        검증된 1개보다 "확인되지 않았다"는 정직한 0개가 낫다는 것이 v3.0 의 입장이다.
+      </p>
+      <p>
+        비용 측면에서는 반증형 이중 검증과 URL 프로브로 카테고리당 호출·왕복이 늘었다.
+        <code>_DUAL_PASS_VERIFY</code> 와 <code>_MAX_URL_PROBES</code> 로 조절할 수 있게 두었다.
+      </p>
+    </div>
+
+    <div class="note">
+      <p>
+        <strong>남은 과제.</strong> ① 자격증 레지스트리는 수동 관리 목록이므로 Q-Net 등
+        공식 등록 API 와 동기화하는 편이 안전하다. ② 동아리·학회는 공개 웹 정보가 희소해
+        검증 통과율이 구조적으로 낮다 — 학교별 공식 동아리 목록을 사전 수집하는 방향이
+        근본 해법이다. ③ 실사용 로그에서 <code>verification_audit</code> 의 드롭 사유 분포를
+        모니터링해 어떤 게이트가 실제로 일하고 있는지 확인해야 한다.
+      </p>
+      <p style="margin-top:0.75rem">
+        관련 모듈 — <code>hallucination_guard.py</code>(가드 전체),
+        <code>career_analysis_comprehensive.py</code>(파이프라인),
+        <code>tests/test_hallucination_guard.py</code>(회귀 테스트 24건).
+      </p>
+    </div>
+  </section>
+
+</div>
