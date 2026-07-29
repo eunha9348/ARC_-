@@ -87,6 +87,7 @@ from hallucination_guard import (
     scrub_model_urls,
     validate_star_entries,
 )
+from star_quality import evaluate_star_entries, score_star_entry  # noqa: F401
 
 # ──────────────────────────────────────────────
 #  Config
@@ -807,15 +808,49 @@ def _star_section(star_ready: bool, readiness_reason: str) -> str:
             "critical_diagnosis 의 content_quality_issues 에 담으십시오.\n\n"
         )
     return (
-        "=== STAR 분석 작성 지침 (근거 결속 필수) ===\n"
+        "=== STAR 분석 작성 지침 ===\n"
+        "당신의 STAR 는 두 단계 검사를 통과해야 합니다: (1) 근거 결속, (2) 작성 품질.\n"
+        "둘 다 시스템이 자동 채점하며, 결과는 사용자에게 등급으로 노출됩니다.\n\n"
+        "── [1단계] 근거 결속 (위반 시 항목 폐기) ──\n"
         "- 각 슬롯(S/T/A/R)마다 `<슬롯>_source_quote` 에 **사용자 입력 원문 문장을 "
         "그대로 복사**해 넣으십시오. 요약·의역·재작성 금지 — 글자 그대로여야 합니다.\n"
         "- 원문 근거가 없는 슬롯은 본문과 인용 모두 null 로 두십시오.\n"
         "- 원문에 없는 숫자(비율·인원·기간·금액)를 쓰지 마십시오.\n"
         "- 네 슬롯이 같은 원문 문장을 나눠 쓴 것이면 의미가 없습니다. "
-        "Situation 은 배경, Task 는 부여된 과제, Action 은 본인의 행동, "
-        "Result 는 결과로 **서로 다른 원문 근거**를 가져야 합니다.\n"
+        "**서로 다른 원문 근거**를 가져야 합니다.\n"
         "- 근거를 갖춘 경험만 배열에 넣으십시오. 하나도 없으면 빈 배열.\n\n"
+        "── [2단계] 작성 품질 루브릭 (10개 항목 자동 채점) ──\n"
+        "중요: 품질을 높이려고 **없는 사실을 덧붙이지 마십시오.** 품질은 사실을 늘려서가\n"
+        "아니라, 있는 사실을 어떻게 배치·표현하는가로 만듭니다. 원문에 없는 요소는\n"
+        "채우지 말고 비워 두십시오 — 시스템이 '무엇이 비었는지'를 사용자에게 안내합니다.\n\n"
+        "  [분량 배분] Action 이 전체의 40~50% 를 차지해야 합니다.\n"
+        "    Situation+Task 는 합쳐서 30% 이하로 압축하십시오.\n"
+        "    배경을 길게 쓰고 행동을 짧게 쓰는 것이 가장 흔한 실패입니다.\n"
+        "  [개인 기여] Action 은 1인칭으로 쓰십시오 — '우리가'가 아니라 '제가'.\n"
+        "    팀의 성과는 평가되지 않습니다. 공동 작업이었다면 역할을 갈라 쓰십시오.\n"
+        "    예: '팀은 3개 축으로 나눴고, 저는 데이터 수집과 전처리를 맡았습니다.'\n"
+        "    단, 원문에 본인 역할이 없으면 만들어내지 말고 Action 을 null 로 두십시오.\n"
+        "  [방법 구체성] Action 에 '무엇을' 뿐 아니라 '어떻게'가 들어가야 합니다 —\n"
+        "    사용한 도구, 접근 방식, 판단 기준 중 하나. 원문에 있는 것만.\n"
+        "  [성취 동사] '참여했습니다·도왔습니다·경험했습니다' 같은 약한 서술 대신\n"
+        "    '설계했습니다·개선했습니다·도출했습니다' 같은 성취 동사를 쓰십시오.\n"
+        "    이는 사실 변경이 아니라 같은 사실의 정확한 표현입니다.\n"
+        "  [결과 정량화] Result 에는 원문에 있는 수치를 반드시 끌어올리십시오.\n"
+        "    원문에 수치가 없으면 지어내지 말고 Result 를 사실 그대로 두십시오.\n"
+        "  [결과 파급] 수치 뒤에 그 결과가 만든 변화가 원문에 있다면 함께 쓰십시오.\n"
+        "  [모호 표현] '성공적으로·크게·많이·효과적으로' 는 수치 없이 쓰지 마십시오.\n"
+        "  [슬롯 분리] Situation(상황)과 Task(내가 해내야 했던 것)는 다른 내용입니다.\n"
+        "  [맥락 규모] 기간·인원·규모 중 원문에 있는 것을 S/T/A 어딘가에 넣으십시오.\n\n"
+        "── [요약 계층] 각 항목에 아래 세 필드를 추가하십시오 ──\n"
+        "  headline: 이 경험을 한 줄 성취문으로 압축. '강한 동사 + 맥락 + 결과' 공식.\n"
+        "    예: 'Python 크롤러로 리뷰 8,000건을 수집·분석해 이탈 원인 3가지를 규명하고\n"
+        "         재등록률을 18% 개선' — 이력서에 그대로 넣을 수 있는 한 줄.\n"
+        "    반드시 S/T/A/R 에 이미 담긴 사실만으로 구성하십시오. 새 수치 금지.\n"
+        "  competency_evidence: 이 경험이 **증명하는** 역량 1~2개와, 그렇게 판단한 이유.\n"
+        "    (사실이 아니라 해석이므로 창작이 아닙니다. 단 근거는 S/T/A/R 안에 있어야 합니다.)\n"
+        "  L / L_source_quote: 원문에 배움·회고가 **명시되어 있을 때만** 작성.\n"
+        "    표준 STAR 에 회고 한 겹을 더한 형태입니다. 원문에 없으면 둘 다 null —\n"
+        "    '무엇을 느꼈을 것이다'라는 추측은 절대 금지이며 시스템이 삭제합니다.\n\n"
     )
 
 
@@ -848,14 +883,21 @@ def build_system_prompt_comprehensive(
         '  "resume_star_format": [\n'
         "    {\n"
         '      "title": "경험명",\n'
-        '      "S": "상황 (원문 근거 없으면 null)",\n'
+        '      "headline": "한 줄 성취문 (강한 동사 + 맥락 + 결과, 새 수치 금지)",\n'
+        '      "S": "상황 — 배경·규모 (원문 근거 없으면 null)",\n'
         '      "S_source_quote": "위 S 의 근거가 되는 사용자 입력 원문 문장 그대로",\n'
-        '      "T": "과제 (원문 근거 없으면 null)",\n'
+        '      "T": "과제 — 내가 해내야 했던 것 (S 와 다른 내용, 없으면 null)",\n'
         '      "T_source_quote": "원문 문장 그대로",\n'
-        '      "A": "행동 (원문 근거 없으면 null)",\n'
+        '      "A": "행동 — 1인칭, 방법 포함, 전체의 40~50% (없으면 null)",\n'
         '      "A_source_quote": "원문 문장 그대로",\n'
-        '      "R": "결과 (원문 근거 없으면 null)",\n'
-        '      "R_source_quote": "원문 문장 그대로"\n'
+        '      "R": "결과 — 원문의 수치를 끌어올리고, 파급이 있으면 함께 (없으면 null)",\n'
+        '      "R_source_quote": "원문 문장 그대로",\n'
+        '      "L": "배움·회고 — 원문에 명시된 경우만, 없으면 null",\n'
+        '      "L_source_quote": "원문 문장 그대로 (L 이 null 이면 null)",\n'
+        '      "competency_evidence": [\n'
+        '        {"competency":"이 경험이 증명하는 역량",'
+        '"why":"S/T/A/R 안의 어떤 사실이 그것을 증명하는지"}\n'
+        "      ]\n"
         "    }\n"
         "  ],\n"
     ) if star_ready else ""
@@ -1784,8 +1826,8 @@ def main(user_input: list[str] | None = None, school: str = "", department: str 
         notices.append("공모전: 현재 진행/예정임이 확인된 항목이 없어 추천하지 않았습니다.")
     result["recommendation_notices"] = notices
 
-    # ── [5] STAR 근거 검증 ────────────────────────────────────────
-    print("\n[5] STAR 근거 검증 중...", flush=True)
+    # ── [5] STAR 근거 검증 + 품질 채점 ────────────────────────────
+    print("\n[5] STAR 근거 검증 및 품질 채점 중...", flush=True)
     star_status = readiness.to_dict()
     if readiness.ready:
         kept_star, rejected_star = validate_star_entries(
@@ -1793,6 +1835,9 @@ def main(user_input: list[str] | None = None, school: str = "", department: str 
         result["resume_star_format"] = kept_star
         star_status["generated"] = bool(kept_star)
         star_status["rejected_entries"] = rejected_star
+        # 근거를 통과한 항목만 품질 채점 — 환각 검사와 품질 검사는 별개 관문이다.
+        star_status["quality_review"] = evaluate_star_entries(
+            kept_star, raw_content, audit)
         if not kept_star:
             star_status["reason"] = (
                 "STAR 초안을 생성했으나 모든 항목이 원문 근거 검증을 통과하지 못해 "
@@ -1803,10 +1848,14 @@ def main(user_input: list[str] | None = None, school: str = "", department: str 
                 "예) 'Python 으로 크롤러를 만들어 리뷰 8,000건을 수집했고, "
                 "수작업 대비 조사 시간을 3일 → 4시간으로 줄였습니다.'",
             ]
+        qr = star_status["quality_review"]
         print(f"  STAR 항목 {len(kept_star)}건 통과 / {len(rejected_star)}건 폐기", flush=True)
+        if qr.get("evaluated"):
+            print(f"  품질 등급 분포: {qr['grade_distribution']}", flush=True)
     else:
         result["resume_star_format"] = []
         star_status["rejected_entries"] = []
+        star_status["quality_review"] = evaluate_star_entries([], raw_content, audit)
         print("  사전 판정에 따라 STAR 를 생성하지 않았습니다.", flush=True)
 
     result["star_analysis_status"] = star_status

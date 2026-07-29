@@ -82,6 +82,27 @@ def jaccard(a: set, b: set) -> float:
     return len(a & b) / len(a | b)
 
 
+def containment(a: set, b: set, min_tokens: int = 3) -> float:
+    """짧은 쪽이 긴 쪽에 얼마나 포함되는가 (|a∩b| / min(|a|,|b|)).
+
+    Jaccard 만으로는 '짧은 슬롯이 긴 슬롯에 통째로 들어있는' 중복을 놓친다.
+    합집합이 커져 비율이 희석되기 때문이다. 재구조화 탐지에서 실제로 문제가
+    되는 형태가 바로 이것이므로(Task 가 Situation 의 축약본인 경우) 별도로 잰다.
+
+    토큰이 min_tokens 미만인 짧은 조각은 우연 일치로 1.0 이 나오기 쉬워 제외한다.
+    """
+    if not a or not b:
+        return 0.0
+    if min(len(a), len(b)) < min_tokens:
+        return 0.0
+    return len(a & b) / min(len(a), len(b))
+
+
+def overlap_ratio(a: set, b: set) -> float:
+    """중복도 종합 지표 — Jaccard 와 포함도 중 큰 값."""
+    return max(jaccard(a, b), containment(a, b))
+
+
 # ══════════════════════════════════════════════════════════════
 #  1. 감사 추적 (Verification Audit)
 # ══════════════════════════════════════════════════════════════
@@ -839,7 +860,7 @@ def validate_star_entries(
         slots = list(quotes.keys())
         for i in range(len(slots)):
             for j in range(i + 1, len(slots)):
-                sim = jaccard(quotes[slots[i]], quotes[slots[j]])
+                sim = overlap_ratio(quotes[slots[i]], quotes[slots[j]])
                 if sim >= overlap_threshold:
                     restructuring = True
                     overlaps.append(f"{slots[i]}↔{slots[j]} ({sim:.0%} 중복)")

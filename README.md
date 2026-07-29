@@ -77,8 +77,10 @@ Google AI Studio의 **Gemini(`gemini-2.5-flash`)** 를 사용해, **사용자 �
 |---|---|
 | `career_analysis_comprehensive.py` | 분석 파이프라인 (크롤링 → 분석 → 검증 → 출력) |
 | `hallucination_guard.py` | 환각 차단 가드 (URL 프로브·그라운딩 대조·자격증 레지스트리·STAR 근거 결속) |
+| `star_quality.py` | STAR 작성 품질 채점 (10개 루브릭 + 개선 지시) |
 | `analysis_response.py` | 응답 envelope 모델 (pydantic 선택 의존) |
-| `tests/test_hallucination_guard.py` | 회귀 테스트 24건 (네트워크·API 키 불필요) |
+| `tests/test_hallucination_guard.py` | 환각 가드 회귀 테스트 25건 |
+| `tests/test_star_quality.py` | STAR 품질 회귀 테스트 18건 |
 | `docs/field_report_hallucination_v3.html` | 장애 원인 분석 필드 리포트 |
 
 ## 실행
@@ -129,6 +131,74 @@ python3 tests/test_hallucination_guard.py   # 회귀 테스트
 
 검증을 통과한 항목만 남으므로 **추천 개수가 줄고 빈 결과가 늘어납니다.** 의도된
 교환이며, 빈 결과에는 항상 사유와 사용자가 직접 확인할 검색어가 따라붙습니다.
+
+## v3.1 — STAR 품질 채점
+
+v3.0 은 STAR 의 *환각*을 잡았습니다. 그러나 환각이 없다고 좋은 STAR 가 되지는
+않습니다 — 근거만 지키면 STAR 는 쉽게 "사용자 문장을 네 칸에 나눠 담은 것"에
+머뭅니다. v3.1 은 그 다음 관문인 **작성 품질**을 채점합니다.
+
+### 전문성은 사실을 늘려서 만들지 않는다
+
+"전문적인 STAR"를 만드는 흔한 방법은 그럴듯한 배경과 성과를 덧붙이는 것이고,
+그것이 정확히 v2.0 이 실패한 방식입니다. v3.1 은 반대 경로를 씁니다.
+
+| 축 | 무엇을 하는가 |
+|---|---|
+| 선택 | 어떤 경험을 STAR 로 쓸지 고르는 판단 |
+| 배분 | Action 이 절반을 차지하도록 분량 재배치 |
+| 표현 | "~를 했습니다"를 '강한 동사 + 맥락 + 결과' 성취문으로 |
+| 진단 | 부족한 요소는 지어내지 않고 '무엇이 비었는지' + 채우는 법 |
+
+새 사실은 만들지 않습니다. 이미 근거가 검증된 문장이 **어떻게 쓰였는가**만
+평가하고, 미달 항목마다 구체적 개선 지시를 답니다.
+
+### 채점 루브릭 (10개, 등급 A~D)
+
+`분량 배분(Action 40~50%)` · `배경 간결성(S+T 30% 이하)` · `개인 기여(1인칭)` ·
+`방법 구체성` · `성취 동사` · `결과 정량화` · `결과의 파급` · `모호 표현 배제` ·
+`슬롯 역할 분리` · `맥락 규모`
+
+품질 미달이라고 항목을 **버리지 않습니다.** 버리면 사용자가 무엇을 고쳐야 하는지
+알 수 없기 때문입니다. 대신 등급과 우선 개선 지시를 붙입니다.
+
+```
+── 나열식 STAR: D (0/10)
+   ✗ Action 비중: Action 이 전체의 12% (권장 40~50%)
+   ✗ 개인 기여 명시: Action 에 공동 주어 1회, 개인 주체 표현 없음
+   ✗ 결과 정량화: Result 에 수치 지표가 있는지
+   ✗ 슬롯 역할 분리: Situation·Task 내용 중복도 80%
+   → "Action 을 늘리십시오. 본인이 무엇을 어떤 순서로 했는지 2~3단계로 쪼개 쓰면…"
+
+── 전문 수준 STAR: A (10/10)
+   제출 가능한 수준. 구조·주체·수치가 모두 갖춰져 있습니다.
+```
+
+### 추가된 요약 계층
+
+- **`headline`** — 이력서에 그대로 넣을 수 있는 한 줄 성취문 (강한 동사 + 맥락 + 결과).
+  S/T/A/R 에 이미 있는 사실만으로 구성하며, 원문에 없는 수치는 자동 삭제됩니다.
+- **`competency_evidence`** — 이 경험이 증명하는 역량과 그 판단 근거. 사실이 아니라
+  해석이므로 창작이 아니지만, 근거는 반드시 S/T/A/R 안에 있어야 합니다.
+- **`L` (회고)** — 표준 STAR 에 회고 한 겹을 더한 STARR/STAR-L 형태.
+  **원문에 배움이 명시된 경우에만** 남고, 없으면 삭제됩니다. "무엇을 느꼈을 것이다"는
+  추측이므로 금지입니다.
+
+### STAR 품질 기준 출처
+
+루브릭은 공개 커리어 가이드·대학 커리어센터 자료에서 반복 확인되는 규칙을 코드화한
+것입니다.
+
+- [MIT CAPD — The STAR method for behavioral interviews](https://capd.mit.edu/resources/the-star-method-for-behavioral-interviews/) — 컴포넌트별 분량 배분
+- [Case Western Reserve — STAR Strategy Examples](https://case.edu/studentlife/careercenter/career-educationtips-job-seekersinterviewingbehavior-based-interviewing/star-strategy-examples)
+- [UNM Career Services — The STAR Method (PDF)](https://career.unm.edu/career-tools/the-star-method-2020.pdf)
+- [Yale OCS — Writing Impactful Resume Bullets](https://ocs.yale.edu/resources/writing-impactful-resume-bullets/) — 성취문 공식
+- [Columbia CCE — Resumes with Impact: Creating Strong Bullet Points](https://www.careereducation.columbia.edu/resources/resumes-impact-creating-strong-bullet-points)
+- [UC Davis Career Center — Accomplishment Statements](https://careercenter.ucdavis.edu/resumes-and-materials/resumes/accomplishment-statements) — 강한 동사 + 맥락 = 결과
+- [The Interview Guys — The STAR Method (2026)](https://blog.theinterviewguys.com/the-star-method/) — "I" vs "we", Action 비중
+- [Monster — How to Create a STAR Method Resume](https://www.monster.com/career-advice/resume/star-method-resume) — 정량화 요건
+- [Toolshero — STARR method for reflection](https://www.toolshero.com/personal-development/starr-method/) — 회고 계층
+- [DDI — STAR Method for Interviewing and Feedback](https://www.ddi.com/solutions/behavioral-interviewing/star-method)
 
 ## 주의
 

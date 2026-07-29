@@ -261,6 +261,31 @@ class TestStarEvidenceBinding(unittest.TestCase):
         self.assertTrue(kept[0]["evidence_status"]["restructuring_only"])
         self.assertIn("재배치", kept[0]["quality_warning"])
 
+    def test_subset_quote_reuse_is_flagged(self):
+        """짧은 인용이 긴 인용에 통째로 포함된 경우도 재구조화다.
+
+        Jaccard 만 쓰면 합집합이 커져 비율이 희석되어 놓친다 (포함도로 보완).
+        """
+        audit = VerificationAudit()
+        long_q = ("Python 으로 크롤러를 개발해 리뷰 8000건을 수집했습니다\n"
+                  "SQL 로 3년치 로그를 집계해 이탈 원인 3가지를 도출했습니다")
+        short_q = "SQL 로 3년치 로그를 집계해 이탈 원인 3가지를 도출했습니다"
+        entries = [{
+            "title": "이탈 분석",
+            "S": "이탈이 문제였습니다",
+            "S_source_quote": "회원 이탈 원인 분석 프로젝트에서 데이터 파트를 담당했습니다",
+            "T": "원인을 규명해야 했습니다",
+            "T_source_quote": short_q,
+            "A": "크롤러와 SQL 로 분석했습니다",
+            "A_source_quote": long_q,
+            "R": "재등록률 18% 개선",
+            "R_source_quote": "그 결과 재등록률이 18% 개선되었습니다",
+        }]
+        kept, _ = validate_star_entries(entries, _RICH_INPUT, audit)
+        self.assertEqual(len(kept), 1)
+        self.assertTrue(kept[0]["evidence_status"]["restructuring_only"],
+                        "포함 관계 인용 재사용을 잡지 못했습니다")
+
     def test_invented_number_slot_is_stripped(self):
         audit = VerificationAudit()
         entries = [{
