@@ -45,7 +45,11 @@ h1 { font-size: 21px; font-weight: 600; margin-bottom: 4px; }
 .env { background: #eef4ff; border: 1px solid #cfe0fb; border-radius: 8px; padding: 12px 16px; margin-bottom: 30px; font-size: 12.5px; color: #244; }
 .env code { background:#dce9ff; padding:1px 5px; border-radius:3px; }
 .rmvsec { background: #fbeeee; border: 1px solid #edcaca; border-radius: 8px; padding: 12px 16px; margin: 10px 0 20px; font-size: 12px; color: #7a2f2f; }
-.rmvsec code { background:#f5d8d8; padding:1px 5px; border-radius:3px; text-decoration: line-through; }
+.rmvsec code { background:#f5d8d8; padding:1px 5px; border-radius:3px; }
+.rmvsec code.dead { text-decoration: line-through; }
+.intnote { background: #eef0f7; border: 1px solid #d3d7e8; border-radius: 8px; padding: 12px 16px; margin: 10px 0 20px; font-size: 12px; color: #38405c; }
+.intnote code { background: #dfe3f2; padding: 1px 5px; border-radius: 3px; }
+.intbadge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; background: #4a5178; color: #fff; display: inline-block; white-space: nowrap; }
 .sumbar { display: flex; margin-top: 40px; border: 0.5px solid #e0ddd5; border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
 .si { flex: 1; min-width: 130px; padding: 14px 16px; border-right: 0.5px solid #e0ddd5; }
 .si:last-child { border-right: none; }
@@ -62,7 +66,8 @@ h1 { font-size: 21px; font-weight: 600; margin-bottom: 4px; }
   <span><b>시스템</b> — LLM 출력과 무관하게 코드가 계산·강제 주입/덮어쓰기</span>
   <span><b>조건부</b> — 특정 상태일 때만 값이 채워지고 그 외엔 null</span>
   <span><span class="new" style="margin-right:4px">NEW</span>v3.1 신규 필드</span>
-  <span><span class="rmv" style="margin-right:4px">v2.0</span>v2.0 에서 삭제됨</span>
+  <span><span class="rmv" style="margin-right:4px">v2.0</span>v2.0 에서 삭제됨 (취소선 = 삭제된 필드명 그 자체)</span>
+  <span><span class="intbadge" style="margin-right:4px">내부 전용</span>모델이 생성하나 출력 직전 제거 — v2.0 과 무관</span>
 </p>
 
 <div class="diffnote">
@@ -120,11 +125,12 @@ h1 { font-size: 21px; font-weight: 600; margin-bottom: 4px; }
     <div class="fr"><span class="fn">14</span><span class="fk"><span class="p">experience_insights.</span>learning_points</span><div class="tc"><span class="b">string</span></div><span class="req">필수</span><span class="fd">배움</span></div>
   </div>
 
-  <div class="rmvsec">
-    <span class="rmv" style="margin-right:6px">v2.0</span>
-    <code>target_job_keywords</code> — 모델이 생성하지만 §08 채용공고 검색에 소비된 뒤
+  <div class="intnote">
+    <span class="intbadge" style="margin-right:6px">내부 전용</span>
+    <code>target_job_keywords</code> — v2.0 삭제 항목이 <b>아닙니다.</b> v3.1 에서 신설된
+    필드지만, 모델이 생성한 값은 §08 채용공고 검색 쿼리로 소비된 뒤
     <code>result.pop("target_job_keywords", None)</code> 로 최종 payload 에서 제거됩니다.
-    출력에는 나타나지 않는 <b>내부 전용 필드</b>입니다.
+    처음부터 <b>출력에 나타난 적이 없는</b> 내부 파이프라인 전용 필드입니다.
   </div>
 </div>
 
@@ -178,8 +184,8 @@ h1 { font-size: 21px; font-weight: 600; margin-bottom: 4px; }
   </div>
 
   <div class="rmvsec">
-    <span class="rmv" style="margin-right:6px">v2.0</span> <code>search_query</code>,
-    <code>search_verified</code> — 더 이상 존재하지 않습니다. 모델이 제출하는
+    <span class="rmv" style="margin-right:6px">v2.0</span> <code class="dead">search_query</code>,
+    <code class="dead">search_verified</code> — 더 이상 존재하지 않습니다. 모델이 제출하는
     <code>verification_query</code>(내부 검증용 검색어)는 검증 완료 후
     <code>club.pop("verification_query", None)</code> 로 삭제되며, 실패 시에만
     그 값이 <code>url_note</code> 문구 안에 재활용됩니다.
@@ -258,7 +264,7 @@ h1 { font-size: 21px; font-weight: 600; margin-bottom: 4px; }
   </div>
 
   <div class="rmvsec">
-    <span class="rmv" style="margin-right:6px">v2.0</span> 데이터 부족 시에도 <code>{title,S,T,A,R}</code>
+    <span class="rmv" style="margin-right:6px">v2.0</span> 데이터 부족 시에도 <code class="dead">{title,S,T,A,R}</code>
     다섯 필드가 예시 문구로 채워지는 구조였습니다. v3.1 은 사전 판정 미달 시
     이 배열 자체가 프롬프트 스키마에서 <b>제거</b>되어 모델이 채울 자리가 없습니다
     (<code>_star_section()</code>이 <code>star_ready</code> 플래그로 분기).
@@ -390,8 +396,8 @@ h1 { font-size: 21px; font-weight: 600; margin-bottom: 4px; }
   <div class="fr"><span class="fn">122</span><span class="fk">verified_jobs[n].verified_by</span><div class="tc"><span class="b">string</span></div><span class="sys">시스템</span><span class="fd"><span class="new" style="margin-right:4px">NEW</span>고정값 <code>"grounded_search + http_probe"</code></span></div>
 
   <div class="rmvsec">
-    <span class="rmv" style="margin-right:6px">v2.0</span> <code>expired_jobs[ ]</code>,
-    <code>verified_jobs[n].is_valid</code> — 더 이상 존재하지 않습니다. 마감 지난
+    <span class="rmv" style="margin-right:6px">v2.0</span> <code class="dead">expired_jobs[ ]</code>,
+    <code class="dead">verified_jobs[n].is_valid</code> — 더 이상 존재하지 않습니다. 마감 지난
     공고는 그라운딩 검색 단계에서 <code>_parse_deadline()</code>이 즉시 걸러
     <code>rejected_by_guard.jobs</code>(§10)로 이동하며, 별도 "만료 배열"로
     사용자에게 노출하지 않습니다.
@@ -430,10 +436,10 @@ h1 { font-size: 21px; font-weight: 600; margin-bottom: 4px; }
 
 <div class="sumbar">
   <div class="si"><div class="sn">130</div><div class="sl">result payload 필드 수</div></div>
-  <div class="si"><div class="sn">10</div><div class="sl">섹션 (envelope + 01~09)</div></div>
+  <div class="si"><div class="sn">10</div><div class="sl">섹션 (01~10)</div></div>
   <div class="si"><div class="sn">48</div><div class="sl">시스템 주입/재계산 필드</div></div>
   <div class="si"><div class="sn">21</div><div class="sl">v3.1 신규 필드</div></div>
-  <div class="si"><div class="sn">4</div><div class="sl">v2.0 삭제 필드</div></div>
+  <div class="si"><div class="sn">3</div><div class="sl">v2.0 삭제 안내 (필드 5개)</div></div>
   <div class="si"><div class="sn">있음</div><div class="sl">vector 필드</div></div>
 </div>
 
