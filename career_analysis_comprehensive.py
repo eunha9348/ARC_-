@@ -1820,9 +1820,22 @@ def _log_audit_summary(audit: VerificationAudit) -> None:
 # ══════════════════════════════════════════════
 
 def main(user_input: list[str] | None = None, school: str = "", department: str = ""):
+    import sys
     ref_date = date.today()
     rd = ref_date.strftime("%Y-%m-%d")
     audit = VerificationAudit()
+
+    # v2.0 은 `if __name__ == "__main__": main()` 로 인자 없이 호출했지만
+    # main(user_input, school, department) 가 전부 필수 인자였기 때문에
+    # CLI 로 실행하면 그 자리에서 TypeError 였다(실행된 적 없는 죽은 경로).
+    # 호출 형식(`main()`)은 그대로 두고, 인자가 생략되면 stdin·환경변수에서
+    # 받아오도록 해 CLI 실행이 실제로 동작하게 만든다.
+    #   - 백엔드/Colab : main(user_input, school, department) — 기존과 동일
+    #   - CLI          : cat career.txt | python3 career_analysis_comprehensive.py
+    if user_input is None:
+        user_input = [l.rstrip("\n") for l in sys.stdin] if not sys.stdin.isatty() else []
+        school = school or os.environ.get("USER_SCHOOL", "")
+        department = department or os.environ.get("USER_DEPARTMENT", "")
 
     print("=" * 65)
     print("  Career Analysis AI - COMPREHENSIVE Edition v3.1")
@@ -1966,16 +1979,33 @@ def main(user_input: list[str] | None = None, school: str = "", department: str 
     result["guard_version"] = "v3.1"
 
     print("\n[8] 분석 완료!\n", flush=True)
+
+    # ── stderr: 강점 진단 요약 먼저 ──────────────────────────────────
     _log_strength_summary(result)
+
+    # ── stderr: 냉정 진단 요약 뒤 ─────────────────────────────────────
     _log_critical_summary(result)
+
+    # ── stderr: 환각 가드 감사 요약 (v3.0 추가) ───────────────────────
     _log_audit_summary(audit)
 
-    payload = {k: v for k, v in result.items() if k not in ("status", "vector")}
-    resp = VectorSuccessResponse(result=payload, vector=vector)
+    # ── stdout: 최종 출력을 공통 envelope 형식으로 통일 ──────────────────
+    # API Endpoint 계약(§3.3 [1]): analyzer main() 은 envelope 를 반환한다.
+    #   { "status": "success", "vector": [...], "result": { ...payload... } }
+    # 규약: result(payload) 안에는 status·vector 를 넣지 않는다 (§3.6 #25·#26).
+    #       vector 는 별도 필드로만, status 는 envelope 최상위로만 나간다.
+    if not isinstance(result, dict) or result.get("status") == "error":
+        resp = ErrorResponse(
+            message=(result.get("message", "분석에 실패했습니다.")
+                     if isinstance(result, dict) else "분석에 실패했습니다."),
+        )
+    else:
+        payload = {k: v for k, v in result.items() if k not in ("status", "vector")}
+        resp = VectorSuccessResponse(result=payload, vector=vector)
+
     print(resp.model_dump_json(indent=2, exclude_none=True))
     return resp
 
 
 if __name__ == "__main__":
-    _lines = [l.rstrip("\n") for l in sys.stdin] if not sys.stdin.isatty() else []
-    main(_lines, os.environ.get("USER_SCHOOL", ""), os.environ.get("USER_DEPARTMENT", ""))
+    main()
