@@ -10,8 +10,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from hallucination_guard import VerificationAudit  # noqa: E402
-from star_quality import (  # noqa: E402
+from hallucination_guard import (  # noqa: E402
+    VerificationAudit,
     evaluate_star_entries,
     score_star_entry,
     validate_derived_fields,

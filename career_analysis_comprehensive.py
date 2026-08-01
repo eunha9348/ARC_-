@@ -72,11 +72,15 @@ import pypdf
 from google import genai
 from google.genai import types
 
-from analysis_response import ErrorResponse, VectorSuccessResponse
+# 점검(검증) 로직은 hallucination_guard.py 하나에 전부 모여 있다 — 환각 가드
+# (URL/그라운딩/자격증 레지스트리/STAR 근거 결속)와 STAR 품질 채점을 한 파일로
+# 합쳤다. Colab 등에서 파일을 여러 개로 나눠 올리다 경계를 잘못 나누는
+# 사고(§0 참고)를 원천적으로 줄이기 위함이다.
 from hallucination_guard import (
     VerificationAudit,
     assess_star_readiness,
     check_certification_name,
+    evaluate_star_entries,
     extract_grounding,
     grounding_mentions,
     is_plausible_url,
@@ -84,10 +88,84 @@ from hallucination_guard import (
     norm_name,
     pick_verified_url,
     probe_url,
+    score_star_entry,  # noqa: F401
     scrub_model_urls,
     validate_star_entries,
 )
-from star_quality import evaluate_star_entries, score_star_entry  # noqa: F401
+
+# ──────────────────────────────────────────────
+#  0. 응답 모델 (원래 analysis_response.py)
+# ──────────────────────────────────────────────
+#
+#  "출력"에 해당하는 이 파일 안에 응답 envelope 모델도 함께 둔다.
+#  API Endpoint 계약(§3.3):
+#    성공: { "status": "success", "vector": [...], "result": { ...payload... } }
+#    실패: { "status": "error",   "message": "..." }
+#  규약(§3.6 #25·#26): result(payload) 안에는 status·vector 를 넣지 않는다.
+#
+#  pydantic 이 설치된 환경에서는 pydantic BaseModel 을, 없으면 동일 인터페이스
+#  (model_dump()/model_dump_json())를 제공하는 경량 대체 구현을 쓴다.
+
+try:  # pragma: no cover - 환경 의존
+    from pydantic import BaseModel, Field
+
+    _HAS_PYDANTIC = True
+except ImportError:  # pragma: no cover - 환경 의존
+    _HAS_PYDANTIC = False
+
+
+def _prune_none(obj):
+    if isinstance(obj, dict):
+        return {k: _prune_none(v) for k, v in obj.items() if v is not None}
+    if isinstance(obj, list):
+        return [_prune_none(v) for v in obj]
+    return obj
+
+
+if _HAS_PYDANTIC:
+
+    class VectorSuccessResponse(BaseModel):
+        status: str = "success"
+        result: dict = Field(default_factory=dict)
+        vector: list[float] | None = None
+
+    class ErrorResponse(BaseModel):
+        status: str = "error"
+        message: str = ""
+
+else:
+
+    class _BaseResponse:
+        _fields: tuple[str, ...] = ()
+
+        def model_dump(self, exclude_none: bool = False) -> dict:
+            data = {f: getattr(self, f) for f in self._fields}
+            return _prune_none(data) if exclude_none else data
+
+        def model_dump_json(self, indent: int | None = None,
+                            exclude_none: bool = False) -> str:
+            return json.dumps(
+                self.model_dump(exclude_none=exclude_none),
+                ensure_ascii=False,
+                indent=indent,
+            )
+
+    class VectorSuccessResponse(_BaseResponse):
+        _fields = ("status", "result", "vector")
+
+        def __init__(self, result: dict | None = None,
+                     vector: list | None = None, status: str = "success"):
+            self.status = status
+            self.result = result or {}
+            self.vector = vector
+
+    class ErrorResponse(_BaseResponse):
+        _fields = ("status", "message")
+
+        def __init__(self, message: str = "", status: str = "error"):
+            self.status = status
+            self.message = message
+
 
 # ──────────────────────────────────────────────
 #  Config

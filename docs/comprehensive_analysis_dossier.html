@@ -1208,14 +1208,19 @@ python3 tests/test_star_quality.py         <b># 18 tests — OK</b></pre>
         <h2>운영과 설정</h2>
 
         <h3>파일 구성</h3>
+        <p>
+          실행에 필요한 코드는 2개 파일뿐이다 — Colab 등 노트북에서 여러 파일을
+          셀 단위로 나눠 올리다 경계를 잘못 나누는 사고가 반복돼, 원래 4개였던
+          <code>star_quality.py</code>·<code>analysis_response.py</code> 를 각각
+          <code>hallucination_guard.py</code>·<code>career_analysis_comprehensive.py</code>
+          에 흡수 통합했다.
+        </p>
         <div class="scroll">
           <table>
             <thead><tr><th class="mono">파일</th><th>역할</th><th class="mono">규모</th></tr></thead>
             <tbody>
-              <tr><td class="mono">career_analysis_comprehensive.py</td><td>파이프라인 전체</td><td class="mono">~1,900행</td></tr>
-              <tr><td class="mono">hallucination_guard.py</td><td>환각 차단 가드</td><td class="mono">~910행</td></tr>
-              <tr><td class="mono">star_quality.py</td><td>STAR 품질 채점</td><td class="mono">~400행</td></tr>
-              <tr><td class="mono">analysis_response.py</td><td>응답 envelope (pydantic 선택 의존)</td><td class="mono">83행</td></tr>
+              <tr><td class="mono">career_analysis_comprehensive.py</td><td>출력 — 파이프라인 전체 + 응답 envelope 모델(구 analysis_response.py)</td><td class="mono">~1,980행</td></tr>
+              <tr><td class="mono">hallucination_guard.py</td><td>점검 — 환각 차단 가드 + STAR 품질 채점(구 star_quality.py)</td><td class="mono">~1,300행</td></tr>
               <tr><td class="mono">tests/</td><td>회귀 테스트 43건</td><td class="mono">~600행</td></tr>
             </tbody>
           </table>

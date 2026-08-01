@@ -73,16 +73,25 @@ Google AI Studio의 **Gemini(`gemini-2.5-flash`)** 를 사용해, **사용자 �
 
 ## 구성 파일
 
+**실행에 필요한 코드는 2개 파일뿐입니다** — 점검(검증) 하나, 출력(파이프라인) 하나.
+Colab 등 노트북 환경에서 여러 파일을 셀 단위로 나눠 올리다 파일 경계를 잘못
+나누는 사고(`%%writefile` 매직 커맨드가 다른 파일 내용에 섞여 들어가는 등)가
+반복돼 파일 수 자체를 4개→2개로 줄였습니다.
+
 | 파일 | 역할 |
 |---|---|
-| `career_analysis_comprehensive.py` | 분석 파이프라인 (크롤링 → 분석 → 검증 → 출력) |
-| `hallucination_guard.py` | 환각 차단 가드 (URL 프로브·그라운딩 대조·자격증 레지스트리·STAR 근거 결속) |
-| `star_quality.py` | STAR 작성 품질 채점 (10개 루브릭 + 개선 지시) |
-| `analysis_response.py` | 응답 envelope 모델 (pydantic 선택 의존) |
+| `career_analysis_comprehensive.py` | **출력** — 분석 파이프라인(크롤링→분석→검증→출력) + 응답 envelope 모델(구 `analysis_response.py`) |
+| `hallucination_guard.py` | **점검** — 환각 차단 가드(URL 프로브·그라운딩 대조·자격증 레지스트리·STAR 근거 결속) + STAR 품질 채점(구 `star_quality.py`) |
 | `tests/test_hallucination_guard.py` | 환각 가드 회귀 테스트 25건 |
-| `tests/test_star_quality.py` | STAR 품질 회귀 테스트 18건 |
+| `tests/test_star_quality.py` | STAR 품질 회귀 테스트 18건 (import 는 `hallucination_guard`에서) |
 | `docs/comprehensive_analysis_dossier.html` | 시스템 도시에 — 전체 로직·필드 리포트·품질 체계 |
 | `docs/field_report_hallucination_v3.html` | 장애 원인 분석 필드 리포트 (단독본) |
+| `docs/backend_integration_guide.html` | 백엔드/Colab 연동 안내서 |
+
+> v3.1 초기에는 `star_quality.py`·`analysis_response.py`가 별도 파일이었으나,
+> 위 이유로 각각 `hallucination_guard.py`·`career_analysis_comprehensive.py`에
+> 흡수 통합했습니다. 모듈 이름(`import hallucination_guard`)은 그대로라 이
+> 문서 이후 버전의 코드도 동일하게 동작합니다.
 
 ## 실행
 

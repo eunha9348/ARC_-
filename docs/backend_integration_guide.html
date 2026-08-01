@@ -235,11 +235,24 @@
     </div>
     <h1>종합 커리어 분석 — 백엔드 연동 안내서</h1>
     <p class="standfirst">
-      <code>career_analysis_comprehensive.py</code> 4파일 세트를 백엔드에 붙이는 절차를
-      코드에서 직접 검증한 사실만으로 정리했다. 설치·환경변수 같은 준비 단계보다
-      <strong>§5 호출 방식</strong>과 <strong>§7 stdout 함정</strong>이 실제로 연동을
-      망가뜨리는 지점이니 먼저 읽을 것.
+      <code>career_analysis_comprehensive.py</code> + <code>hallucination_guard.py</code>
+      2파일 세트를 백엔드/Colab 에 붙이는 절차를 코드에서 직접 검증한 사실만으로
+      정리했다. 설치·환경변수 같은 준비 단계보다 <strong>§5 호출 방식</strong>과
+      <strong>§7 stdout 함정</strong>이 실제로 연동을 망가뜨리는 지점이니 먼저 읽을 것.
     </p>
+    <div class="callout warn" style="margin-top:1.2rem">
+      <p class="lede">2026-07-29 갱신 — 4파일 → 2파일로 통합</p>
+      <p>
+        초기 v3.1 은 <code>star_quality.py</code> · <code>analysis_response.py</code> 를
+        별도 파일로 뒀으나, Colab 등에서 파일을 나눠 올리다 경계를 잘못 나누는 사고
+        (<code>%%writefile</code> 매직 커맨드가 다른 파일 내용에 섞여
+        <code>ModuleNotFoundError</code>/<code>SyntaxError</code>로 이어짐)가 반복돼
+        각각 <code>hallucination_guard.py</code> · <code>career_analysis_comprehensive.py</code>
+        에 흡수 통합했다. <code>import hallucination_guard</code> 로 부르는 이름은
+        바뀌지 않았으므로 이 문서를 이미 따라 4파일을 준비했다면 <code>star_quality.py</code>
+        · <code>analysis_response.py</code> 는 이제 필요 없다 — 지우고 최신 2파일로 교체할 것.
+      </p>
+    </div>
   </header>
 
   <div class="layout">
@@ -269,11 +282,9 @@
         <p class="eyebrow">00</p>
         <h2>30초 요약</h2>
         <p>급하면 이 블록만 보고 시작해도 된다. 나머지 섹션은 이 안의 각 줄이 왜 그런지에 대한 근거다.</p>
-        <pre class="block"><span class="c"># 1. 4개 파일을 같은 디렉터리에</span>
-career_analysis_comprehensive.py
-hallucination_guard.py
-star_quality.py
-analysis_response.py
+        <pre class="block"><span class="c"># 1. 2개 파일을 같은 디렉터리에 (점검 하나 + 출력 하나)</span>
+hallucination_guard.py              <span class="c"># 점검 — 환각 가드 + STAR 품질 채점</span>
+career_analysis_comprehensive.py    <span class="c"># 출력 — 파이프라인 + 응답 모델</span>
 
 <span class="c"># 2. 설치</span>
 pip install -r requirements.txt
@@ -294,22 +305,28 @@ resp.status        <span class="c"># "success" | "error"</span></pre>
         <p class="eyebrow">01</p>
         <h2>파일 반입</h2>
         <p>
-          4개가 한 세트다. <code>career_analysis_comprehensive.py</code> 가 나머지 셋을
-          <code>import</code> 하고, <code>star_quality.py</code> 는 다시
-          <code>hallucination_guard.py</code> 를 가져다 쓴다 — 상대 경로가 아니라 같은
-          디렉터리 안의 평범한 모듈 import이므로 폴더를 나누면 그 자리에서 <code>ImportError</code>.
+          2개가 한 세트다. <code>career_analysis_comprehensive.py</code> 가
+          <code>hallucination_guard.py</code> 하나만 <code>import</code> 한다 — 상대 경로가
+          아니라 같은 디렉터리 안의 평범한 모듈 import이므로 폴더를 나누면 그 자리에서
+          <code>ImportError</code>.
         </p>
-        <pre class="block">career_analysis_comprehensive.py   <span class="c"># 진입점 — main()</span>
+        <pre class="block">career_analysis_comprehensive.py   <span class="c"># 출력 — 진입점, main()</span>
         │
-        ├─ import analysis_response      <span class="c">(VectorSuccessResponse, ErrorResponse)</span>
-        ├─ import hallucination_guard    <span class="c">(검증 함수 12개)</span>
-        └─ import star_quality ──────┐
-                                      └─ import hallucination_guard  <span class="c">(재사용)</span></pre>
+        └─ import hallucination_guard    <span class="c">(점검 — 환각 가드 + STAR 품질 채점, 함수 14개)</span></pre>
         <div class="filelist">
-          <div><code>career_analysis_comprehensive.py</code><span>진입점. 크롤러 · 프롬프트 빌더 · 검증 오케스트레이션 · <code>main()</code>. 약 1,900행</span></div>
-          <div><code>hallucination_guard.py</code><span>URL 프로브 · 그라운딩 대조 · 자격증 레지스트리 · STAR 근거 검증. 약 910행. LLM을 직접 호출하지 않음</span></div>
-          <div><code>star_quality.py</code><span>STAR 작성 품질 채점 10개 루브릭. 약 400행. LLM을 직접 호출하지 않음</span></div>
-          <div><code>analysis_response.py</code><span>응답 envelope 모델. pydantic 있으면 사용, 없으면 자체 대체 구현. 83행</span></div>
+          <div><code>career_analysis_comprehensive.py</code><span>출력. 크롤러 · 프롬프트 빌더 · 검증 오케스트레이션 · 응답 envelope 모델(구 analysis_response.py) · <code>main()</code>. 약 1,980행</span></div>
+          <div><code>hallucination_guard.py</code><span>점검. URL 프로브 · 그라운딩 대조 · 자격증 레지스트리 · STAR 근거 검증 · STAR 품질 채점 10개 루브릭(구 star_quality.py). 약 1,300행. LLM을 직접 호출하지 않음</span></div>
+        </div>
+        <div class="callout info">
+          <p class="lede">왜 2개뿐인가</p>
+          <p>
+            파일을 여러 개로 쪼개 둘수록 노트북 환경에서 "이 셀은 이 파일까지만"의
+            경계를 사람이 손으로 지켜야 한다. 그 경계를 잘못 그으면
+            <code>ModuleNotFoundError</code>(파일이 아예 안 만들어짐) 또는
+            <code>SyntaxError</code>(다음 파일의 <code>%%writefile</code> 줄이 이전
+            파일 안에 텍스트로 섞여 들어감)로 이어진다. "점검 하나, 출력 하나"로
+            묶어 그 실수 표면 자체를 줄였다.
+          </p>
         </div>
         <p>
           <code>tests/</code>, <code>docs/</code>, <code>cover_letter_ai_all_in_one.py</code>(다른 기능)는
@@ -324,7 +341,7 @@ resp.status        <span class="c"># "success" | "error"</span></pre>
         <p>저장소 루트의 <code>requirements.txt</code> 그대로 쓰면 된다.</p>
         <pre class="block">google-genai&gt;=1.0   <span class="c"># 이 문서 작성 시점 검증 버전: 2.14.0</span>
 pypdf&gt;=4.0
-pydantic&gt;=2.0       <span class="c"># 선택 — 없으면 analysis_response.py 가 자체 구현으로 대체 (§6)</span></pre>
+pydantic&gt;=2.0       <span class="c"># 선택 — 없으면 career_analysis_comprehensive.py 안의 자체 구현으로 대체 (§6)</span></pre>
         <div class="callout warn">
           <p class="lede">Python 버전</p>
           <p>
@@ -428,7 +445,8 @@ cat career_text.txt | python3 career_analysis_comprehensive.py</pre>
         <h2>입출력 계약</h2>
         <p>
           <code>resp</code> 는 pydantic이 설치돼 있으면 <code>BaseModel</code>,
-          없으면 <code>analysis_response.py</code> 의 경량 대체 클래스다 — 둘 다
+          없으면 <code>career_analysis_comprehensive.py</code> 안에 정의된 경량 대체
+          클래스다(구 analysis_response.py 의 내용이 여기로 흡수됨) — 둘 다
           <code>.model_dump()</code> / <code>.model_dump_json()</code> 인터페이스가
           동일하므로 호출부 코드는 어느 쪽이든 똑같이 쓰면 된다.
         </p>
