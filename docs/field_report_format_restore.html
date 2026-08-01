@@ -1,0 +1,636 @@
+<title>필드 리포트 — main() 형식 복원 및 파일 통합 (v3.1)</title>
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:      #F4F7F7;
+    --surface:     #FFFFFF;
+    --surface-alt: #EDF2F2;
+    --ink:         #14181A;
+    --ink-soft:    #454F52;
+    --ink-faint:   #6E797C;
+    --rule:        #D2DCDC;
+    --rule-strong: #B4C3C3;
+
+    --accent:      #0F5F63;
+    --accent-soft: #DCEBEB;
+    --accent-ink:  #0B4B4E;
+
+    --critical:    #A32E1F;
+    --critical-bg: #F7E4E1;
+    --fixed:       #2C6B44;
+    --fixed-bg:    #DFEDE4;
+    --warn:        #8A6116;
+    --warn-bg:     #F5EAD5;
+
+    --sans: "Pretendard", "Pretendard Variable", -apple-system, BlinkMacSystemFont,
+            "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "맑은 고딕",
+            system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono",
+            "Cascadia Mono", Menlo, Consolas, monospace;
+
+    --measure: 68ch;
+    --pad: clamp(1.1rem, 4vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0E1213; --surface: #161C1D; --surface-alt: #1D2526;
+      --ink: #E6ECEC; --ink-soft: #AEBBBB; --ink-faint: #7E8C8C;
+      --rule: #2A3435; --rule-strong: #3C4849;
+      --accent: #5FB6B8; --accent-soft: #12302F; --accent-ink: #8FD3D4;
+      --critical: #E08578; --critical-bg: #33201C;
+      --fixed: #7FBE96; --fixed-bg: #172B20;
+      --warn: #D6AC63; --warn-bg: #2E2415;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E1213; --surface: #161C1D; --surface-alt: #1D2526;
+    --ink: #E6ECEC; --ink-soft: #AEBBBB; --ink-faint: #7E8C8C;
+    --rule: #2A3435; --rule-strong: #3C4849;
+    --accent: #5FB6B8; --accent-soft: #12302F; --accent-ink: #8FD3D4;
+    --critical: #E08578; --critical-bg: #33201C;
+    --fixed: #7FBE96; --fixed-bg: #172B20;
+    --warn: #D6AC63; --warn-bg: #2E2415;
+  }
+  :root[data-theme="light"] {
+    --ground: #F4F7F7; --surface: #FFFFFF; --surface-alt: #EDF2F2;
+    --ink: #14181A; --ink-soft: #454F52; --ink-faint: #6E797C;
+    --rule: #D2DCDC; --rule-strong: #B4C3C3;
+    --accent: #0F5F63; --accent-soft: #DCEBEB; --accent-ink: #0B4B4E;
+    --critical: #A32E1F; --critical-bg: #F7E4E1;
+    --fixed: #2C6B44; --fixed-bg: #DFEDE4;
+    --warn: #8A6116; --warn-bg: #F5EAD5;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  .wrap { max-width: 78rem; margin: 0 auto; padding: 0 var(--pad) 6rem; }
+
+  /* ── 머리말 ── */
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: clamp(2.5rem, 6vw, 4.5rem) 0 1.5rem;
+    display: flex; flex-direction: column; gap: 1.5rem;
+  }
+  .stamp {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--accent);
+    display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem;
+  }
+  .stamp b { font-weight: 600; color: var(--ink-soft); }
+  h1 {
+    margin: 0; font-size: clamp(1.9rem, 5.2vw, 3.1rem); line-height: 1.18;
+    letter-spacing: -0.02em; font-weight: 700; text-wrap: balance; max-width: 20ch;
+  }
+  .standfirst {
+    margin: 0; max-width: var(--measure);
+    font-size: clamp(1rem, 2.2vw, 1.12rem); color: var(--ink-soft);
+  }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-top: 0.5rem;
+  }
+  .meta-grid div {
+    background: var(--surface); padding: 0.85rem 1rem;
+    display: flex; flex-direction: column; gap: 0.2rem;
+  }
+  .meta-grid .k {
+    font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+  .meta-grid .v {
+    font-family: var(--mono); font-size: 0.95rem; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── 섹션 ── */
+  section { padding-top: clamp(2.75rem, 6vw, 4.25rem); }
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 0.6rem;
+  }
+  h2 {
+    margin: 0 0 1rem; font-size: clamp(1.4rem, 3.4vw, 1.85rem); line-height: 1.3;
+    letter-spacing: -0.015em; font-weight: 700; text-wrap: balance;
+  }
+  h3 { margin: 0 0 0.5rem; font-size: 1.06rem; font-weight: 700; line-height: 1.45; text-wrap: balance; }
+  p, li { max-width: var(--measure); }
+  p { margin: 0 0 1rem; }
+  section > p:last-child { margin-bottom: 0; }
+  ul { margin: 0 0 1rem; padding-left: 1.2rem; }
+  li { margin-bottom: 0.35rem; }
+  code {
+    font-family: var(--mono); font-size: 0.86em; background: var(--surface-alt);
+    border: 1px solid var(--rule); border-radius: 3px; padding: 0.08em 0.34em;
+    word-break: break-all;
+  }
+  strong { font-weight: 700; }
+
+  /* ── 변경 항목 행 ── */
+  .change {
+    display: grid; grid-template-columns: 5.5rem minmax(0, 1fr);
+    gap: 0 1.5rem; padding: 1.5rem 0; border-top: 1px solid var(--rule);
+  }
+  .change:last-of-type { border-bottom: 1px solid var(--rule); }
+  .change-id {
+    font-family: var(--mono); font-size: 0.82rem; font-weight: 700;
+    letter-spacing: 0.08em; color: var(--accent); padding-top: 0.28rem;
+  }
+  .change-id span {
+    display: block; font-size: 0.62rem; font-weight: 500; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-faint); margin-top: 0.2rem;
+  }
+  .change-body > *:last-child { margin-bottom: 0; }
+
+  /* ── before / after ── */
+  .ba {
+    display: grid; grid-template-columns: 1fr; gap: 1px;
+    background: var(--rule); border: 1px solid var(--rule); margin: 1.5rem 0;
+  }
+  @media (min-width: 56rem) { .ba { grid-template-columns: 1fr 1fr; } }
+  .ba > div { background: var(--surface); padding: 1rem 1.1rem 1.15rem; min-width: 0; }
+  .ba .tag {
+    font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em;
+    text-transform: uppercase; font-weight: 700; display: inline-block;
+    padding: 0.2rem 0.5rem; margin-bottom: 0.7rem;
+  }
+  .ba .before .tag { background: var(--critical-bg); color: var(--critical); }
+  .ba .after  .tag { background: var(--fixed-bg);    color: var(--fixed); }
+  .ba pre {
+    margin: 0; overflow-x: auto; font-family: var(--mono); font-size: 0.78rem;
+    line-height: 1.68; color: var(--ink-soft); white-space: pre;
+  }
+  .ba pre em { font-style: normal; color: var(--critical); font-weight: 700; }
+  .ba pre b  { color: var(--fixed); font-weight: 700; }
+  .ba pre i  { font-style: normal; color: var(--ink-faint); }
+
+  pre.block {
+    margin: 0.9rem 0; background: var(--surface); border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule-strong); padding: 0.85rem 1rem;
+    overflow-x: auto; font-family: var(--mono); font-size: 0.79rem;
+    line-height: 1.68; color: var(--ink-soft); white-space: pre;
+  }
+  pre.block b { color: var(--fixed); font-weight: 700; }
+  pre.block em { font-style: normal; color: var(--critical); font-weight: 700; }
+  pre.block i { font-style: normal; color: var(--ink-faint); }
+
+  /* ── 표 ── */
+  .scroll { overflow-x: auto; border: 1px solid var(--rule); margin: 1.5rem 0; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 42rem; font-size: 0.88rem; }
+  th, td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--rule); vertical-align: top; max-width: none; }
+  thead th {
+    font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--ink-faint); font-weight: 600;
+    background: var(--surface-alt); border-bottom: 1px solid var(--rule-strong); white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .pill {
+    display: inline-block; font-family: var(--mono); font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.08em; padding: 0.15rem 0.45rem; border-radius: 2px; white-space: nowrap;
+  }
+  .pill.c { background: var(--critical-bg); color: var(--critical); }
+  .pill.f { background: var(--fixed-bg);    color: var(--fixed); }
+  .pill.w { background: var(--warn-bg);     color: var(--warn); }
+
+  /* ── 강조 블록 ── */
+  .verdict {
+    background: var(--accent-soft); border: 1px solid var(--accent);
+    padding: clamp(1.25rem, 3vw, 2rem); margin-top: 1.5rem;
+  }
+  .verdict p { color: var(--accent-ink); margin-bottom: 0.75rem; }
+  .verdict p:last-child { margin-bottom: 0; }
+  .warnbox {
+    background: var(--warn-bg); border: 1px solid var(--warn);
+    padding: 1.1rem 1.3rem; margin: 1.4rem 0;
+  }
+  .warnbox p { color: var(--ink); margin-bottom: 0.6rem; }
+  .warnbox p:last-child { margin-bottom: 0; }
+  .warnbox .lede {
+    font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em;
+    text-transform: uppercase; font-weight: 700; color: var(--warn); margin-bottom: 0.5rem;
+  }
+
+  .note {
+    border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.25rem;
+    font-size: 0.86rem; color: var(--ink-faint);
+  }
+  .note p { max-width: var(--measure); }
+
+  a { color: var(--accent); }
+  a:focus-visible, :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="stamp">
+      <span>Field Report</span>
+      <span><b>ARC_-</b> / career-analysis</span>
+      <span>2026-07-29</span>
+    </div>
+
+    <h1>main() 형식 복원 및 파일 구조 통합</h1>
+
+    <p class="standfirst">
+      Colab 반입 과정에서 발생한 <code>ModuleNotFoundError</code> ·
+      <code>SyntaxError</code> 연쇄를 파일 구조 자체로 해결하고, v2.0 원본을
+      기준 형식으로 삼아 <code>main()</code> 의 호출 규약을 되돌린 기록.
+      기능 변경은 없으며, 실행 경로 두 갈래가 모두 동작함을 실제 실행으로 확인했다.
+    </p>
+
+    <div class="meta-grid">
+      <div><span class="k">코드 파일</span><span class="v">4 → 2</span></div>
+      <div><span class="k">형식 복원 항목</span><span class="v">3건</span></div>
+      <div><span class="k">회귀 테스트</span><span class="v">43 / 43 통과</span></div>
+      <div><span class="k">기능 변경</span><span class="v">없음</span></div>
+    </div>
+  </header>
+
+  <!-- ══════════════ 1. 배경 ══════════════ -->
+  <section>
+    <p class="eyebrow">01 — 배경</p>
+    <h2>무엇이 문제였는가</h2>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th class="mono">증상</th><th>발생 상황</th><th>직접 원인</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono"><span class="pill c">S-1</span></td>
+            <td><code>ModuleNotFoundError: No module named 'hallucination_guard'</code></td>
+            <td>노트북 셀에 코드를 붙여넣기만 하고 실제 <code>.py</code> 파일을 만들지 않음</td>
+          </tr>
+          <tr>
+            <td class="mono"><span class="pill c">S-2</span></td>
+            <td><code>SyntaxError: invalid syntax</code> — <code>hallucination_guard.py</code> 3행</td>
+            <td>한 셀 안에 두 파일 내용을 넣어, 다음 파일의 <code>%%writefile</code> 줄이 이전 파일 안에 텍스트로 저장됨</td>
+          </tr>
+          <tr>
+            <td class="mono"><span class="pill w">S-3</span></td>
+            <td>v3.1 이 v2.0 의 <code>main()</code> 호출 규약에서 벗어나 있음</td>
+            <td>리팩터링 중 <code>if __name__ == "__main__"</code> 블록과 envelope 반환부의 형태가 달라짐</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="warnbox">
+      <p class="lede">진단</p>
+      <p>
+        S-1·S-2 는 사용자 실수처럼 보이지만, <strong>근본 원인은 코드가 4개 파일로
+        쪼개져 있다는 구조 자체</strong>다. 파일이 나뉘어 있을수록 "이 셀은 이
+        파일까지만"이라는 경계를 사람이 손으로 지켜야 하고, 그 경계는 반드시
+        틀린다. 규칙을 더 잘 지키라고 요구하는 대신 <strong>지켜야 할 경계의
+        수를 줄이는</strong> 것이 옳은 해법이다.
+      </p>
+    </div>
+  </section>
+
+  <!-- ══════════════ 2. 파일 통합 ══════════════ -->
+  <section>
+    <p class="eyebrow">02 — 조치 A</p>
+    <h2>파일 통합: 점검 하나, 출력 하나</h2>
+
+    <p>
+      실행에 필요한 파일을 4개에서 2개로 줄였다. 역할 경계를
+      <strong>"점검"과 "출력"</strong> 두 개로만 나눈다.
+    </p>
+
+    <div class="ba">
+      <div class="before">
+        <span class="tag">이전 — 4파일</span>
+<pre>career_analysis_comprehensive.py
+        │
+        ├─ import <em>analysis_response</em>
+        ├─ import hallucination_guard
+        └─ import <em>star_quality</em> ─────┐
+                                    └─ import
+                                       hallucination_guard</pre>
+      </div>
+      <div class="after">
+        <span class="tag">이후 — 2파일</span>
+<pre>career_analysis_comprehensive.py  <i>(출력)</i>
+        │
+        └─ import <b>hallucination_guard</b>  <i>(점검)</i>
+
+<i># analysis_response  → 출력 파일로 흡수
+# star_quality       → 점검 파일로 흡수</i></pre>
+      </div>
+    </div>
+
+    <h3>병합 전 이름 충돌 전수 대조</h3>
+    <p>
+      두 파일을 그냥 이어붙이면 같은 이름이 겹칠 때 나중 정의가 앞 정의를
+      조용히 덮어쓴다. 병합 전에 최상위 이름을 전부 대조했다.
+    </p>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th class="mono">겹친 이름</th><th>두 값이 동일한가</th><th>처리</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">_METRIC_RE</td>
+            <td>문자 단위로 동일 확인</td>
+            <td>중복 정의 제거, 점검 A절 정의를 B절이 재사용</td>
+          </tr>
+          <tr>
+            <td class="mono">_STAR_SLOTS</td>
+            <td>둘 다 <code>("S","T","A","R")</code></td>
+            <td>중복 정의 제거</td>
+          </tr>
+          <tr>
+            <td class="mono">(그 외)</td>
+            <td>—</td>
+            <td>충돌 없음. <code>analysis_response</code> 도 겹치는 이름 없음</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      만약 두 <code>_METRIC_RE</code> 가 미묘하게 달랐다면, 합친 파일에서는
+      STAR 사전판정과 품질채점이 <strong>서로 다른 기준으로 수치를 인식하는</strong>
+      조용한 버그가 됐을 것이다. 값이 같음을 확인했기에 안전하게 하나로 합쳤고,
+      갈라지지 않도록 주석으로 못 박았다.
+    </p>
+
+    <pre class="block"><i># 참고: _METRIC_RE·_STAR_SLOTS 는 위 A 절에서 이미 정의된 동일 값을
+#       그대로 재사용한다 (중복 정의 금지 — 값이 갈라지면 A/B 두 검사가
+#       서로 다른 기준으로 판정하는 조용한 버그가 된다).</i></pre>
+
+    <p>
+      <code>star_quality.py</code> 안에 있던 자기참조 import
+      (<code>from hallucination_guard import ...</code>) 2곳도 함께 제거했다.
+    </p>
+  </section>
+
+  <!-- ══════════════ 3. 형식 복원 ══════════════ -->
+  <section>
+    <p class="eyebrow">03 — 조치 B</p>
+    <h2>v2.0 형식 복원 3건</h2>
+
+    <p>
+      v2.0 원본을 기준 형식으로 삼아 대조한 결과, 세 군데가 벗어나 있었다.
+      기능이 아니라 <strong>호출 규약과 코드 형태</strong>의 문제다.
+    </p>
+
+    <div class="change">
+      <div class="change-id">F-1<span>Entry</span></div>
+      <div class="change-body">
+        <h3><code>__main__</code> 블록을 <code>main()</code> 단순 호출로 복원</h3>
+        <p>
+          v3.1 은 stdin·환경변수를 블록 안에서 읽어 인자로 넘기는 형태였다.
+          v2.0 형식인 <code>main()</code> 무인자 호출로 되돌렸다.
+        </p>
+        <div class="ba">
+          <div class="before">
+            <span class="tag">v3.1 (이전)</span>
+<pre>if __name__ == "__main__":
+    _lines = [l.rstrip("\n") for l in sys.stdin] \
+        if not sys.stdin.isatty() else []
+    <em>main(_lines, os.environ.get("USER_SCHOOL", ""),
+         os.environ.get("USER_DEPARTMENT", ""))</em></pre>
+          </div>
+          <div class="after">
+            <span class="tag">복원 — v2.0 형식</span>
+<pre>if __name__ == "__main__":
+    <b>main()</b></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="change">
+      <div class="change-id">F-2<span>Envelope</span></div>
+      <div class="change-body">
+        <h3><code>main()</code> 마지막 envelope 블록과 계약 주석 복원</h3>
+        <p>
+          v2.0 의 <code>isinstance</code> 분기와 API Endpoint 계약 주석을 그대로
+          되살렸다. step 3 의 조기 리턴은 유지되므로 <strong>이중 안전망</strong>이 된다.
+        </p>
+        <pre class="block"><i># ── stdout: 최종 출력을 공통 envelope 형식으로 통일 ──────────────────
+# API Endpoint 계약(§3.3 [1]): analyzer main() 은 envelope 를 반환한다.
+#   { "status": "success", "vector": [...], "result": { ...payload... } }
+# 규약: result(payload) 안에는 status·vector 를 넣지 않는다 (§3.6 #25·#26).
+#       vector 는 별도 필드로만, status 는 envelope 최상위로만 나간다.</i>
+<b>if not isinstance(result, dict) or result.get("status") == "error":</b>
+    resp = ErrorResponse(
+        message=(result.get("message", "분석에 실패했습니다.")
+                 if isinstance(result, dict) else "분석에 실패했습니다."),
+    )
+else:
+    payload = {k: v for k, v in result.items() if k not in ("status", "vector")}
+    resp = VectorSuccessResponse(result=payload, vector=vector)
+
+print(resp.model_dump_json(indent=2, exclude_none=True))
+return resp</pre>
+        <p>
+          payload 필터만은 v2.0 의 <code>if k != "status"</code> 대신
+          <code>not in ("status", "vector")</code> 를 유지했다 — 바로 위 v2.0
+          주석이 <em>"result 안에는 status·vector 를 넣지 않는다"</em>라고
+          명시하므로 이쪽이 <strong>주석을 정확히 구현한 것</strong>이다.
+          v2.0 은 주석과 코드가 어긋나 있었고, <code>result</code> 에
+          <code>vector</code> 키가 애초에 없어 실무상 결과는 동일했다.
+        </p>
+      </div>
+    </div>
+
+    <div class="change">
+      <div class="change-id">F-3<span>Import</span></div>
+      <div class="change-body">
+        <h3><code>import sys</code> 를 <code>main()</code> 본문 최상단으로</h3>
+        <p>v2.0 과 동일하게 함수 안에 두었다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 4. 죽은 경로 ══════════════ -->
+  <section>
+    <p class="eyebrow">04 — 부수 발견</p>
+    <h2>v2.0 의 <code>main()</code> 은 CLI 로 실행된 적이 없다</h2>
+
+    <p>
+      F-1 을 복원하며 확인한 사실이다. v2.0 원본의 시그니처는 세 인자가 전부
+      필수였다.
+    </p>
+
+    <pre class="block"><i># v2.0 원본</i>
+def main(user_input: list[str], school: str, department: str):
+    ...
+
+if __name__ == "__main__":
+    <em>main()</em>   <i># ← 인자 0개 → TypeError</i></pre>
+
+    <p>
+      즉 <code>python3 career_analysis_comprehensive.py</code> 로 실행하면 그
+      자리에서 <code>TypeError</code> 가 났다. 이 줄은 형식상 존재했을 뿐
+      <strong>한 번도 동작한 적 없는 죽은 경로</strong>다. 실제 사용은 전부
+      <code>main(user_input, school, department)</code> 직접 호출이었기 때문에
+      드러나지 않았다.
+    </p>
+
+    <div class="warnbox">
+      <p class="lede">판단</p>
+      <p>
+        형식을 100% 복원하면 이 버그도 함께 복원된다. 그래서
+        <strong>호출 형식(<code>main()</code>)은 v2.0 그대로 두되, 인자가
+        생략되면 <code>main()</code> 내부에서 stdin·환경변수로부터 받아오도록</strong>
+        했다. 형식은 지키고 죽은 경로는 살렸다.
+      </p>
+    </div>
+
+    <pre class="block">def main(user_input: list[str] | None = None, school: str = "", department: str = ""):
+    import sys
+    ...
+    <b>if user_input is None:</b>          <i># ← CLI 실행 시에만 진입</i>
+        user_input = [l.rstrip("\n") for l in sys.stdin] \
+            if not sys.stdin.isatty() else []
+        school = school or os.environ.get("USER_SCHOOL", "")
+        department = department or os.environ.get("USER_DEPARTMENT", "")</pre>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>호출 경로</th><th class="mono">형태</th><th>동작</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>백엔드 · Colab</td>
+            <td class="mono">main(user_input, school, department)</td>
+            <td>기존과 완전히 동일 — 변화 없음</td>
+          </tr>
+          <tr>
+            <td>CLI</td>
+            <td class="mono">main()</td>
+            <td>stdin·환경변수에서 입력을 받아 <strong>실제로 동작</strong> (v2.0 에서는 TypeError)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══════════════ 5. 검증 ══════════════ -->
+  <section>
+    <p class="eyebrow">05 — 검증</p>
+    <h2>무엇을 실제로 확인했는가</h2>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th class="mono">항목</th><th>방법</th><th class="mono">결과</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>회귀 테스트</td>
+            <td>환각 가드 25건 + STAR 품질 18건 (네트워크·API 키 불필요)</td>
+            <td class="mono"><span class="pill f">43/43 통과</span></td>
+          </tr>
+          <tr>
+            <td>STAR 파이프라인</td>
+            <td>사전판정 → 근거검증 → 품질채점 전 과정을 실제 데이터로 end-to-end 실행</td>
+            <td class="mono"><span class="pill f">등급 산출까지 정상</span></td>
+          </tr>
+          <tr>
+            <td>CLI 경로</td>
+            <td><code>echo ... | python3 career_analysis_comprehensive.py</code></td>
+            <td class="mono"><span class="pill f">TypeError 없음</span></td>
+          </tr>
+          <tr>
+            <td>백엔드 경로</td>
+            <td><code>main([...], "서울대학교", "경영학과")</code></td>
+            <td class="mono"><span class="pill f">정상 반환</span></td>
+          </tr>
+          <tr>
+            <td>에러 경로</td>
+            <td>API 키 누락 · 10자 미만 입력</td>
+            <td class="mono"><span class="pill f">병합 전과 동일 메시지</span></td>
+          </tr>
+          <tr>
+            <td>형식 준수</td>
+            <td>v2.0 대조 항목 11개를 스크립트로 전수 확인</td>
+            <td class="mono"><span class="pill f">11/11 충족</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <pre class="block">  OK   main() 시그니처 파라미터명/순서
+  OK   main() 내부 import sys
+  OK   __main__ 블록이 main() 단순 호출
+  OK   envelope isinstance 분기 복원
+  OK   API Endpoint 계약 주석
+  OK   §3.6 규약 주석
+  OK   stderr 강점 로그 주석
+  OK   stderr 냉정 진단 로그 주석
+  OK   stdout envelope 주석
+  OK   ErrorResponse(message=...) 형태
+  OK   VectorSuccessResponse(result=payload, vector=vector)</pre>
+  </section>
+
+  <!-- ══════════════ 6. 결과 ══════════════ -->
+  <section>
+    <p class="eyebrow">06 — 결과</p>
+    <h2>정리</h2>
+
+    <div class="verdict">
+      <p>
+        <strong>기능은 하나도 바뀌지 않았다.</strong> 환각 가드도, STAR 품질
+        채점도, 출력 스키마도 그대로다. 바뀐 것은 파일이 놓이는 방식과
+        <code>main()</code> 의 호출 형태뿐이다.
+      </p>
+      <p>
+        얻은 것은 두 가지다. 첫째, Colab 반입 시 지켜야 할 파일 경계가
+        <strong>3개에서 1개로</strong> 줄어 S-1·S-2 유형의 사고가 구조적으로
+        어려워졌다. 둘째, v2.0 부터 존재했지만 한 번도 동작하지 않던 CLI
+        실행 경로가 <strong>실제로 쓸 수 있게</strong> 됐다.
+      </p>
+    </div>
+
+    <h3>Colab 반입 절차</h3>
+    <pre class="block"><i># 파일 2개를 업로드하거나, 셀 2개로 나눠 작성</i>
+hallucination_guard.py              <i># 점검</i>
+career_analysis_comprehensive.py    <i># 출력</i>
+
+<i># 확인</i>
+!ls *.py
+
+<i># 실행</i>
+import os
+os.environ["GEMINI_API_KEY"] = "..."
+from career_analysis_comprehensive import main
+resp = main(["분석할 경력 텍스트"], "서울대학교", "경영학과")</pre>
+
+    <div class="note">
+      <p>
+        <strong>남은 사항.</strong> 이 저장소의 검증 로직은 43건의 단위
+        테스트로 고정되어 있으나, <code>main()</code> 전체를 실제
+        <code>GEMINI_API_KEY</code> 로 처음부터 끝까지 실행해 본 적은 아직
+        없다. 최초 1회 종단 실행은 백엔드 쪽에서 직접 수행할 것을 권장한다.
+      </p>
+      <p style="margin-top:0.75rem">
+        관련 문서 — <code>docs/backend_integration_guide.html</code>(연동 절차),
+        <code>docs/comprehensive_field_spec_v3.1.html</code>(출력 130필드 명세),
+        <code>docs/comprehensive_analysis_dossier.html</code>(전체 로직),
+        <code>docs/field_report_hallucination_v3.html</code>(환각 장애 원인 분석).
+      </p>
+    </div>
+  </section>
+
+</div>
