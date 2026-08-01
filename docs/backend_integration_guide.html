@@ -341,7 +341,7 @@ resp.status        <span class="c"># "success" | "error"</span></pre>
         <p>저장소 루트의 <code>requirements.txt</code> 그대로 쓰면 된다.</p>
         <pre class="block">google-genai&gt;=1.0   <span class="c"># 이 문서 작성 시점 검증 버전: 2.14.0</span>
 pypdf&gt;=4.0
-pydantic&gt;=2.0       <span class="c"># 선택 — 없으면 career_analysis_comprehensive.py 안의 자체 구현으로 대체 (§6)</span></pre>
+pydantic&gt;=2.0       <span class="c"># 필수 — 응답 모델은 pydantic 으로 통일 (§6)</span></pre>
         <div class="callout warn">
           <p class="lede">Python 버전</p>
           <p>
@@ -444,11 +444,11 @@ cat career_text.txt | python3 career_analysis_comprehensive.py</pre>
         <p class="eyebrow">06</p>
         <h2>입출력 계약</h2>
         <p>
-          <code>resp</code> 는 pydantic이 설치돼 있으면 <code>BaseModel</code>,
-          없으면 <code>career_analysis_comprehensive.py</code> 안에 정의된 경량 대체
-          클래스다(구 analysis_response.py 의 내용이 여기로 흡수됨) — 둘 다
-          <code>.model_dump()</code> / <code>.model_dump_json()</code> 인터페이스가
-          동일하므로 호출부 코드는 어느 쪽이든 똑같이 쓰면 된다.
+          <code>resp</code> 는 <code>career_analysis_comprehensive.py</code> 에
+          정의된 pydantic <code>BaseModel</code> 이다(구 analysis_response.py 의
+          내용이 여기로 흡수됨). 응답 모델은 pydantic 으로 통일하는 것이 규칙이며,
+          미설치 환경을 대비한 대체 구현은 두지 않는다 — <code>requirements.txt</code>
+          의 <code>pydantic&gt;=2.0</code> 은 선택이 아니라 필수다.
         </p>
 
         <div class="code-label">성공</div>
