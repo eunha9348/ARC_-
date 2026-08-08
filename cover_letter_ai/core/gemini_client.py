@@ -10,10 +10,14 @@ Gemini(Google AI Studio) 호출을 감싸는 얇은 래퍼.
 
 ★ 응답 중간 절단(truncation) 대응
   gemini-2.5-flash 는 thinking 토큰이 max_output_tokens 를 함께 소모해
-  본문이 문장 중간에서 끊기는 일이 잦다. 이 래퍼는
-    1) thinking_budget 을 설정해 추론 예산을 통제하고
-    2) finish_reason 을 읽어 "토큰 한도로 잘렸는지"를 판별하며
-    3) 잘렸으면 generate_complete() 가 자동으로 이어쓰기를 수행한다.
+  본문이 문장 중간에서 끊기는 일이 잦다. thinking 자체는 (근거 검증·액션
+  플랜처럼 판단이 필요한 단계의 품질을 위해) 끄지 않고 모델 기본값에 맡기며,
+  이 래퍼는 대신
+    1) finish_reason 을 읽어 "토큰 한도로 잘렸는지"를 판별하고
+    2) 잘렸으면 generate_complete() 가 자동으로 이어쓰기를 수행해 대응한다.
+  (thinking_budget 을 직접 제한하고 싶을 때를 위해 _build_new_config() 는
+  cfg 에 "thinking_budget" 키가 있으면 여전히 받아들인다 — 다만 현재
+  config.py 의 어떤 설정도 이 키를 쓰지 않는다.)
 
 pip:
     pip install google-genai          # 권장(신형)
