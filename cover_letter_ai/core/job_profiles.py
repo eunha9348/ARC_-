@@ -165,6 +165,190 @@ JOB_PROFILES: dict[str, dict[str, Any]] = {
 }
 
 
+# --------------------------------------------------------------------------
+#  업계(산업)별 자소서 문체 프로필
+# --------------------------------------------------------------------------
+#  같은 '데이터 분석' 직무라도 증권사에 내는 자소서와 IT 플랫폼에 내는
+#  자소서는 통하는 문체가 완전히 다르다. 직무(JOB_PROFILES)가 '무엇을 잘하는가'를
+#  담당한다면, 업계(INDUSTRY_PROFILES)는 '어떤 결의 글이 먹히는가'를 담당한다.
+#
+#   voice        : 그 업계 자소서 특유의 문장 결/호흡
+#   values       : 그 업계가 사람에게서 확인하려는 가치
+#   evidence     : 어떤 종류의 근거가 설득력을 갖는가
+#   taboo        : 그 업계에서 감점 요인이 되는 표현/태도
+#   vocabulary   : 자연스럽게 배어 나오면 좋은 어휘 결
+# --------------------------------------------------------------------------
+INDUSTRY_PROFILES: dict[str, dict[str, Any]] = {
+    "general": {
+        "label": "일반",
+        "voice": "담백하고 신뢰감 있는 문어체. 두괄식으로 핵심을 먼저 제시.",
+        "values": ["직무 이해도", "성실성", "성장 가능성", "조직 적합성"],
+        "evidence": "구체적 상황과 행동, 그리고 결과가 이어지는 서술",
+        "taboo": "추상적 미사여구, 근거 없는 자기 확신",
+        "vocabulary": "과장 없는 일상 업무 어휘",
+    },
+    "finance": {
+        "label": "금융권(은행·증권·보험·자산운용·카드)",
+        "voice": (
+            "절제되고 정확한 문어체. 화려한 수사보다 '틀리지 않게 쓰는' 것이 신뢰를 준다. "
+            "문장은 단정적이되 겸허하고, 호흡은 차분하게 유지한다."
+        ),
+        "values": ["신뢰성", "리스크 인식", "정합성·정확성", "윤리·규정 준수", "장기적 책임감"],
+        "evidence": (
+            "검증 가능한 수치와 그 수치를 얻은 방법론. 성과의 크기보다 "
+            "'왜 그 수치를 믿을 수 있는지'를 함께 밝히는 서술이 더 강하다. "
+            "실패·한계를 인지하고 통제한 경험은 감점이 아니라 가점이다."
+        ),
+        "taboo": (
+            "튀는 개성 강조, 검증되지 않은 수치, 리스크를 가볍게 보는 뉘앙스, "
+            "'혁신적으로 판을 뒤집겠다'류의 과격한 표현"
+        ),
+        "vocabulary": "고객 자산, 리스크 관리, 규제·컴플라이언스, 건전성, 신뢰, 정합성",
+    },
+    "it": {
+        "label": "IT/플랫폼/테크",
+        "voice": (
+            "간결하고 직설적인 문어체. 격식보다 명료함이 우선이며, 겸양 표현을 "
+            "남발하지 않는다. 기술 용어는 정확히 쓰되 과시하지 않는다."
+        ),
+        "values": ["오너십", "문제 정의 능력", "학습 속도", "자율성", "임팩트"],
+        "evidence": (
+            "문제 → 내가 내린 기술적 선택과 그 근거 → 지표 변화의 3단 구조. "
+            "실패와 회고를 솔직하게 드러내는 서술이 오히려 신뢰를 준다."
+        ),
+        "taboo": (
+            "'귀사의 무궁한 발전' 같은 형식적 관용구, 성과만 나열하고 판단 근거가 "
+            "없는 서술, 회사를 일방적으로 찬양하는 문장"
+        ),
+        "vocabulary": "문제 정의, 가설 검증, 지표 개선, 트레이드오프, 회고, 사용자 임팩트",
+    },
+    "manufacturing": {
+        "label": "제조/대기업(전자·중공업·화학·자동차)",
+        "voice": (
+            "정중하고 안정적인 문어체. 소제목을 활용한 정형화된 구성이 선호된다. "
+            "조직 안에서 함께 일하는 사람으로 읽히도록 쓴다."
+        ),
+        "values": ["조직 융화", "성실성", "현장 이해", "안전 의식", "책임 완수"],
+        "evidence": "현장의 문제를 직접 확인하고, 원인을 파고들어, 개선 수치로 증명한 경험",
+        "taboo": "개인 성취만 부각하는 서술, 조직 절차를 가볍게 여기는 뉘앙스",
+        "vocabulary": "공정, 품질, 개선, 표준화, 안전, 협업, 현장",
+    },
+    "public": {
+        "label": "공공/공기업",
+        "voice": (
+            "격식 있고 명료한 문어체. 문항이 요구한 항목에 정확히 대응하는 것이 "
+            "무엇보다 중요하다(NCS 기반 평가). 개인 성취보다 공적 기여로 프레이밍한다."
+        ),
+        "values": ["공익성", "청렴·윤리", "형평성", "규정 준수", "직무 적합성"],
+        "evidence": "직무기술서의 능력단위에 대응하는 구체적 경험과 절차 준수 사례",
+        "taboo": "사익 중심 동기, 규정을 우회한 성과, 특정 집단에 치우친 관점",
+        "vocabulary": "공공성, 형평성, 절차 준수, 이해관계자, 국민 편익",
+    },
+    "consulting": {
+        "label": "컨설팅/전문서비스",
+        "voice": (
+            "구조화된 문어체. 글의 전개 방식 자체가 사고력의 증거로 평가되므로, "
+            "결론 먼저 제시하고 근거를 층위별로 정리한다."
+        ),
+        "values": ["구조적 사고", "가설 기반 문제해결", "커뮤니케이션", "임팩트"],
+        "evidence": "문제를 분해한 기준과 그 기준을 선택한 이유, 그리고 도출한 결론",
+        "taboo": "논리 비약, 근거 없이 결론만 제시, 장황한 배경 설명",
+        "vocabulary": "가설, 구조화, 우선순위, 임팩트, 이해관계자, 의사결정",
+    },
+    "commerce": {
+        "label": "커머스/유통/이커머스",
+        "voice": "생동감 있되 성과는 숫자로 말하는 문어체. 고객 관점을 앞세운다.",
+        "values": ["고객 관점", "실행 속도", "숫자 감각", "협업"],
+        "evidence": "고객 문제 발견 → 빠른 실행 → 매출·전환 등 지표 변화",
+        "taboo": "고객이 빠진 자기중심 서술, 실행 없이 아이디어만 나열",
+        "vocabulary": "고객 경험, 전환율, 객단가, 리텐션, 실행",
+    },
+    "bio": {
+        "label": "바이오/제약/헬스케어",
+        "voice": "정밀하고 신중한 문어체. 근거와 절차를 빠짐없이 밝힌다.",
+        "values": ["전문성", "정확성", "규제 이해", "윤리성", "재현성"],
+        "evidence": "실험 설계와 재현 가능한 결과, 규정(GMP/임상 등) 준수 경험",
+        "taboo": "데이터 과장, 절차 생략, 안전·윤리를 가볍게 다루는 태도",
+        "vocabulary": "실험 설계, 재현성, 규제 준수, 데이터 무결성, 검증",
+    },
+}
+
+
+#  회사명/직무명 문자열에서 업계를 추정하기 위한 키워드 사전.
+#  ※ LLM 추측이 아니라 '문자열 포함 여부'로만 판단하는 결정적 매핑이다.
+INDUSTRY_ALIASES = {
+    # 금융권
+    "증권": "finance", "은행": "finance", "카드": "finance", "보험": "finance",
+    "자산운용": "finance", "캐피탈": "finance", "금융": "finance", "저축": "finance",
+    "핀테크": "finance", "투자": "finance", "뱅크": "finance", "페이": "finance",
+    "파이낸셜": "finance", "신탁": "finance", "손해보험": "finance",
+    "securities": "finance", "bank": "finance", "asset": "finance",
+    "capital": "finance", "insurance": "finance", "financial": "finance",
+    # IT/플랫폼
+    #  ※ 짧은 약어("it")는 digital 같은 단어에 부분 일치해 오탐을 내므로 쓰지 않는다.
+    "소프트웨어": "it", "플랫폼": "it", "테크": "it", "개발": "it",
+    "스타트업": "it", "아이티": "it", "정보기술": "it",
+    "software": "it", "platform": "it", "labs": "it",
+    # 제조/대기업
+    "전자": "manufacturing", "중공업": "manufacturing", "화학": "manufacturing",
+    "자동차": "manufacturing", "제조": "manufacturing", "반도체": "manufacturing",
+    "디스플레이": "manufacturing", "물산": "manufacturing", "重": "manufacturing",
+    # 공공
+    #  ※ "청" 한 글자는 신청·청년 등에 부분 일치하므로 쓰지 않고, 기관명 단위로 매칭한다.
+    "공사": "public", "공단": "public", "진흥원": "public", "재단": "public",
+    "공공": "public", "정부": "public", "공기업": "public", "지자체": "public",
+    "시청": "public", "구청": "public", "교육청": "public",
+    # 컨설팅
+    "컨설팅": "consulting", "consulting": "consulting", "회계법인": "consulting",
+    # 커머스
+    "커머스": "commerce", "유통": "commerce", "쇼핑": "commerce", "리테일": "commerce",
+    "commerce": "commerce", "retail": "commerce",
+    # 바이오
+    "제약": "bio", "바이오": "bio", "헬스케어": "bio", "병원": "bio",
+    "pharm": "bio", "bio": "bio",
+}
+
+
+def normalize_industry_key(industry: str) -> str:
+    """업계 문자열을 표준 key 로 변환한다(모르면 general)."""
+    if not industry:
+        return "general"
+    k = industry.strip().lower()
+    if k in INDUSTRY_PROFILES:
+        return k
+    if k in INDUSTRY_ALIASES:
+        return INDUSTRY_ALIASES[k]
+    for alias, target in INDUSTRY_ALIASES.items():
+        if alias in k:
+            return target
+    return "general"
+
+
+def infer_industry(company: str = "", job: str = "") -> str:
+    """회사명/직무명에서 업계를 추정한다.
+
+    문자열 포함 여부만으로 판단하는 결정적 로직이며, 근거가 없으면
+    'general' 을 돌려준다(추측해서 지어내지 않는다).
+    """
+    for source in (company or "", job or ""):
+        key = normalize_industry_key(source)
+        if key != "general":
+            return key
+    return "general"
+
+
+def get_industry_profile(industry: str) -> dict[str, Any]:
+    """표준화 후 업계 프로필 반환(없으면 general)."""
+    key = normalize_industry_key(industry)
+    profile = dict(INDUSTRY_PROFILES.get(key, INDUSTRY_PROFILES["general"]))
+    profile["key"] = key
+    return profile
+
+
+def list_industry_keys() -> list[str]:
+    return list(INDUSTRY_PROFILES.keys())
+
+
 ALIASES = {
     "서버": "backend", "server": "backend", "be": "backend", "백엔드": "backend",
     "프론트": "frontend", "fe": "frontend", "web": "frontend", "프론트엔드": "frontend",

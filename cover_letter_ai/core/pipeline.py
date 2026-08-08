@@ -26,8 +26,10 @@ from .data_models import (
 )
 from .gemini_client import GeminiClient
 from .reference_store import ReferenceStore
-from . import generator, writing_guide, action_plan
-from .job_profiles import get_job_profile, normalize_job_key
+from . import generator, writing_guide, action_plan, prompt_builder
+from .job_profiles import (
+    get_job_profile, normalize_job_key, get_industry_profile, infer_industry,
+)
 
 
 def generate_application(
@@ -45,6 +47,7 @@ def generate_application(
     include_action_plan: bool = True,
     max_grounding_iterations: int = 2,
     polish: bool = True,
+    industry: str = "",
 ) -> ApplicationResult:
     """
     지원서 전체(여러 문항)의 완성형 자소서를 생성한다.
@@ -56,14 +59,23 @@ def generate_application(
     store                : ReferenceStore (모범 자소서 DB). None 이면 예시 없이 진행.
     use_company_research : True 면 user.target_company 를 Google 검색으로 조사해
                            회사 가치/지향점을 글에 은은하게 반영한다.
+    industry             : 업계 key("finance"/"it"/"manufacturing"/"public"/
+                           "consulting"/"commerce"/"bio"). 비우면 회사명·직무명에서
+                           자동 추정한다. 업계별로 통하는 문체가 달라 결과 품질에
+                           큰 영향을 준다.
     """
     if not questions:
         questions = [{"question": "", "max_chars": 1000}]
 
+    # 업계 확정 (미지정이면 회사명/직무명에서 결정적으로 추정)
+    industry_key = industry or infer_industry(user.target_company, user.target_job)
+
     # 지원 회사 리서치 (문항 전체에 공통 반영)
     company_research = ""
     if use_company_research and (user.target_company or "").strip():
-        company_research = generator.research_company(client, user.target_company)
+        company_research = prompt_builder.strip_markdown(
+            generator.research_company(client, user.target_company)
+        )
 
     # 문체 예시 선별 (모든 문항에 공통 사용)
     examples = []
@@ -87,6 +99,7 @@ def generate_application(
         req = GenerationRequest(
             user=user, job_key=job_key, region=region,
             question=question_text, max_chars=max_chars, tone=tone,
+            industry=industry_key,
         )
 
         # 생성 → 근거검증/교정 → 최종 다듬기 = 완성형 자소서
@@ -107,6 +120,7 @@ def generate_application(
             answer.writing_guide = writing_guide.build_writing_guide(
                 client=client, cover_letter_text=cover_letter,
                 question=question_text, user=user, job_key=job_key,
+                industry=industry_key,
             )
 
         answers.append(answer)
@@ -116,13 +130,16 @@ def generate_application(
     # (부가) HR 관점 액션플랜 — 다음 지원까지 이력을 보강하는 제안
     if include_action_plan:
         result.action_plan = action_plan.suggest_action_plan(
-            client=client, user=user, job_key=job_key,
+            client=client, user=user, job_key=job_key, industry=industry_key,
         )
 
     profile = get_job_profile(job_key)
+    industry_profile = get_industry_profile(industry_key)
     result.meta = {
         "job_key": normalize_job_key(job_key),
         "job_label": profile["label"],
+        "industry_key": industry_profile["key"],
+        "industry_label": industry_profile["label"],
         "region": (region or "KR").upper(),
         "num_questions": len(answers),
         "num_style_examples": len(examples),
@@ -140,6 +157,7 @@ def format_application(result: ApplicationResult) -> str:
     lines.append("=" * 70)
     lines.append(
         f" AI 자기소개서 생성 결과 | 직무: {result.meta.get('job_label')}"
+        f" / 업계: {result.meta.get('industry_label')}"
         f" / 지역: {result.meta.get('region')}"
         f" | 문항 {result.meta.get('num_questions')}개"
     )

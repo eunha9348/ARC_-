@@ -16,11 +16,77 @@ import re
 from typing import Any
 
 from .data_models import UserProfile, ReferenceExample
-from .job_profiles import get_job_profile, get_region_style
+from .job_profiles import (
+    get_job_profile, get_region_style, get_industry_profile, infer_industry,
+)
 
 
 # 시간 흐름(시계열)이 의미 있는 필드 — 표시 시 연도 기준 오름차순 정렬
 TIME_ORDERED_FIELDS = {"education", "experiences", "projects", "activities", "awards"}
+
+
+# --------------------------------------------------------------------------
+#  마크다운 제거 — 결과물은 '읽는 글'이지 마크다운 문서가 아니다
+# --------------------------------------------------------------------------
+#  모델이 습관적으로 붙이는 **강조**, ## 제목, --- 구분선은 화면에 그대로
+#  노출되면 지저분하게 보인다. 프롬프트로 금지하고(아래 규칙), 그래도 남으면
+#  strip_markdown() 이 후처리로 걷어낸다. (프롬프트 + 후처리 이중 안전장치)
+# --------------------------------------------------------------------------
+NO_MARKDOWN_RULES = """\
+[출력 표기 규칙 — 반드시 지킬 것]
+- 마크다운 문법을 쓰지 말 것. 특히 **굵게**, *기울임*, ## 제목, --- 구분선,
+  `백틱` 을 절대 사용하지 말 것. 별표(*)로 강조하지 말 것.
+- 강조가 필요하면 문장 자체의 표현으로 드러낼 것(기호로 덧칠하지 않는다).
+- 사람이 그대로 읽는 완성된 글을 쓴다고 생각하고, 서식 기호 없이 작성할 것."""
+
+# 조언 텍스트(액션플랜/작성가이드)용 — 이모지를 '아주 조금' 허용하는 버전
+NO_MARKDOWN_RULES_SOFT = """\
+[출력 표기 규칙 — 반드시 지킬 것]
+- 마크다운 문법을 쓰지 말 것. 특히 **굵게**, *기울임*, ## 제목, --- 구분선,
+  `백틱` 을 절대 사용하지 말 것. 별표(*)로 강조하거나 목록을 만들지 말 것.
+- 목록이 필요하면 각 줄 앞에 가운뎃점(·) 하나만 쓸 것.
+- 이모지는 각 섹션 제목 앞에 최대 1개까지만 허용한다(내용 문장 안에는 금지).
+  꼭 필요할 때만 절제해서 쓰고, 남발하지 말 것."""
+
+
+_MD_BOLD = re.compile(r"\*\*(.+?)\*\*", re.DOTALL)
+_MD_BOLD_ALT = re.compile(r"__(.+?)__", re.DOTALL)
+_MD_HEADING = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]*", re.MULTILINE)
+_MD_HR = re.compile(r"^[ \t]*(?:-{3,}|={3,}|\*{3,}|_{3,})[ \t]*$", re.MULTILINE)
+_MD_BULLET = re.compile(r"^([ \t]*)[*+-][ \t]+", re.MULTILINE)
+_MD_CODEFENCE = re.compile(r"^[ \t]*`{3,}[^\n]*$", re.MULTILINE)
+_MD_INLINE_CODE = re.compile(r"`([^`\n]+)`")
+_LEFTOVER_STARS = re.compile(r"\*+")
+_MANY_BLANKS = re.compile(r"\n{3,}")
+
+
+def strip_markdown(text: str, bullet: str = "· ") -> str:
+    """모델 응답에서 마크다운 서식 기호를 걷어낸다.
+
+    - **굵게** / __굵게__ / `코드` → 안쪽 내용만 남김
+    - ## 제목 / --- 구분선 / ``` 코드펜스 → 제거
+    - 줄머리 목록 기호(* - +) → 가운뎃점(·)으로 통일
+    - 그 외 남은 별표 → 제거
+
+    ※ 텍스트 내용 자체는 지우지 않고 '기호'만 정리한다.
+    """
+    if not text:
+        return ""
+
+    t = text
+    t = _MD_CODEFENCE.sub("", t)
+    t = _MD_BOLD.sub(r"\1", t)
+    t = _MD_BOLD_ALT.sub(r"\1", t)
+    t = _MD_INLINE_CODE.sub(r"\1", t)
+    t = _MD_HR.sub("", t)
+    t = _MD_HEADING.sub("", t)
+    t = _MD_BULLET.sub(lambda m: f"{m.group(1)}{bullet}", t)
+    t = _LEFTOVER_STARS.sub("", t)
+
+    # 줄 끝 공백 정리 + 과도한 빈 줄 축소
+    t = "\n".join(line.rstrip() for line in t.split("\n"))
+    t = _MANY_BLANKS.sub("\n\n", t)
+    return t.strip()
 
 
 def _first_year(item: Any) -> int:
@@ -169,6 +235,30 @@ def build_company_research_prompt(company_name: str) -> str:
 """
 
 
+def build_industry_block(industry_key: str) -> str:
+    """업계별 '이 바닥에서 통하는 문체' 지시 블록.
+
+    직무 프로필이 '무엇을 잘하는가'를 다룬다면, 이 블록은 '어떤 결의 글이
+    그 업계 인사담당자에게 먹히는가'를 다룬다. 같은 데이터 직무라도
+    증권사와 IT 플랫폼은 통하는 문장이 다르다는 점을 반영한다.
+    """
+    ind = get_industry_profile(industry_key)
+    return f"""\
+- 지원 업계: {ind['label']}
+- 이 업계 자소서의 문장 결: {ind['voice']}
+- 이 업계가 사람에게서 확인하려는 가치: {", ".join(ind['values'])}
+- 이 업계에서 설득력을 갖는 근거의 형태: {ind['evidence']}
+- 이 업계에서 감점되는 표현/태도(반드시 피할 것): {ind['taboo']}
+- 자연스럽게 배어 나오면 좋은 어휘 결: {ind['vocabulary']}
+
+[업계 문체 적용 규칙]
+- 위 문체 특성을 '설명'하지 말고, 문장 자체에 배어들게 할 것.
+  (예: "저는 리스크 관리를 중요하게 생각합니다"라고 선언하는 대신,
+   실제 판단 과정에서 위험을 어떻게 통제했는지를 서술로 보여줄 것)
+- 업계 어휘를 억지로 끼워 넣지 말 것. 사용자 사실 원장의 경험을 서술하는
+  과정에서 자연스럽게 그 결이 드러나야 한다."""
+
+
 def build_company_block(company_research: str) -> str:
     """생성 프롬프트에 넣을 '회사 가치 은은하게 반영' 지시 블록."""
     if not (company_research or "").strip():
@@ -196,9 +286,14 @@ def build_generation_prompt(
     max_chars: int = 1000,
     tone: str = "",
     company_research: str = "",
+    industry: str = "",
 ) -> str:
     profile = get_job_profile(job_key)
     region_style = get_region_style(region)
+
+    # 업계 미지정이면 회사명/직무명에서 결정적으로 추정한다(추측 생성 아님).
+    industry_key = industry or infer_industry(user.target_company, user.target_job)
+    industry_block = build_industry_block(industry_key)
 
     fact_sheet = build_fact_sheet(user)
     style_block = build_style_examples_block(examples)
@@ -220,6 +315,8 @@ def build_generation_prompt(
 {ANTI_HALLUCINATION_RULES}
 
 {WRITING_STYLE_RULES}
+
+{NO_MARKDOWN_RULES}
 
 [집필 지침 — 이 글은 '초안'이 아니라 '완성본'이다]
 1) 두괄식: 첫 1~2문장에서 글의 핵심 메시지(강점과 직무 적합성)를 제시할 것.
@@ -249,6 +346,9 @@ def build_generation_prompt(
 [지역(문화) 스타일 가이드]
 {region_style['guidance']}
 
+[업계 문체 — 이 업계에서 통하는 글의 결 (매우 중요)]
+{industry_block}
+
 [지원 회사 리서치 — 은은하게만 반영할 것]
 {company_block}
 
@@ -263,9 +363,19 @@ def build_generation_prompt(
 {length_line}
 - 위 '권장 구성 흐름'을 기본 골격으로 하되, 문항 성격에 맞게 자연스럽게 조정.
 - 한국형이라면 소제목(예: [데이터로 리스크를 읽는 힘])을 활용해도 좋음.
+  소제목은 대괄호만 쓰고, 마크다운 기호(**, ##)는 붙이지 말 것.
+
+[반드시 '끝까지' 쓸 것 — 중간에 멈추지 말 것]
+- 마지막 문장은 반드시 종결어미로 끝나야 한다. 문장 중간이나 조사에서
+  끊긴 채로 출력하지 말 것.
+- 분량이 빠듯하면 앞부분을 늘리지 말고, 마무리 문단까지 반드시 도달하도록
+  전체를 압축해서 배분할 것. 마무리가 없는 글은 실패작이다.
+- 사실 재료가 부족해 분량을 채우기 어렵더라도, 없는 사실을 지어내지 말고
+  가진 경험을 더 깊게(판단·과정·배움) 풀어 써서 완결된 글로 끝맺을 것.
 
 [출력 형식]
 - 완성된 자소서 본문만 출력(머리말/설명/사족 없이).
+- 마크다운 기호(**, ##, ---, 백틱) 절대 사용 금지.
 """
     return prompt
 
@@ -312,8 +422,70 @@ def build_polish_prompt(
   되돌아가는 시계열 역행이 있으면 순서를 바로잡을 것.
 - 문단 연결과 문장 호흡을 매끄럽게, 두괄식 구조는 유지·강화.
 - "[보완필요: ...]" 표시가 있다면 그대로 유지.
+- 마무리 점검(중요): 원문이 문장 중간이나 조사에서 끊겨 있다면, 사실 원장
+  범위 안에서 그 문장을 자연스럽게 완성하고 마무리 문단까지 채워 넣을 것.
+  다듬은 결과물은 반드시 종결어미로 끝나야 한다.
+- 마크다운 기호(**, ##, ---, 백틱)가 남아 있으면 모두 제거할 것.
+  소제목은 대괄호 표기만 허용한다.
 {length_line}
 - 다듬어진 본문만 출력.
+"""
+
+
+# --------------------------------------------------------------------------
+#  완결 보완 프롬프트 — 끊기거나 너무 짧게 끝난 글을 한 편으로 마무리
+# --------------------------------------------------------------------------
+def build_completion_prompt(
+    generated_text: str,
+    user: UserProfile,
+    max_chars: int = 1000,
+    question: str = "",
+    reason: str = "",
+) -> str:
+    """중간에 끊기거나 분량이 크게 미달한 자소서를 완결시키는 프롬프트.
+
+    핵심 제약: 새로운 사실을 만들지 않는다. 이미 원장에 있는 경험을
+    더 깊게(판단·과정·배움) 풀어 쓰는 방식으로만 분량을 채운다.
+    """
+    fact_sheet = build_fact_sheet(user)
+    question_line = question.strip() or "자유 형식의 자기소개서"
+    reason_line = reason or "글이 완결되지 않았습니다."
+    length_line = (
+        f"- 목표 분량: 공백 포함 약 {max_chars}자. 이 분량에 최대한 가깝게 채우되,\n"
+        f"  없는 사실을 지어내서 채우는 것은 절대 금지."
+        if max_chars else "- 목표 분량: 완결된 글로 자연스럽게 마무리."
+    )
+    return f"""\
+당신은 자기소개서 전문 교정가입니다. 아래 자기소개서는 {reason_line}
+이 글을 '완결된 한 편'으로 마무리해 주세요.
+
+[사용자 사실 원장 — 유일한 사실 출처]
+{fact_sheet}
+
+[자소서 문항]
+{question_line}
+
+[완결되지 않은 자기소개서]
+{generated_text}
+
+{NO_MARKDOWN_RULES}
+
+[보완 지침]
+- 새로운 사실을 절대 만들지 말 것. 회사명·수치·경험·자격을 추가 창작 금지.
+- 분량을 채워야 한다면, 원장에 이미 있는 경험을 더 깊게 풀어 쓸 것.
+  (그때의 문제의식, 왜 그렇게 판단했는지, 어떤 시행착오가 있었는지,
+   그 경험에서 무엇을 얻었는지 → 이미 있는 사실의 '깊이'로 채운다)
+- 앞부분의 흐름과 문체(어미, 1인칭 시점, 두괄식)를 그대로 이어갈 것.
+- 문장 중간에서 끊긴 부분이 있으면 그 문장부터 자연스럽게 완성할 것.
+- 마지막은 지원 회사·직무와의 연결과 기여 방향으로 마무리하고,
+  도입에서 제시한 핵심 메시지와 호응시킬 것.
+- 결과물은 반드시 종결어미로 끝나야 한다.
+- 원장의 사실만으로는 도저히 채울 수 없는 부분이 있다면, 억지로 늘리지 말고
+  "[보완필요: 무엇이 필요한지]" 로 표시한 뒤 자연스럽게 마무리할 것.
+{length_line}
+
+[출력 형식]
+- 완결된 자소서 본문 전체만 출력(머리말/설명/사족 없이).
 """
 
 
@@ -393,6 +565,12 @@ def build_correction_prompt(
 - 삭제로 빈 곳이 생기면 원장의 다른 사실로 자연스럽게 연결.
 - 정 채울 근거가 없으면 "[보완필요: ...]"로 표시.
 - 맞춤법·문맥·자소서 문체를 자연스럽게 유지.
+- 구조 보존(중요): 문장을 덜어낸 뒤에도 글은 '도입 → 본문 → 마무리'가
+  살아 있는 완결된 한 편이어야 한다. 마무리 문단까지 반드시 남길 것.
+  삭제 때문에 글이 문장 중간에서 끝나거나, 마무리 없이 툭 끊기면 안 된다.
+- 원문과 비슷한 분량을 유지할 것. 근거 없는 문장을 걷어낸 만큼은
+  원장에 있는 다른 사실을 더 깊게 서술해 채울 것.
+- 마크다운 기호(**, ##, ---, 백틱) 사용 금지.
 - 완성된 본문만 출력.
 """
 

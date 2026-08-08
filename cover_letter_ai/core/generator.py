@@ -54,13 +54,62 @@ def generate_draft(
     max_chars: int = 1000,
     tone: str = "",
     company_research: str = "",
+    industry: str = "",
 ) -> str:
     prompt = pb.build_generation_prompt(
         user=user, job_key=job_key, region=region, question=question,
         examples=examples, max_chars=max_chars, tone=tone,
-        company_research=company_research,
+        company_research=company_research, industry=industry,
     )
-    return client.generate(prompt, config.GENERATION_CONFIG)
+    # generate_complete: 토큰 한도로 잘리면 자동으로 이어써서 끝까지 받아온다.
+    return client.generate_complete(prompt, config.GENERATION_CONFIG)
+
+
+# --------------------------------------------------------------------------
+#  1-1) 완결성 검사 + 보완 — "어이없게 끝나는" 글을 막는 안전장치
+# --------------------------------------------------------------------------
+#  종결부호 없이 조사/어미 중간에서 끝나거나(잘림), 목표 분량에 크게 못 미치면
+#  글이 부자연스럽게 끝난 것으로 보고 한 번 더 다듬어 완결시킨다.
+# --------------------------------------------------------------------------
+_SENTENCE_END = ("다.", "요.", "음.", "됨.", "함.", ".", "!", "?", "]", "”", "\"")
+
+#  목표 글자수 대비 이 비율 미만이면 '너무 짧게 끝났다'고 판단
+MIN_LENGTH_RATIO = 0.75
+
+
+def looks_truncated(text: str) -> bool:
+    """문장이 끝맺지 못한 채 끊겼는지 판별한다."""
+    t = (text or "").strip()
+    if not t:
+        return True
+    return not t.endswith(_SENTENCE_END)
+
+
+def looks_too_short(text: str, max_chars: int) -> bool:
+    """목표 분량에 크게 못 미치는지 판별한다(max_chars=0이면 검사 안 함)."""
+    if not max_chars:
+        return False
+    return len((text or "").strip()) < int(max_chars * MIN_LENGTH_RATIO)
+
+
+def complete_draft(
+    client: GeminiClient,
+    generated_text: str,
+    user: UserProfile,
+    max_chars: int = 1000,
+    question: str = "",
+    reason: str = "",
+) -> str:
+    """끊기거나 너무 짧은 글을 '완결된 한 편'으로 마무리시킨다.
+
+    새로운 사실을 추가하지 않고, 이미 원장에 있는 사실을 더 깊게 풀어
+    쓰는 방식으로만 채운다(제1원칙 유지).
+    """
+    prompt = pb.build_completion_prompt(
+        generated_text=generated_text, user=user,
+        max_chars=max_chars, question=question, reason=reason,
+    )
+    return client.generate_complete(prompt, config.GENERATION_CONFIG)
 
 
 # --------------------------------------------------------------------------
@@ -146,7 +195,7 @@ def generate_grounded_cover_letter(
     text = generate_draft(
         client=client, user=req.user, job_key=req.job_key, region=req.region,
         question=req.question, examples=examples, max_chars=req.max_chars,
-        tone=req.tone, company_research=company_research,
+        tone=req.tone, company_research=company_research, industry=req.industry,
     )
     report = verify_grounding(client, text, req.user, company_research)
 
@@ -160,5 +209,36 @@ def generate_grounded_cover_letter(
     if polish:
         text = polish_draft(client, text, req.user, req.max_chars)
 
-    report.notes = (report.notes + f" (교정 반복 {iterations}회)").strip()
+    # ---- 완결성 보정 -------------------------------------------------
+    # 교정 과정에서 문장이 깎여 나가거나 토큰 한도로 잘려 '어이없게 끝나는'
+    # 결과를 막는다. 문제가 있을 때만 1회 보완한다(불필요한 호출 방지).
+    completion_note = ""
+    truncated = looks_truncated(text)
+    too_short = looks_too_short(text, req.max_chars)
+    if truncated or too_short:
+        reason = (
+            "문장이 끝맺지 못한 채 중간에서 끊겼습니다."
+            if truncated else
+            f"목표 분량({req.max_chars}자)에 크게 못 미치는 {len(text.strip())}자로 짧게 끝났습니다."
+        )
+        repaired = complete_draft(
+            client=client, generated_text=text, user=req.user,
+            max_chars=req.max_chars, question=req.question, reason=reason,
+        )
+        if repaired and len(repaired.strip()) >= len(text.strip()) * 0.8:
+            text = repaired
+
+        # 보완 후에도 분량이 크게 모자라면, 억지로 늘리는 대신
+        # '경험 데이터가 부족하다'는 사실을 사용자에게 알린다.
+        if looks_too_short(text, req.max_chars):
+            completion_note = (
+                f" 관련 경험 데이터가 부족해 목표 분량({req.max_chars}자)을 채우지 "
+                f"못했습니다(현재 {len(text.strip())}자). 이 문항과 연관된 경험을 "
+                f"더 입력하면 글이 깊어집니다."
+            )
+
+    # 마크다운 잔여 기호 제거(프롬프트로 금지했지만 이중 안전장치)
+    text = pb.strip_markdown(text)
+
+    report.notes = (report.notes + f" (교정 반복 {iterations}회)" + completion_note).strip()
     return text, report
