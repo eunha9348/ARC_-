@@ -49,7 +49,7 @@ GENERATION_CONFIG = {
     "temperature": 0.25,     # 창의성 최소화 → 사실 충실도 ↑
     "top_p": 0.9,
     "top_k": 40,
-    "max_output_tokens": 8192,   # 본문이 끊기지 않도록 넉넉하게
+    "max_output_tokens": 16384,  # 본문이 끊기지 않도록 넉넉하게
     "thinking_budget": 0,        # ★ 추론 비활성화 → 예산 전부를 본문에
 }
 
@@ -57,7 +57,7 @@ GENERATION_CONFIG = {
 VERIFICATION_CONFIG = {
     "temperature": 0.0,      # 판정은 결정적으로
     "top_p": 1.0,
-    "max_output_tokens": 4096,
+    "max_output_tokens": 16384,
     "thinking_budget": 0,
 }
 

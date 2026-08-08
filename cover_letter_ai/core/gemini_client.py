@@ -206,7 +206,7 @@ class GeminiClient:
                 from google.genai import types  # type: ignore
                 gen_cfg = types.GenerateContentConfig(
                     temperature=0.2,
-                    max_output_tokens=cfg.get("max_output_tokens", 2048),
+                    max_output_tokens=cfg.get("max_output_tokens", 16384),
                     tools=[types.Tool(google_search=types.GoogleSearch())],
                 )
                 resp = self._client.models.generate_content(
@@ -242,7 +242,7 @@ class GeminiClient:
             "temperature": cfg.get("temperature", 0.25),
             "top_p": cfg.get("top_p", 0.9),
             "top_k": cfg.get("top_k", 40),
-            "max_output_tokens": cfg.get("max_output_tokens", 8192),
+            "max_output_tokens": cfg.get("max_output_tokens", 16384),
         }
 
         # thinking_budget: gemini-2.5 계열에서 추론 예산을 통제한다.
@@ -273,7 +273,7 @@ class GeminiClient:
                 "temperature": cfg.get("temperature", 0.25),
                 "top_p": cfg.get("top_p", 0.9),
                 "top_k": cfg.get("top_k", 40),
-                "max_output_tokens": cfg.get("max_output_tokens", 8192),
+                "max_output_tokens": cfg.get("max_output_tokens", 16384),
             },
         )
         text = (getattr(resp, "text", "") or "").strip()
