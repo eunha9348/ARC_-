@@ -2,3 +2,6 @@
 # 아래 둘 중 하나만 설치하면 동작합니다. (신형 권장)
 google-genai>=0.3.0
 # google-generativeai>=0.8.0   # 구형 SDK 폴백을 쓰려면 주석 해제
+
+# 경력 개별 분석 모듈(career_individual.py) 용
+pypdf>=4.0.0        # PDF 입력 파싱 (없으면 PDF만 건너뛰고 나머지는 동작)
