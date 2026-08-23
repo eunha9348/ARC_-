@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+env/
+
+# 환경변수 / API 키 (GEMINI_API_KEY 등 — 절대 커밋 금지)
+.env
+.env.*
+
+# 에디터 / OS
+.vscode/
+.idea/
+.DS_Store
