@@ -5,3 +5,5 @@ google-genai>=0.3.0
 
 # 경력 개별 분석 모듈(career_individual.py) 용
 pypdf>=4.0.0        # PDF 입력 파싱 (없으면 PDF만 건너뛰고 나머지는 동작)
+
+# cert_registry.py / time_parsing.py 는 표준 라이브러리만 사용합니다.

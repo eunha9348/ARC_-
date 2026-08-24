@@ -1,5 +1,5 @@
 """
-Career Analysis AI - INDIVIDUAL Edition v1.1
+Career Analysis AI - INDIVIDUAL Edition v1.2
 =============================================
 단일 경력/자격증/활동 심층 분석 전용 모듈
 
@@ -10,46 +10,53 @@ Career Analysis AI - INDIVIDUAL Edition v1.1
   - 단기·중기·장기 액션 플랜 제시 (절대 날짜로 고정)
   - 모든 출력은 순수 JSON (stdout), 로그는 전부 stderr
 
-────────────────────────────────────────────────────────────────────────
-v1.1 변경점 (요청 반영)
-────────────────────────────────────────────────────────────────────────
-[A] 존재하지 않는 자격증 추천 제거 (예: "사회분석사")
-    - 실재 확인된 자격증 화이트리스트(_VERIFIED_CERTS)를 프롬프트에 주입
-    - LLM 출력 후처리에서 화이트리스트 미포함 자격증은 무조건 제거
-    - 제거된 항목은 removed_recommendations 에 사유와 함께 기록(은폐 금지)
-    - 본문 텍스트(강점/약점/액션플랜 등)에 섞여 들어온 미검증 자격증명도 세정
-    * 참고: "사회분석사" 는 실재하지 않음. 실재 자격은 "사회조사분석사"(Q-Net).
-      모델이 이름을 뭉개어 만들어내던 케이스이므로 화이트리스트에서 자동 차단됨.
+구성 모듈:
+  career_individual.py  분석 본체 (이 파일)
+  cert_registry.py      자격증 실재성 검증 — 공식 출처 수집 파이프라인
+  time_parsing.py       경력 텍스트의 시간 표현 파서
 
-[B] 시간 미일치 오류 완전 수정
-    (1) 기준 시각을 KST(Asia/Seoul)로 고정 — 서버가 UTC여도 하루 어긋나지 않음
-        (기존: date.today() → 컨테이너 로컬(UTC) 기준이라 한국시간과 불일치)
-    (2) 계산만 하고 버려지던 기준일을 시스템/유저 프롬프트에 실제로 주입
-        (기존: rd 를 계산해 놓고 LLM 에는 안 넘겨, 모델은 학습시점을 '현재'로
-         간주 → 결과 JSON 의 analysis_date 와 내용의 시점이 어긋남)
-    (3) 단기/중기/장기를 상대 표현이 아닌 '절대 기간 + 마감일'로 산출
-    (4) 입력에서 연도를 파싱해 '기준일까지 경과 기간'을 파이썬이 계산해 전달
-        → 모델이 "몇 년 전" 을 자체 추측하다 틀리는 문제 제거
-    (5) 미래 연도 등 시간상 불가능한 서술은 time_warnings 로 표면화
-    (6) analysis_date 를 결과 생성 후 덧씌우지 않고 time_context 전체를 동봉
+────────────────────────────────────────────────────────────────────────
+v1.2 변경점 — 감사 보고서가 지적한 잔여 한계 3건 해결
+────────────────────────────────────────────────────────────────────────
+[1] 자격증 목록의 수동 유지보수 → 공식 출처 수집 파이프라인
+    v1.1 은 화이트리스트를 코드 상수로 고정해, 신설·개명 종목을 반영하려면
+    사람이 코드를 고쳐야 했다("목록이 서서히 낡는다").
+    v1.2 는 cert_registry 가 자격 시험 주관 기관(한국산업인력공단/Q-Net)의
+    공개 API 에서 종목을 수집·캐시한다. 자동화가 새 환각 경로가 되지 않도록
+    수집 결과는 앵커·규모·형태 검증을 통과해야만 채택되고, 기존 목록을
+    대체하지 않고 합집합으로만 넓힌다. 폐지 후보는 자동 삭제하지 않고
+    보고만 한다.  갱신: python cert_registry.py --refresh
 
-[C] 기타 실행 오류 수정
-    - __main__ 에서 main() 을 인자 없이 호출해 TypeError 나던 문제 수정
-    - get_user_input() 이 안내문만 출력하고 실제 입력을 안 받던 문제 수정
-    - 로그가 stdout 으로 나가 JSON 출력을 오염시키던 문제 수정(→ stderr)
-    - import 시점에 빈 API 키로 Client 를 만들던 문제 → 지연 초기화 + 환경변수
-    - resp.text 가 None 일 때 AttributeError 나던 문제 수정
-    - analysis_response 모듈이 없어도 단독 실행되도록 폴백 모델 내장
+[2] 연도 파싱이 절대 표기만 인식 → 상대·기간·구간 표현 전면 지원
+    v1.1 은 `YYYY` / `YYYY.MM` 만 인식해 "재직 3년차", "3년 전",
+    "작년 하반기" 를 놓쳤고, 그 경우 기간 진단이 통째로 비었다.
+    v1.2 의 time_parsing 은 절대·상대·기간·구간·진행중 표현을 모두 해석하고
+    구간에서는 실제 개월수까지 계산한다. 모델은 시간 계산을 하지 않는다.
+
+[3] URL 화이트리스트가 실재 URL까지 제거 → 2단 정책 + 선택적 실검증
+    등록 심사를 거쳐야 하는 .go.kr/.ac.kr/.re.kr 은 도메인 자체가 기관
+    실재성을 보증하므로 허용하고, 자격 발급 기관 도메인을 대폭 보강했다.
+    CAREER_VERIFY_URLS=1 이면 실제 접속해 죽은 링크까지 제거한다.
+
+────────────────────────────────────────────────────────────────────────
+v1.1 에서 해결한 내용 (유지)
+────────────────────────────────────────────────────────────────────────
+  - 환각 자격증 차단 ("사회분석사" → 실재는 "사회조사분석사")
+  - 시간 미일치 오류: 기준 시각 KST 고정 + 프롬프트 실제 주입
+  - 실행 오류: main() TypeError, stdin 미수신, 로그의 stdout 오염,
+    import 시점 Client 생성, resp.text None 처리
 
 Hallucination 방지 원칙:
-  - 실재 확인 불가 추천 항목 생성 금지 (자격증은 코드 레벨에서 강제 필터)
-  - URL 추측/조합 금지 → null만 허용 (후처리에서도 제거)
-  - 데이터 부족 시 status: insufficient_data 반환 (임의 내용 채우기 금지)
+  - 자격증은 검증된 레지스트리에 있는 것만 (코드 레벨 강제)
+  - URL 추측/조합 금지 → 검증 실패 시 null
+  - 데이터 부족 시 status: insufficient_data (임의 내용 채우기 금지)
 
 사용법:
-  export GEMINI_API_KEY="AIza..."      (또는 GOOGLE_AI_STUDIO_API_KEY)
+  export GEMINI_API_KEY="AIza..."            # 또는 코드 상수에 직접 입력
+  export DATA_GO_KR_SERVICE_KEY="..."        # 자격증 목록 갱신용 (선택)
+  python cert_registry.py --refresh          # 공식 출처에서 목록 갱신
   python career_individual.py
-  → URL, 파일 경로, 또는 텍스트 붙여넣기 (단일 항목) 후 빈 줄에서 END
+  → URL, 파일 경로, 또는 텍스트 붙여넣기 후 빈 줄에서 END
   → JSON 결과만 stdout 으로 출력
 """
 
@@ -69,6 +76,10 @@ from collections import deque
 
 from google import genai
 from google.genai import types
+
+import cert_registry
+import time_parsing
+from time_parsing import add_months
 
 # ──────────────────────────────────────────────
 # Config
@@ -186,17 +197,6 @@ except Exception:  # pragma: no cover - 단독 실행 폴백
 #         프롬프트에 주입한다. 모델은 시간을 '추론'하지 않고 '전달받는다'.
 # ══════════════════════════════════════════════
 
-def _add_months(d: datetime, months: int) -> datetime:
-    """월말 보정 포함 개월 수 가산 (2026-01-31 +1개월 → 2026-02-28)."""
-    total = (d.year * 12 + (d.month - 1)) + months
-    year, month = divmod(total, 12)
-    month += 1
-    # 해당 월의 마지막 날 계산
-    if month == 12:
-        last_day = 31
-    else:
-        last_day = (datetime(year, month + 1, 1) - timedelta(days=1)).day
-    return d.replace(year=year, month=month, day=min(d.day, last_day))
 
 
 class TimeContext:
@@ -217,9 +217,9 @@ class TimeContext:
         self.quarter = (self.month - 1) // 3 + 1
         self.half = 1 if self.month <= 6 else 2
 
-        s_end = _add_months(self.now, self.SHORT_MONTHS)
-        m_end = _add_months(self.now, self.MID_MONTHS)
-        l_end = _add_months(self.now, self.LONG_MONTHS)
+        s_end = add_months(self.now, self.SHORT_MONTHS)
+        m_end = add_months(self.now, self.MID_MONTHS)
+        l_end = add_months(self.now, self.LONG_MONTHS)
 
         self.windows = {
             "단기": (self.now, s_end, self.SHORT_MONTHS),
@@ -247,8 +247,8 @@ class TimeContext:
             "타임존": "Asia/Seoul (UTC+09:00)",
         }
 
-    def as_prompt_block(self, time_facts: dict | None = None) -> str:
-        tf = time_facts or {}
+    def as_prompt_block(self, time_facts=None) -> str:
+        tf = time_facts
         lines = [
             "=== [시간 기준 — 반드시 이 값만 사용] ===",
             f"오늘 날짜(KST): {self.iso_date}  ({self.year}년 {self.month}월, {self.year}년 {self.quarter}분기)",
@@ -261,16 +261,12 @@ class TimeContext:
             f"  중기: {self.window_label('중기')} (마감 {self.window_deadline('중기')})",
             f"  장기: {self.window_label('장기')} (마감 {self.window_deadline('장기')})",
         ]
-        if tf.get("facts"):
-            lines += ["", "[입력 데이터에서 파싱된 시간 사실 — 재계산 금지]"]
-            lines += [f"  - {f}" for f in tf["facts"]]
-        if tf.get("unresolved"):
-            lines += [
-                "",
-                "[시간 정보 없음] 입력에 연도/기간이 확인되지 않았습니다.",
-                "  → 기간·시점·신선도(기간_문제)에 대한 판단을 지어내지 말고,",
-                "    '기간 미기재'를 누락 요소로 지적하십시오.",
-            ]
+        if tf is not None and tf.facts:
+            lines += ["", "[입력 데이터에서 확정된 시간 사실 — 재계산 금지]"]
+            lines += [f"  - {f}" for f in tf.facts]
+        if tf is not None and tf.warnings:
+            lines += ["", "[시간 관련 주의]"]
+            lines += [f"  - {w}" for w in tf.warnings]
         lines += [
             "",
             "[시간 서술 금지 규칙]",
@@ -282,69 +278,21 @@ class TimeContext:
         return "\n".join(lines)
 
 
-_YEAR_RE = re.compile(r"(?<!\d)(19[5-9]\d|20[0-4]\d)(?!\d)")
-_YM_RE = re.compile(r"(?<!\d)(19[5-9]\d|20[0-4]\d)\s*[.\-/년]\s*(0?[1-9]|1[0-2])(?!\d)")
-
-
-def extract_time_facts(text: str, tc: TimeContext) -> dict:
+def extract_time_facts(text: str, tc: "TimeContext") -> time_parsing.TimeFacts:
     """
-    입력 텍스트에서 연도/연월을 파싱해 '기준일까지의 경과 기간'을 파이썬이 계산.
-    모델이 경과 연수를 자체 추측하다 틀리는 문제(시간 미일치)를 원천 차단한다.
+    입력 텍스트의 시간 표현을 전부 해석해 기준일 대비 사실로 확정한다.
+
+    [v1.1 한계] 정규식 두 개로 `YYYY` / `YYYY.MM` 만 인식했다. "재직 3년차",
+                "3년 전", "작년 하반기" 같은 표현은 전부 인식하지 못했고,
+                인식 실패 시 모델에게 기간 판단을 하지 말라고 지시했기 때문에
+                기간_문제 진단이 통째로 비는 문제가 있었다.
+
+    [v1.2]     time_parsing 모듈이 절대·상대·기간·구간·진행중 표현을 모두
+                해석한다. 구간("2021.03~2021.08")에서는 실제 근무 개월수까지
+                계산해 전달하므로, 모델은 시간 계산을 전혀 하지 않는다.
     """
-    if not text:
-        return {"facts": [], "unresolved": True}
+    return time_parsing.parse_time_expressions(text, tc.now)
 
-    years = sorted({int(y) for y in _YEAR_RE.findall(text) if 1950 <= int(y) <= tc.year})
-    yms = []
-    for y, m in _YM_RE.findall(text):
-        y, m = int(y), int(m)
-        if 1950 <= y <= tc.year:
-            yms.append((y, m))
-
-    if not years and not yms:
-        return {"facts": [], "unresolved": True, "years": [], "latest_year": None}
-
-    facts: list[str] = []
-    latest_year = max(years) if years else max(y for y, _ in yms)
-    earliest_year = min(years) if years else min(y for y, _ in yms)
-
-    if yms:
-        ly, lm = max(yms)
-        months_elapsed = (tc.year - ly) * 12 + (tc.month - lm)
-        months_elapsed = max(months_elapsed, 0)
-        facts.append(
-            f"입력에서 확인된 가장 최근 시점: {ly}년 {lm}월 "
-            f"→ 기준일({tc.iso_date}) 대비 약 {months_elapsed // 12}년 {months_elapsed % 12}개월 경과"
-        )
-    else:
-        elapsed = tc.year - latest_year
-        facts.append(
-            f"입력에서 확인된 가장 최근 연도: {latest_year}년 "
-            f"→ 기준일({tc.iso_date}) 대비 약 {elapsed}년 경과"
-        )
-
-    if earliest_year != latest_year:
-        facts.append(
-            f"입력에서 확인된 가장 이른 연도: {earliest_year}년 "
-            f"(전체 확인 범위 {earliest_year}~{latest_year})"
-        )
-
-    freshness = tc.year - latest_year
-    if freshness <= 1:
-        facts.append("신선도: 최근 경험 (1년 이내) — 기간 문제 없음")
-    elif freshness <= 3:
-        facts.append(f"신선도: {freshness}년 경과 — 통상 유효 범위")
-    else:
-        facts.append(f"신선도: {freshness}년 경과 — 오래된 경험으로 판단 가능")
-
-    return {
-        "facts": facts,
-        "unresolved": False,
-        "years": years,
-        "latest_year": latest_year,
-        "earliest_year": earliest_year,
-        "years_since_latest": tc.year - latest_year,
-    }
 
 
 # ══════════════════════════════════════════════
@@ -946,178 +894,35 @@ def get_embedding(text: str):
 #  [문제] "사회분석사" 처럼 존재하지 않는 자격증이 반복 추천되었다.
 #         (실재하는 것은 "사회조사분석사" — Q-Net 국가기술자격.
 #          모델이 이름을 뭉개어 만들어낸 전형적인 환각 케이스)
-#         프롬프트 문구만으로는 재발을 막을 수 없으므로,
-#         '실재 확인된 자격증 화이트리스트'로 코드 레벨에서 강제 차단한다.
 #
-#  [동작] 1) 화이트리스트를 프롬프트에 주입 → 애초에 이 안에서만 고르게 함
-#         2) 출력 후처리에서 화이트리스트 미포함 자격증은 전부 제거
-#         3) 제거 내역은 removed_recommendations 에 사유와 함께 남김(은폐 금지)
-#         4) 본문 텍스트에 섞여 들어온 미검증 자격증명도 세정
+#  [v1.1] 코드에 화이트리스트를 상수로 박아 차단. 환각은 막았지만 목록이
+#         고정이라 신설·개명 종목을 반영하려면 사람이 코드를 고쳐야 했다.
+#
+#  [v1.2] cert_registry 모듈이 자격 시험 주관 기관(한국산업인력공단/Q-Net)의
+#         공개 API 에서 종목 목록을 수집·캐시한다. 수집 실패·키 없음·응답
+#         이상 시에는 내장 시드로 자동 폴백하므로 검증 기능은 항상 동작한다.
+#         갱신:  python cert_registry.py --refresh
 # ══════════════════════════════════════════════
-
-# 실재 확인된 자격증 (국가기술자격 / 국가전문자격 / 공인 민간·국제 자격)
-_VERIFIED_CERTS: list[str] = [
-    # ── IT / 데이터 (국가기술자격) ──
-    "정보처리기사", "정보처리산업기사", "정보처리기능사",
-    "정보보안기사", "정보보안산업기사",
-    "빅데이터분석기사", "전자계산기조직응용기사", "전자계산기기사",
-    "정보통신기사", "정보통신산업기사", "무선설비기사", "방송통신기사",
-    "정보기기운용기능사", "컴퓨터활용능력", "워드프로세서",
-    # ── IT 민간·공인 ──
-    "SQLD", "SQL 개발자", "SQLP", "SQL 전문가",
-    "ADsP", "데이터분석 준전문가", "ADP", "데이터분석 전문가",
-    "DAsP", "DAP", "데이터아키텍처 준전문가",
-    "리눅스마스터", "네트워크관리사", "PC정비사",
-    "GTQ", "GTQi", "COS", "COS Pro",
-    "멀티미디어콘텐츠제작전문가", "게임그래픽전문가", "게임기획전문가",
-    "게임프로그래밍전문가", "웹디자인기능사", "컴퓨터그래픽스운용기능사",
-    "시각디자인산업기사", "제품디자인기사", "전자출판기능사",
-    # ── 경영 / 사무 / 조사 ──
-    "사회조사분석사",          # ★ "사회분석사" 는 실재하지 않음 (여기가 정본)
-    "소비자전문상담사", "텔레마케팅관리사", "CS리더스관리사",
-    "비서", "경영지도사", "기술지도사",
-    "품질경영기사", "품질경영산업기사",
-    "물류관리사", "유통관리사", "국제무역사", "무역영어",
-    "ERP정보관리사", "전산세무", "전산회계", "재경관리사", "회계관리",
-    "FAT", "TAT", "IFRS관리사",
-    # ── 금융 ──
-    "투자자산운용사", "금융투자분석사", "증권투자권유자문인력",
-    "펀드투자권유자문인력", "파생상품투자권유자문인력",
-    "재무위험관리사", "FRM", "CFA", "AFPK", "CFP",
-    "신용분석사", "여신심사역", "자산관리사", "은행텔러",
-    "국제금융역", "외환전문역", "보험계리사", "손해사정사",
-    # ── 전문 자격 (국가전문자격) ──
-    "공인회계사", "세무사", "변리사", "관세사", "감정평가사",
-    "공인노무사", "법무사", "행정사", "공인중개사", "주택관리사",
-    "사회복지사", "보육교사", "직업상담사", "청소년상담사",
-    "임상심리사", "정신건강임상심리사", "평생교육사", "건강가정사",
-    # ── 안전 / 환경 / 산업 ──
-    "산업안전기사", "산업안전산업기사", "건설안전기사", "건설안전산업기사",
-    "산업위생관리기사", "인간공학기사", "소방설비기사", "소방안전관리자",
-    "위험물산업기사", "위험물기능사", "가스기사", "가스산업기사",
-    "대기환경기사", "수질환경기사", "폐기물처리기사", "소음진동기사",
-    "토양환경기사", "자연생태복원기사", "온실가스관리기사",
-    # ── 건설 / 기계 / 전기 ──
-    "토목기사", "건축기사", "건축설비기사", "실내건축기사", "조경기사",
-    "측량및지형공간정보기사", "건설재료시험기사",
-    "일반기계기사", "기계설계기사", "공조냉동기계기사", "에너지관리기사",
-    "생산자동화산업기사", "메카트로닉스기사", "용접기사", "금형기사",
-    "전기기사", "전기산업기사", "전기공사기사", "전기기능사",
-    "전자기사", "전자산업기사", "화공기사", "화학분석기사",
-    "자동차정비기사", "자동차정비산업기사",
-    # ── 식품 / 서비스 / 기타 ──
-    "식품기사", "식품산업기사", "영양사", "위생사",
-    "조리기능사", "한식조리기능사", "양식조리기능사", "중식조리기능사",
-    "일식조리기능사", "복어조리기능사", "제과기능사", "제빵기능사",
-    "바리스타", "미용사", "컨벤션기획사", "관광통역안내사",
-    "국내여행안내사", "호텔경영사", "호텔관리사", "스포츠지도사",
-    "생활스포츠지도사", "건설기계운전기능사", "지게차운전기능사",
-    # ── 어학 / 한국사 ──
-    "한국사능력검정시험", "KBS한국어능력시험", "국어능력인증시험",
-    "TOEIC", "TOEIC Speaking", "TOEIC Writing", "OPIc", "TEPS",
-    "TOEFL", "IELTS", "HSK", "JLPT", "JPT", "DELE", "DELF", "TestDaF",
-    "FLEX", "SNULT",
-    # ── 국제 IT / 클라우드 / PM ──
-    "AWS Certified Cloud Practitioner",
-    "AWS Certified Solutions Architect Associate",
-    "AWS Certified Solutions Architect Professional",
-    "AWS Certified Developer Associate",
-    "AWS Certified SysOps Administrator Associate",
-    "AWS Certified DevOps Engineer Professional",
-    "AWS Certified Machine Learning Specialty",
-    "Microsoft Certified Azure Fundamentals", "AZ-900",
-    "Microsoft Certified Azure Administrator Associate", "AZ-104",
-    "Microsoft Certified Azure Developer Associate", "AZ-204",
-    "Microsoft Certified Azure Data Scientist Associate", "DP-100",
-    "Google Cloud Associate Cloud Engineer",
-    "Google Cloud Professional Cloud Architect",
-    "Google Cloud Professional Data Engineer",
-    "CKA", "Certified Kubernetes Administrator",
-    "CKAD", "Certified Kubernetes Application Developer", "CKS",
-    "RHCSA", "RHCE", "CCNA", "CCNP",
-    "OCA", "OCP", "OCJP", "Oracle Certified Professional",
-    "CompTIA Security+", "CompTIA Network+", "CompTIA A+", "CompTIA Linux+",
-    "CISA", "CISM", "CISSP", "CEH", "ISMS-P 인증심사원",
-    "PMP", "CAPM", "PRINCE2", "ITIL Foundation",
-    "MOS", "Microsoft Office Specialist",
-    "Tableau Desktop Specialist", "Tableau Certified Data Analyst",
-    "SnowPro Core", "Databricks Certified Data Engineer Associate",
-    "Google Ads Certification", "Google Analytics Certification",
-]
-
-# 반복 관측된 환각 자격증 — 화이트리스트 모드가 꺼져 있어도 항상 차단
-_BLOCKED_CERTS: list[str] = [
-    "사회분석사",            # 실재하지 않음 (혼동 대상: 사회조사분석사)
-    "데이터분석사",          # 실재하지 않음 (혼동 대상: ADsP / ADP)
-    "빅데이터분석사",        # 실재하지 않음 (혼동 대상: 빅데이터분석기사)
-    "경영분석사",
-    "취업컨설턴트자격증",
-    "커리어코치자격증",
-    "AI활용능력사",
-    "디지털역량인증사",
-    "인공지능전문가자격증",
-]
+_CERT_REGISTRY = None
 
 
-def _norm_cert(name: str) -> str:
-    """자격증명 정규화: 공백/괄호/급수/장식어 제거 후 소문자화."""
-    if not name:
-        return ""
-    s = str(name)
-    s = re.sub(r"\([^)]*\)", " ", s)                     # 괄호 내용 제거
-    s = re.sub(r"[\s_\-·.]+", "", s)                     # 구분자 제거
-    s = re.sub(r"(특급|고급|중급|초급|[1-9]급|Level[1-9])$", "", s, flags=re.I)
-    s = re.sub(r"(자격증|자격|시험|취득|과정)$", "", s)
-    return s.lower()
-
-
-_VERIFIED_NORM = {_norm_cert(c): c for c in _VERIFIED_CERTS}
-_BLOCKED_NORM = {_norm_cert(c) for c in _BLOCKED_CERTS}
+def get_cert_registry() -> cert_registry.CertRegistry:
+    """레지스트리 지연 로드 (프로세스당 1회)."""
+    global _CERT_REGISTRY
+    if _CERT_REGISTRY is None:
+        _CERT_REGISTRY = cert_registry.load_certs(allow_refresh=True)
+        _log(f"  [자격증 레지스트리] {len(_CERT_REGISTRY.names)}종 "
+             f"(출처: {_CERT_REGISTRY.origin})")
+    return _CERT_REGISTRY
 
 
 def verify_certification(name: str) -> tuple[bool, str]:
-    """
-    (통과여부, 사유) 반환.
-    화이트리스트 정본명이 후보명의 부분문자열이면 통과 (예: "정보처리기사 실기" OK).
-    반대 방향(후보가 정본의 일부)은 통과시키지 않는다 → "사회분석사" 차단.
-    """
-    norm = _norm_cert(name)
-    if not norm:
-        return False, "자격증명이 비어 있음"
-
-    if norm in _BLOCKED_NORM:
-        close = difflib.get_close_matches(norm, list(_VERIFIED_NORM), n=1, cutoff=0.6)
-        hint = f" (실재 유사 자격: {_VERIFIED_NORM[close[0]]})" if close else ""
-        return False, f"실재하지 않는 자격증으로 확인됨{hint}"
-
-    if norm in _VERIFIED_NORM:
-        return True, "검증 통과"
-
-    for v_norm in _VERIFIED_NORM:
-        if len(v_norm) >= 3 and v_norm in norm:
-            return True, "검증 통과"
-
-    if not _STRICT_CERT_WHITELIST:
-        return True, "비엄격 모드 통과"
-
-    close = difflib.get_close_matches(norm, list(_VERIFIED_NORM), n=1, cutoff=0.7)
-    hint = f" (오기 가능성: {_VERIFIED_NORM[close[0]]})" if close else ""
-    return False, f"실재 확인 불가 — 검증된 자격증 목록에 없음{hint}"
+    """(통과여부, 사유). 레지스트리에 위임."""
+    return get_cert_registry().verify(name, strict=_STRICT_CERT_WHITELIST)
 
 
-def _cert_whitelist_prompt_block(limit: int = 200) -> str:
-    names = _VERIFIED_CERTS[:limit]
-    return (
-        "=== [자격증 추천 화이트리스트 — 이 목록 밖은 전부 자동 폐기] ===\n"
-        "category 가 '자격증'인 추천은 아래 목록에 있는 이름만 사용하십시오.\n"
-        "목록에 없는 자격증을 쓰면 후처리에서 삭제되어 사용자에게 도달하지 않습니다.\n"
-        "이름을 변형·축약·조합하지 말고 아래 표기를 그대로 쓰십시오.\n"
-        "(예: '사회분석사'는 존재하지 않는 이름입니다. 정확한 명칭은 '사회조사분석사'입니다.)\n"
-        "추천할 만한 것이 목록에 없으면 자격증 추천을 생략하고 다른 category 로 대체하십시오.\n\n"
-        + ", ".join(names)
-        + "\n"
-        + "=" * 44
-    )
+def _norm_cert(name: str) -> str:
+    return cert_registry.norm_cert(name)
 
 
 # ══════════════════════════════════════════════
@@ -1163,7 +968,7 @@ _STRICT_HALLUCINATION_RULES = """
 # ══════════════════════════════════════════════
 # 12  시스템 프롬프트
 # ══════════════════════════════════════════════
-def build_system_prompt_individual(tc: TimeContext, time_facts: dict | None = None) -> str:
+def build_system_prompt_individual(tc: TimeContext, time_facts=None) -> str:
     """
     단일 항목 심층 분석용 시스템 프롬프트.
     ★ v1.1: 시간 기준(TimeContext)과 자격증 화이트리스트를 프롬프트에 실제로 주입.
@@ -1172,7 +977,7 @@ def build_system_prompt_individual(tc: TimeContext, time_facts: dict | None = No
         "당신은 대한민국 최고의 전문 커리어 컨설턴트입니다.\n"
         "사용자가 제공한 단일 경력/자격증/활동 하나를 심층 분석하는 것이 임무입니다.\n\n"
         f"{tc.as_prompt_block(time_facts)}\n\n"
-        f"{_cert_whitelist_prompt_block()}\n\n"
+        f"{get_cert_registry().prompt_block()}\n\n"
         "[분석 원칙]\n"
         "1. 단일 항목에 집중 — 여러 항목이 보이더라도 가장 대표적인 하나를 선정\n"
         "2. 근거 중심 서술 — 입력 데이터에서 실제 확인된 내용만 서술\n"
@@ -1333,24 +1138,94 @@ def analyze_career_individual(item_text: str, tc: TimeContext | None = None) -> 
 # ══════════════════════════════════════════════
 # 14  후처리 — 자격증 검증 + 시간 정합성 보정
 # ══════════════════════════════════════════════
+# ── URL 검증 ────────────────────────────────────────────────────────
+#  [v1.1 한계] 소수 공식 도메인만 허용해, 환각 URL은 확실히 막았지만
+#              화이트리스트에 없는 실재 기관 URL까지 함께 지워졌다.
+#
+#  [v1.2] 두 층으로 나눠 정확도를 올렸다.
+#    (1) 등록 제한 도메인 — .go.kr(정부기관) / .ac.kr(인가 대학) / .re.kr(연구기관)
+#        은 한국인터넷진흥원이 자격을 심사해야 등록되므로, 아무나 만들 수 없다.
+#        도메인 자체가 기관 실재성을 보증하므로 통째로 허용한다.
+#    (2) 명시 허용 도메인 — 그 밖의 자격 주관·발급 기관.
+#
+#  다만 호스트 검증은 "그 기관이 실재하는가"만 보증하고 "그 경로가 실재하는가"
+#  는 보증하지 못한다. 경로까지 확인하려면 CAREER_VERIFY_URLS=1 을 켜면 되고,
+#  이때 실제로 접속해 응답하지 않는 URL은 제거된다.
+
+# 등록 자격 심사를 거쳐야만 취득 가능한 한국 도메인 (기관 실재성 보증)
+_RESTRICTED_KR_SUFFIXES = (".go.kr", ".ac.kr", ".re.kr")
+
+# 자격 주관·발급 기관 도메인
 _ALLOWED_URL_HOSTS = (
-    "q-net.or.kr", "hrdkorea.or.kr", "dataq.or.kr", "kmooc.kr",
+    # 국내 자격 주관 기관
+    "q-net.or.kr", "hrdkorea.or.kr", "dataq.or.kr", "kpc.or.kr",
+    "kcci.or.kr", "license.kcci.or.kr", "pqi.or.kr", "kmooc.kr",
+    "koreatech.ac.kr", "youthcenter.go.kr", "work.go.kr", "hrd.go.kr",
+    "kirs.or.kr", "kifin.or.kr", "kofia.or.kr", "iif.or.kr",
+    "kacpta.or.kr", "kicpa.or.kr", "kaa.or.kr", "kar.or.kr",
+    "cbt.or.kr", "ybmnet.co.kr", "toeic.co.kr", "opic.or.kr",
+    "kbs.co.kr", "historyexam.go.kr", "epis.or.kr", "kpc-cert.or.kr",
+    # 국제 자격 발급 기관
     "aws.amazon.com", "learn.microsoft.com", "cloud.google.com",
-    "pmi.org", "isaca.org", "isc2.org", "comptia.org",
+    "pmi.org", "isaca.org", "isc2.org", "comptia.org", "cisco.com",
+    "redhat.com", "oracle.com", "cncf.io", "linuxfoundation.org",
+    "tableau.com", "databricks.com", "snowflake.com", "cfainstitute.org",
+    "garp.org", "ets.org", "ielts.org", "chinesetest.cn", "jlpt.jp",
 )
+
+_VERIFY_URLS_LIVE = os.getenv("CAREER_VERIFY_URLS", "") == "1"
+_URL_CHECK_CACHE: dict[str, bool] = {}
+
+
+def _host_allowed(url: str) -> bool:
+    host = urllib.parse.urlparse(url).netloc.lower().split(":")[0]
+    if not host:
+        return False
+    if any(host == h or host.endswith("." + h) for h in _ALLOWED_URL_HOSTS):
+        return True
+    return any(host.endswith(suf) for suf in _RESTRICTED_KR_SUFFIXES)
+
+
+def _url_is_live(url: str) -> bool:
+    """CAREER_VERIFY_URLS=1 일 때만 호출. 실제 응답하지 않는 경로를 걸러낸다."""
+    if url in _URL_CHECK_CACHE:
+        return _URL_CHECK_CACHE[url]
+    ok = False
+    try:
+        req = urllib.request.Request(url, method="HEAD", headers={
+            "User-Agent": "career-analysis-ai/1.2 (link-check)"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            ok = resp.status < 400
+    except urllib.error.HTTPError as e:
+        ok = e.code < 400          # 405 등은 서버가 HEAD를 안 받는 경우
+    except Exception:
+        ok = False
+    _URL_CHECK_CACHE[url] = ok
+    if not ok:
+        _log(f"  [URL 검증] 응답 없음 → 제거: {url}")
+    return ok
+
+
+def _check_url(value):
+    if not isinstance(value, str) or not value.strip():
+        return None
+    url = value.strip()
+    if not url.lower().startswith(("http://", "https://")):
+        return None
+    if not _host_allowed(url):
+        return None
+    if _VERIFY_URLS_LIVE and not _url_is_live(url):
+        return None
+    return url
 
 
 def _scrub_urls(node):
-    """URL 추측 방지: 공식 도메인이 아닌 URL 필드는 전부 null 로."""
+    """URL 추측 방지: 기관 실재성이 확인되지 않는 URL 필드는 전부 null 로."""
     if isinstance(node, dict):
         out = {}
         for k, v in node.items():
-            if isinstance(k, str) and re.search(r"(url|link|링크)", k, re.I):
-                if isinstance(v, str):
-                    host = urllib.parse.urlparse(v).netloc.lower()
-                    out[k] = v if any(host.endswith(h) for h in _ALLOWED_URL_HOSTS) else None
-                else:
-                    out[k] = v if v else None
+            if isinstance(k, str) and re.search(r"(url|link|링크|주소)", k, re.I):
+                out[k] = _check_url(v)
             else:
                 out[k] = _scrub_urls(v)
         return out
@@ -1410,7 +1285,7 @@ def filter_certifications(result: dict) -> tuple[dict, list[dict]]:
                 continue
         else:
             # 다른 카테고리라도 알려진 환각 자격증명은 차단
-            if _norm_cert(name) in _BLOCKED_NORM:
+            if not get_cert_registry().verify(name, strict=False)[0]:
                 removed.append({
                     "name": name,
                     "category": category,
@@ -1428,7 +1303,7 @@ def filter_certifications(result: dict) -> tuple[dict, list[dict]]:
     return result, removed
 
 
-def normalize_time_fields(result: dict, tc: TimeContext, time_facts: dict) -> tuple[dict, list[str]]:
+def normalize_time_fields(result: dict, tc: TimeContext, time_facts) -> tuple[dict, list[str]]:
     """
     시간 정합성 보정:
       - action_plan 을 절대 기간 + 마감일이 붙은 객체로 고정
@@ -1471,19 +1346,17 @@ def normalize_time_fields(result: dict, tc: TimeContext, time_facts: dict) -> tu
 
     scan(result)
 
-    if time_facts.get("unresolved"):
-        warnings.append(
-            "입력에 연도/기간이 없어 신선도(기간_문제) 판단은 시간 근거가 없습니다."
-        )
+    warnings.extend(time_facts.warnings)
 
     result["time_context"] = tc.as_dict()
     result["analysis_date"] = tc.iso_date          # 하위 호환 유지
-    result["input_time_facts"] = time_facts.get("facts", [])
+    result["input_time_facts"] = time_facts.facts
+    result["input_time_resolution"] = time_facts.to_dict()
     result["time_warnings"] = sorted(set(warnings)) or None
     return result, warnings
 
 
-def postprocess_result(result: dict, tc: TimeContext, time_facts: dict) -> dict:
+def postprocess_result(result: dict, tc: TimeContext, time_facts) -> dict:
     """LLM 출력 → 검증·정합성 보정된 최종 payload."""
     result, removed = filter_certifications(result)
 
@@ -1497,10 +1370,14 @@ def postprocess_result(result: dict, tc: TimeContext, time_facts: dict) -> dict:
     result, _ = normalize_time_fields(result, tc, time_facts)
 
     result["removed_recommendations"] = removed or None
+    reg = get_cert_registry()
     result["validation"] = {
         "cert_whitelist_mode": "strict" if _STRICT_CERT_WHITELIST else "blocklist_only",
-        "verified_cert_count": len(_VERIFIED_CERTS),
+        "cert_registry_origin": reg.origin,          # live | cache | seed
+        "cert_registry_fetched_at": reg.fetched_at,  # 공식 출처 마지막 수집 시각
+        "verified_cert_count": len(reg.names),
         "removed_recommendation_count": len(removed),
+        "time_resolution": time_facts.resolution,
         "time_basis": f"{tc.iso_datetime} (Asia/Seoul)",
     }
     return result
@@ -1515,7 +1392,7 @@ def main(user_input=None):
     tc = TimeContext()          # ★ 기준 시각 단일 원천 (KST 고정)
 
     _log("=" * 65)
-    _log("  Career Analysis AI - INDIVIDUAL Edition v1.1")
+    _log("  Career Analysis AI - INDIVIDUAL Edition v1.2")
     _log(f"  모델: {_ANALYSIS_MODEL}  |  임베딩: {_EMBEDDING_MODEL}")
     _log(f"  기준시각: {tc.iso_datetime} (Asia/Seoul, 자동)")
     _log(f"  액션플랜: 단기 {tc.window_label('단기')} / "
@@ -1533,12 +1410,11 @@ def main(user_input=None):
         return resp
 
     time_facts = extract_time_facts(raw_content, tc)
-    if time_facts.get("facts"):
-        _log("\n[0] 입력 시간 사실 파싱")
-        for f in time_facts["facts"]:
-            _log(f"  - {f}")
-    else:
-        _log("\n[0] 입력에서 연도/기간을 찾지 못함 → 시점 판단 생략")
+    _log(f"\n[0] 입력 시간 표현 해석 (resolution={time_facts.resolution})")
+    for f in time_facts.facts:
+        _log(f"  - {f}")
+    for w in time_facts.warnings:
+        _log(f"  ! {w}")
 
     _log("\n[1] 임베딩 벡터 생성 중...")
     try:
