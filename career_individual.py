@@ -73,11 +73,17 @@ from google.genai import types
 # ──────────────────────────────────────────────
 # Config
 # ──────────────────────────────────────────────
-# 실제 키는 환경변수로 주입하세요. (코드에 하드코딩 금지)
+# 테스트용으로 아래에 API 키를 직접 입력하세요.
+# (환경변수 GEMINI_API_KEY 또는 GOOGLE_AI_STUDIO_API_KEY 가 설정되어 있으면
+#  그 값이 우선 적용됩니다 — 배포/공유 환경에서는 하드코딩 대신 환경변수 사용을 권장합니다.)
+# ⚠ 실제 키를 입력한 채로 커밋/푸시하지 마세요. (.gitignore 에 .env 는 있지만
+#    이 파일 자체에 하드코딩하면 그대로 커밋될 수 있습니다.)
+GEMINI_API_KEY = ""          # 예: "AIzaSy..."
+
 GEMINI_API_KEY = (
     os.getenv("GEMINI_API_KEY")
     or os.getenv("GOOGLE_AI_STUDIO_API_KEY")
-    or ""
+    or GEMINI_API_KEY
 )
 
 _ANALYSIS_MODEL  = "gemini-2.5-flash"
