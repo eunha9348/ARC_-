@@ -179,12 +179,22 @@ ANTI_HALLUCINATION_RULES = """\
 """
 
 WRITING_STYLE_RULES = """\
-[서술 방식 규칙 — 나열 금지, 깊이 있게]
-1) 경험 나열 금지: 문항과 회사에 가장 잘 맞는 경험 1개(많아야 2개)만 골라
-   깊게 서술할 것. 여러 경험을 얕게 훑으며 나열하는 글은 실패작이다.
-   - 선택한 경험은 무엇을(What), 언제(When), 어디서(Where), 어떻게(How)
-     했는지, 그래서 어떤 결과와 성과가 나왔는지가 하나의 이야기로
-     이어지도록 쓸 것.
+[서술 방식 규칙 — 나열은 금지, 그러나 '엮기'는 필수]
+1) 선정된 경험을 '엮어서' 종합 서술할 것:
+   - 아래 '경험 선정 결과'에 제시된 경험들을 모두 사용하고, 거기 없는 이력은
+     이 문항에서 다루지 않는다. (선정 결과가 주어지지 않았다면, 문항·회사에
+     가장 맞는 경험을 스스로 골라 같은 방식으로 엮을 것)
+   - 핵심(core)으로 표시된 경험은 무엇을(What), 언제(When), 어디서(Where),
+     어떻게(How) 했고 그래서 어떤 결과·성과가 나왔는지를 장면이 그려질 만큼
+     깊게 서술한다. 전체 분량의 절반 이상을 여기에 쓴다.
+   - 보조(supporting)로 표시된 경험은 핵심 경험의 앞뒤에 배치해, 핵심으로
+     가는 과정이나 그 이후의 확장으로 '연결'한다. 짧아도 좋다.
+   - 다만 보조 경험을 독립된 단락으로 툭툭 끊어 나열하지 말 것. 각 보조
+     경험은 반드시 글의 핵심 메시지를 한 걸음 진전시키는 역할을 해야 하며,
+     역할 없이 사실만 덧붙이는 문장은 넣지 않는 편이 낫다.
+   - 여러 경험을 얕게 훑기만 하는 글도, 경험 하나만 쓰고 나머지를 통째로
+     버리는 글도 모두 실패작이다. '깊이 있는 하나 + 그것을 떠받치는 흐름'이
+     동시에 성립해야 한다.
 2) 돌림노래 금지: 같은 강점·성과·표현을 말만 바꿔 반복하지 말 것.
    한 번 말한 내용은 다시 등장시키지 않는다.
 3) 하나의 내러티브(중요): 문항 하나의 답변은 처음부터 끝까지 '한 편의 이야기'로
@@ -196,8 +206,9 @@ WRITING_STYLE_RULES = """\
      그로부터 얻은 관점이 이어지도록 충분히 자세하고 밀도 있게 풀어 쓸 것.
    - 분량 제한이 허락하는 한 깊이 있게 서술하되, 곁가지로 늘리지 말고 하나의
      줄기를 더 선명하고 구체적으로 파고들 것.
-4) 시간 흐름(시계열) 준수(중요): 경험·경력에 기간/연도/시점이 주어진 경우,
-   서술은 반드시 시간 순서(과거→현재)로 흐르게 할 것.
+4) 시간 흐름(시계열) 준수(가장 중요): 아래 '경험 선정 결과'는 이미 과거→현재
+   순으로 정렬되어 있다. 반드시 제시된 그 순서대로 경험을 등장시킬 것.
+   경험·경력에 기간/연도/시점이 주어진 경우, 서술은 반드시 시간 순서로 흐르게 한다.
    - 나중 시점의 경험을 먼저 이야기한 뒤 더 앞선 시점으로 되돌아가는(역행)
      구성 금지. 시점이 뒤섞여 독자가 시간 순서를 혼동하게 만들지 말 것.
    - 예: 2024년 인턴 경험을 서술한 뒤 2022년 동아리 경험으로 되돌아가지 말 것.
@@ -259,6 +270,92 @@ def build_industry_block(industry_key: str) -> str:
   과정에서 자연스럽게 그 결이 드러나야 한다."""
 
 
+# --------------------------------------------------------------------------
+#  경험 선정 결과 → 프롬프트 블록  (★ '경험 1개만 반영' 문제의 해결책)
+# --------------------------------------------------------------------------
+def build_selection_block(selection, common_material: str = "") -> str:
+    """회사 리서치 기반으로 고른 경험을 '등장 순서'와 함께 지시하는 블록.
+
+    핵심/보조를 따로 묶어 제시하면 모델이 그 묶음 순서대로 쓰려 해서 시계열이
+    깨진다. 그래서 채택분을 하나의 '등장 순서' 목록으로 합쳐 과거→현재로
+    제시하고, 각 항목 옆에 서술 깊이(핵심/보조)를 표시하는 방식을 쓴다.
+    """
+    if selection is None or selection.is_empty():
+        return (
+            "(경험 선별 결과 없음 — 사실 원장에서 문항·회사에 가장 맞는 경험을\n"
+            " 직접 골라 서술하되, 시간 순서(과거→현재)를 지킬 것)"
+        )
+
+    lines: list[str] = []
+    if selection.strategy:
+        lines.append(f"서술 전략(이 줄기로 엮을 것): {selection.strategy}")
+        lines.append("")
+
+    lines.append("▶ 등장 순서 — 반드시 이 순서대로 (과거 → 현재)")
+    for i, e in enumerate(selection.ordered, 1):
+        year = e.year if e.year != 9999 else "시점미상"
+        depth = "핵심 축(가장 깊게 서술)" if e.role == "core" else "보조(간결하게 연결)"
+        lines.append(f"  {i}) [{year}] {e.label} · {depth} · 적합도 {e.score}")
+        lines.append(f"     내용: {e.text}")
+        if e.company_fit:
+            lines.append(f"     이 회사가 주목할 지점: {e.company_fit}")
+
+    if selection.excluded:
+        skipped = ", ".join(
+            f"{e.label}({e.text[:18]}…)" for e in selection.excluded[:6]
+        )
+        lines.append("")
+        lines.append(f"▶ 이 문항에서 다루지 않을 이력: {skipped}")
+
+    if common_material.strip():
+        lines.append("")
+        lines.append("▶ 공통 재료 — 위 경험을 서술할 때 근거로 자유롭게 끌어 쓸 것")
+        lines.append(common_material)
+
+    lines.append("")
+    lines.append("""[경험 배치 규칙 — 반드시 지킬 것]
+- 위 '등장 순서'의 경험을 하나도 빠뜨리지 말고 모두 반영할 것. 다만 각각을
+  같은 비중으로 쓰지 말고, 핵심 축에 분량을 몰아주고 보조는 짧게 잇는다.
+- 제시된 순서를 바꾸지 말 것. 나중 시점을 먼저 쓰고 앞선 시점으로 되돌아가는
+  시계열 역행은 금지한다.
+- '이 회사가 주목할 지점'은 그대로 인용하지 말고, 해당 경험을 서술할 때
+  무엇을 강조할지를 정하는 기준으로만 쓸 것.
+- '다루지 않을 이력'에 있는 항목은 이 문항 답변에 등장시키지 말 것.
+- 경험과 경험 사이는 '그 다음 해에는', '이 경험을 발판으로'처럼 시간이
+  전진하는 연결로 이어, 성장의 곡선이 한 방향으로 보이게 할 것.""")
+
+    return "\n".join(lines)
+
+
+def build_selection_order_line(selection) -> str:
+    """교정/다듬기 단계에서 '이 경험들이 이 순서로 남아 있어야 한다'는 요약.
+
+    생성 단계의 전체 블록은 너무 길어 후속 패스에 그대로 넣기 부담스럽다.
+    순서 보존만 확인하면 되므로 압축된 한 줄 목록으로 전달한다.
+    """
+    if selection is None or selection.is_empty():
+        return ""
+    parts = []
+    for e in selection.ordered:
+        year = e.year if e.year != 9999 else "시점미상"
+        mark = "핵심" if e.role == "core" else "보조"
+        parts.append(f"[{year}] {e.text[:28]}({mark})")
+    return " → ".join(parts)
+
+
+def build_selection_guard(selection) -> str:
+    """교정/다듬기 프롬프트에 붙일 '경험 보존' 지시문."""
+    order = build_selection_order_line(selection)
+    if not order:
+        return ""
+    return f"""
+[반영되어야 할 경험과 순서 — 임의로 빼거나 순서를 바꾸지 말 것]
+{order}
+- 위 경험들은 지원 회사 기준으로 선별된 것이다. 근거가 확인된 경험을
+  분량을 줄이겠다고 통째로 삭제하지 말 것.
+- 등장 순서(과거→현재)가 바뀌어 있으면 순서를 바로잡을 것."""
+
+
 def build_company_block(company_research: str) -> str:
     """생성 프롬프트에 넣을 '회사 가치 은은하게 반영' 지시 블록."""
     if not (company_research or "").strip():
@@ -287,6 +384,8 @@ def build_generation_prompt(
     tone: str = "",
     company_research: str = "",
     industry: str = "",
+    selection=None,
+    common_material: str = "",
 ) -> str:
     profile = get_job_profile(job_key)
     region_style = get_region_style(region)
@@ -298,6 +397,7 @@ def build_generation_prompt(
     fact_sheet = build_fact_sheet(user)
     style_block = build_style_examples_block(examples)
     company_block = build_company_block(company_research)
+    selection_block = build_selection_block(selection, common_material)
 
     tone_line = tone.strip() or profile["tone"]
     length_line = (
@@ -321,14 +421,15 @@ def build_generation_prompt(
 [집필 지침 — 이 글은 '초안'이 아니라 '완성본'이다]
 1) 두괄식: 첫 1~2문장에서 글의 핵심 메시지(강점과 직무 적합성)를 제시할 것.
    이 메시지가 글 전체를 관통하는 '하나의 주제'가 되어야 한다.
-2) 본문은 위 서술 방식 규칙에 따라, 선택한 핵심 경험 하나를 What/When/Where/How
-   와 결과·성과가 이어지는 완결된 이야기로 '깊고 자세하게' 풀어 쓸 것.
-   - 상황의 배경과 문제의식 → 본인이 내린 판단과 구체적 행동 → 그 결과와
-     수치 → 거기서 얻은 배움까지, 장면이 눈에 그려질 만큼 구체적으로 서술.
+2) 본문은 아래 '경험 선정 결과'에 제시된 순서(과거→현재)를 그대로 따라가며,
+   선정된 경험을 하나의 성장 곡선으로 엮어 서술할 것.
+   - 핵심 축으로 표시된 경험은 상황의 배경과 문제의식 → 본인이 내린 판단과
+     구체적 행동 → 그 결과와 수치 → 거기서 얻은 배움까지, 장면이 눈에 그려질
+     만큼 깊고 자세하게 풀어 쓴다.
+   - 보조로 표시된 경험은 핵심 축으로 가는 과정이나 그 이후의 확장으로 짧게
+     연결한다. 앞 경험이 뒤 경험의 발판이 되도록 인과로 이을 것.
    - '사실'은 원장의 것만 사용하되, 문장·서사·연결·표현은 전문 작가 수준으로
      풍부하게 발전시킬 것. (사실 추가 금지 ≠ 건조한 나열)
-   - 여러 경험을 언급해야 한다면, 시간 순서(과거→현재)로 배열해 성장의 흐름이
-     한 방향으로 이어지게 하고, 앞 경험이 뒤 경험의 발판이 되도록 연결할 것.
 3) 마지막 문단은 앞서 풀어낸 이야기가 자연스럽게 수렴하도록, 지원 회사·직무와의
    연결과 구체적인 기여 방향으로 마무리할 것. (도입의 주제와 호응시킬 것)
 4) "[보완필요: ...]" 표시는 문항이 반드시 요구하는 내용인데 원장에 근거가 전혀
@@ -351,6 +452,9 @@ def build_generation_prompt(
 
 [지원 회사 리서치 — 은은하게만 반영할 것]
 {company_block}
+
+[경험 선정 결과 — 이 문항에서 쓸 경험과 등장 순서 (매우 중요)]
+{selection_block}
 
 [사용자 사실 원장 — 지원자 사실의 유일한 출처]
 {fact_sheet}
@@ -387,8 +491,10 @@ def build_polish_prompt(
     generated_text: str,
     user: UserProfile,
     max_chars: int = 1000,
+    selection=None,
 ) -> str:
     fact_sheet = build_fact_sheet(user)
+    selection_guard = build_selection_guard(selection)
     length_line = (
         f"- 분량: 공백 포함 약 {max_chars}자 수준을 유지할 것."
         if max_chars else "- 분량: 현재 수준을 유지할 것."
@@ -399,6 +505,7 @@ def build_polish_prompt(
 
 [사용자 사실 원장 — 유일한 사실 출처]
 {fact_sheet}
+{selection_guard}
 
 [다듬을 자기소개서]
 {generated_text}
@@ -441,6 +548,7 @@ def build_completion_prompt(
     max_chars: int = 1000,
     question: str = "",
     reason: str = "",
+    selection=None,
 ) -> str:
     """중간에 끊기거나 분량이 크게 미달한 자소서를 완결시키는 프롬프트.
 
@@ -448,6 +556,7 @@ def build_completion_prompt(
     더 깊게(판단·과정·배움) 풀어 쓰는 방식으로만 분량을 채운다.
     """
     fact_sheet = build_fact_sheet(user)
+    selection_guard = build_selection_guard(selection)
     question_line = question.strip() or "자유 형식의 자기소개서"
     reason_line = reason or "글이 완결되지 않았습니다."
     length_line = (
@@ -461,6 +570,7 @@ def build_completion_prompt(
 
 [사용자 사실 원장 — 유일한 사실 출처]
 {fact_sheet}
+{selection_guard}
 
 [자소서 문항]
 {question_line}
@@ -538,8 +648,10 @@ def build_correction_prompt(
     user: UserProfile,
     unsupported_claims: list[str],
     company_research: str = "",
+    selection=None,
 ) -> str:
     fact_sheet = build_fact_sheet(user)
+    selection_guard = build_selection_guard(selection)
     claims = "\n".join(f"- {c}" for c in unsupported_claims) or "- (없음)"
     company_note = ""
     if (company_research or "").strip():
@@ -553,6 +665,7 @@ def build_correction_prompt(
 [사용자 사실 원장 — 지원자 사실의 유일한 출처]
 {fact_sheet}
 {company_note}
+{selection_guard}
 
 [제거/수정 대상(근거 없는 문장)]
 {claims}

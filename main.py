@@ -156,6 +156,13 @@ def main():
         include_action_plan=True,    # (부가) HR 관점 액션플랜 포함
         max_grounding_iterations=2,  # 환각 검증→교정 반복 횟수
         polish=True,                 # 최종 문체 다듬기 패스(어미·반복 정리)
+
+        # ★ 경험 선별: 지원 회사가 주목할 경험을 우선 골라 시간 순으로 엮는다.
+        #   개수를 지정하지 않으면 문항 글자수에 맞춰 자동 산정된다.
+        #   (1000자 → 핵심 1 + 보조 3 / 2000자 → 핵심 2 + 보조 3)
+        rank_experiences=True,
+        max_core_experiences=None,
+        max_supporting_experiences=None,
     )
 
     print(format_application(result))

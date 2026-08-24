@@ -83,7 +83,72 @@ class ReferenceExample:
 
 
 # --------------------------------------------------------------------------
-#  3) 생성 요청 옵션
+#  3) 경험 선별 (회사 리서치 기반 적합도 채점 → 시간순 배치)
+# --------------------------------------------------------------------------
+#  자소서가 '경험 1개'만 얕게 반영하던 문제를 고치기 위한 구조.
+#  UserProfile 의 이력을 '사건 단위'로 쪼개(ExperienceItem), 지원 회사가
+#  관심 있게 볼 만한 순서로 채점하고(ScoredExperience), 분량에 맞는 개수를
+#  골라 시간 순으로 배열한 결과가 ExperienceSelection 이다.
+# --------------------------------------------------------------------------
+@dataclass
+class ExperienceItem:
+    """UserProfile 에서 평탄화한 이력 1건(경력/프로젝트/활동/수상)."""
+    key: str = ""                       # 프롬프트에서 참조할 식별자(예: "pro1")
+    field: str = ""                     # 원본 필드명(experiences/projects/...)
+    label: str = ""                     # 한글 라벨(경력/인턴, 프로젝트 등)
+    text: str = ""                      # 직렬화된 내용
+    year: int = 9999                    # 정렬용 연도(추출 실패 시 9999 → 맨 뒤)
+
+
+@dataclass
+class ScoredExperience:
+    """적합도 채점이 끝난 이력 1건."""
+    key: str = ""
+    field: str = ""
+    label: str = ""
+    text: str = ""
+    year: int = 9999
+    score: int = 0                      # 0~100 종합 적합도
+    company_fit: str = ""               # 이 회사가 이 경험을 볼 이유(연결점)
+    rationale: str = ""                 # 채점 근거 한 줄
+    role: str = "excluded"              # "core" | "supporting" | "excluded"
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class ExperienceSelection:
+    """문항 1개에 대한 경험 선별·배치 결과."""
+    strategy: str = ""                            # 이 문항을 어떤 줄기로 엮을지
+    ordered: list[ScoredExperience] = field(default_factory=list)   # 채택분(시간순)
+    excluded: list[ScoredExperience] = field(default_factory=list)  # 미채택분(점수순)
+    fallback_used: bool = False                   # LLM 채점 실패 → 키워드 폴백 여부
+
+    @property
+    def core(self) -> list[ScoredExperience]:
+        return [e for e in self.ordered if e.role == "core"]
+
+    @property
+    def supporting(self) -> list[ScoredExperience]:
+        return [e for e in self.ordered if e.role == "supporting"]
+
+    def is_empty(self) -> bool:
+        return not self.ordered
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "strategy": self.strategy,
+            "fallback_used": self.fallback_used,
+            "ordered": [e.to_dict() for e in self.ordered],
+            "excluded": [e.to_dict() for e in self.excluded],
+            "num_core": len(self.core),
+            "num_supporting": len(self.supporting),
+        }
+
+
+# --------------------------------------------------------------------------
+#  4) 생성 요청 옵션
 # --------------------------------------------------------------------------
 @dataclass
 class GenerationRequest:
@@ -96,10 +161,12 @@ class GenerationRequest:
     tone: str = ""                      # 추가 톤 요청(선택). 비우면 직무 기본 톤 사용
     industry: str = ""                  # 업계 key(finance/it/manufacturing/...).
                                         # 비우면 회사명·직무명에서 자동 추정
+    selection: ExperienceSelection | None = None   # 회사 리서치 기반 경험 선별 결과.
+                                        # None 이면 선별 없이(구 동작) 생성한다.
 
 
 # --------------------------------------------------------------------------
-#  4) 결과 컨테이너
+#  5) 결과 컨테이너
 # --------------------------------------------------------------------------
 @dataclass
 class GroundingReport:
@@ -119,6 +186,8 @@ class AnswerResult:
     cover_letter: str = ""                        # ★ 주 결과물: 완성형 자소서 본문
     grounding: GroundingReport = field(default_factory=GroundingReport)
     writing_guide: str = ""                       # 이 자소서를 내 것으로 만드는 가이드
+    experience_selection: ExperienceSelection = field(
+        default_factory=ExperienceSelection)      # 어떤 경험을 왜 골랐는지(투명성)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

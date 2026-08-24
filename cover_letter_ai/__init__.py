@@ -33,6 +33,9 @@ from .core.data_models import (
     GroundingReport,
     AnswerResult,
     ApplicationResult,
+    ExperienceItem,
+    ScoredExperience,
+    ExperienceSelection,
 )
 from .core.gemini_client import GeminiClient
 from .core.reference_store import ReferenceStore
@@ -41,6 +44,7 @@ from .core.pipeline import (
     result_to_json, split_into_sentences,
 )
 from .core.job_profiles import list_job_keys, get_job_profile
+from .core.experience_selector import select_experiences, plan_capacity
 
 __all__ = [
     "GEMINI_MODEL_NAME",
@@ -53,6 +57,11 @@ __all__ = [
     "GroundingReport",
     "AnswerResult",
     "ApplicationResult",
+    "ExperienceItem",
+    "ScoredExperience",
+    "ExperienceSelection",
+    "select_experiences",
+    "plan_capacity",
     "GeminiClient",
     "ReferenceStore",
     "generate_application",

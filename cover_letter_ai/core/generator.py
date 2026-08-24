@@ -55,11 +55,14 @@ def generate_draft(
     tone: str = "",
     company_research: str = "",
     industry: str = "",
+    selection=None,
+    common_material: str = "",
 ) -> str:
     prompt = pb.build_generation_prompt(
         user=user, job_key=job_key, region=region, question=question,
         examples=examples, max_chars=max_chars, tone=tone,
         company_research=company_research, industry=industry,
+        selection=selection, common_material=common_material,
     )
     # generate_complete: 토큰 한도로 잘리면 자동으로 이어써서 끝까지 받아온다.
     return client.generate_complete(prompt, config.GENERATION_CONFIG)
@@ -99,6 +102,7 @@ def complete_draft(
     max_chars: int = 1000,
     question: str = "",
     reason: str = "",
+    selection=None,
 ) -> str:
     """끊기거나 너무 짧은 글을 '완결된 한 편'으로 마무리시킨다.
 
@@ -108,6 +112,7 @@ def complete_draft(
     prompt = pb.build_completion_prompt(
         generated_text=generated_text, user=user,
         max_chars=max_chars, question=question, reason=reason,
+        selection=selection,
     )
     return client.generate_complete(prompt, config.GENERATION_CONFIG)
 
@@ -149,9 +154,11 @@ def correct_draft(
     user: UserProfile,
     unsupported_claims: list[str],
     company_research: str = "",
+    selection=None,
 ) -> str:
     prompt = pb.build_correction_prompt(
-        generated_text, user, unsupported_claims, company_research)
+        generated_text, user, unsupported_claims, company_research,
+        selection=selection)
     return client.generate(prompt, config.GENERATION_CONFIG)
 
 
@@ -163,8 +170,10 @@ def polish_draft(
     generated_text: str,
     user: UserProfile,
     max_chars: int = 1000,
+    selection=None,
 ) -> str:
-    prompt = pb.build_polish_prompt(generated_text, user, max_chars)
+    prompt = pb.build_polish_prompt(generated_text, user, max_chars,
+                                    selection=selection)
     return client.generate(prompt, config.GENERATION_CONFIG)
 
 
@@ -178,6 +187,7 @@ def generate_grounded_cover_letter(
     max_iterations: int = 2,
     polish: bool = True,
     company_research: str = "",
+    common_material: str = "",
 ) -> tuple[str, GroundingReport]:
     """
     (완성형 자소서 본문, 최종 근거검증 리포트) 반환.
@@ -185,6 +195,10 @@ def generate_grounded_cover_letter(
     max_iterations   : 검증→교정 재시도 최대 횟수.
     polish           : True 면 마지막에 어미·반복·맞춤법 최종 다듬기 수행.
     company_research : research_company() 결과. 있으면 글의 방향에 은은하게 반영.
+    common_material  : 채점 대상이 아닌 공통 재료(학력/기술/자격증/정량성과/강점).
+
+    req.selection 이 있으면 그 경험들만, 제시된 시간 순서대로 서술하도록
+    집필·교정·다듬기 전 단계에 일관되게 전달한다.
     """
     if req.user.is_empty():
         raise ValueError(
@@ -192,22 +206,26 @@ def generate_grounded_cover_letter(
             "환각 방지를 위해 최소 1개 이상의 사실을 입력해야 합니다."
         )
 
+    selection = req.selection
+
     text = generate_draft(
         client=client, user=req.user, job_key=req.job_key, region=req.region,
         question=req.question, examples=examples, max_chars=req.max_chars,
         tone=req.tone, company_research=company_research, industry=req.industry,
+        selection=selection, common_material=common_material,
     )
     report = verify_grounding(client, text, req.user, company_research)
 
     iterations = 0
     while (not report.grounded) and report.unsupported_claims and iterations < max_iterations:
         text = correct_draft(client, text, req.user, report.unsupported_claims,
-                             company_research)
+                             company_research, selection=selection)
         report = verify_grounding(client, text, req.user, company_research)
         iterations += 1
 
     if polish:
-        text = polish_draft(client, text, req.user, req.max_chars)
+        text = polish_draft(client, text, req.user, req.max_chars,
+                            selection=selection)
 
     # ---- 완결성 보정 -------------------------------------------------
     # 교정 과정에서 문장이 깎여 나가거나 토큰 한도로 잘려 '어이없게 끝나는'
@@ -224,6 +242,7 @@ def generate_grounded_cover_letter(
         repaired = complete_draft(
             client=client, generated_text=text, user=req.user,
             max_chars=req.max_chars, question=req.question, reason=reason,
+            selection=selection,
         )
         if repaired and len(repaired.strip()) >= len(text.strip()) * 0.8:
             text = repaired
