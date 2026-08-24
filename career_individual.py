@@ -143,42 +143,55 @@ def _get_client() -> genai.Client:
 # ──────────────────────────────────────────────
 # 응답 모델 (analysis_response 없으면 폴백 사용)
 # ──────────────────────────────────────────────
+#  응답 모델은 상위 프로젝트의 것을 우선 사용한다.
+#    1) src.ai.models      — 실제 서비스에 통합해 실행할 때의 경로
+#    2) analysis_response  — 모듈 단독 배치 시의 경로
+#    3) 내장 폴백           — 위 둘이 모두 없을 때 (저장소 단독 실행/테스트)
+#  1·2 를 찾지 못하면 폴백이 조용히 쓰이므로, 어느 것이 적용됐는지
+#  RESPONSE_MODEL_SOURCE 로 확인할 수 있게 남겨둔다.
+RESPONSE_MODEL_SOURCE = "builtin_fallback"
+
 try:
-    from analysis_response import VectorSuccessResponse, ErrorResponse  # type: ignore
-except Exception:  # pragma: no cover - 단독 실행 폴백
-    class _BaseResp:
-        def _data(self) -> dict:
-            raise NotImplementedError
+    from src.ai.models import VectorSuccessResponse, ErrorResponse  # type: ignore
+    RESPONSE_MODEL_SOURCE = "src.ai.models"
+except Exception:
+    try:
+        from analysis_response import VectorSuccessResponse, ErrorResponse  # type: ignore
+        RESPONSE_MODEL_SOURCE = "analysis_response"
+    except Exception:  # pragma: no cover - 단독 실행 폴백
+        class _BaseResp:
+            def _data(self) -> dict:
+                raise NotImplementedError
 
-        def model_dump(self, exclude_none: bool = False) -> dict:
-            d = self._data()
-            if exclude_none:
-                d = {k: v for k, v in d.items() if v is not None}
-            return d
+            def model_dump(self, exclude_none: bool = False) -> dict:
+                d = self._data()
+                if exclude_none:
+                    d = {k: v for k, v in d.items() if v is not None}
+                return d
 
-        def model_dump_json(self, indent: int = 2, exclude_none: bool = False) -> str:
-            return json.dumps(
-                self.model_dump(exclude_none=exclude_none),
-                ensure_ascii=False,
-                indent=indent,
-            )
+            def model_dump_json(self, indent: int = 2, exclude_none: bool = False) -> str:
+                return json.dumps(
+                    self.model_dump(exclude_none=exclude_none),
+                    ensure_ascii=False,
+                    indent=indent,
+                )
 
-    class VectorSuccessResponse(_BaseResp):
-        def __init__(self, result: dict, vector=None):
-            self.status = "success"
-            self.result = result
-            self.vector = vector
+        class VectorSuccessResponse(_BaseResp):
+            def __init__(self, result: dict, vector=None):
+                self.status = "success"
+                self.result = result
+                self.vector = vector
 
-        def _data(self) -> dict:
-            return {"status": self.status, "vector": self.vector, "result": self.result}
+            def _data(self) -> dict:
+                return {"status": self.status, "vector": self.vector, "result": self.result}
 
-    class ErrorResponse(_BaseResp):
-        def __init__(self, message: str):
-            self.status = "error"
-            self.message = message
+        class ErrorResponse(_BaseResp):
+            def __init__(self, message: str):
+                self.status = "error"
+                self.message = message
 
-        def _data(self) -> dict:
-            return {"status": self.status, "message": self.message}
+            def _data(self) -> dict:
+                return {"status": self.status, "message": self.message}
 
 
 # ══════════════════════════════════════════════
