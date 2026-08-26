@@ -119,11 +119,25 @@ class ScoredExperience:
 
 @dataclass
 class ExperienceSelection:
-    """문항 1개에 대한 경험 선별·배치 결과."""
+    """문항 1개에 대한 경험 선별·배치 결과.
+
+    두 가지 순서를 구분해서 담는다(혼동 주의).
+      by_relevance : 적합도 순 — '무엇을 중심에 둘지'를 정하는 1순위 기준
+      ordered      : 시간 순 — 서술 도중 시계열이 역행하지 않게 하는 배치 제약
+    """
     strategy: str = ""                            # 이 문항을 어떤 줄기로 엮을지
     ordered: list[ScoredExperience] = field(default_factory=list)   # 채택분(시간순)
     excluded: list[ScoredExperience] = field(default_factory=list)  # 미채택분(점수순)
     fallback_used: bool = False                   # LLM 채점 실패 → 키워드 폴백 여부
+
+    @property
+    def by_relevance(self) -> list[ScoredExperience]:
+        """적합도 높은 순. '무엇을 중심에 둘지'는 항상 이 순서가 정한다.
+
+        ordered(시간순)와 헷갈리면 안 된다. ordered 는 '늘어놓는 순서'일 뿐이고,
+        비중·중심은 이 by_relevance 가 결정한다.
+        """
+        return sorted(self.ordered, key=lambda e: -e.score)
 
     @property
     def core(self) -> list[ScoredExperience]:
