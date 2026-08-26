@@ -427,9 +427,17 @@ def build_generation_prompt(
     selection_block = build_selection_block(selection, common_material)
 
     tone_line = tone.strip() or profile["tone"]
+    #  상한을 명시하지 않으면 경험을 여러 건 엮는 과정에서 분량이 두 배까지
+    #  부푼다(1000자 문항에 1970자가 나온 사례). 하한과 상한을 함께 못박고,
+    #  분량을 어디에 쓸지 예산까지 알려 준다.
     length_line = (
-        f"- 분량: 공백 포함 약 {max_chars}자. 제한의 90% 이상을 반드시 채워, 얕게 끝내지 말고"
-        f" 하나의 경험을 깊게 파고들어 밀도 있게 서술할 것."
+        f"- 분량(반드시 지킬 것): 공백 포함 {int(max_chars * 0.9)}자 이상 "
+        f"{max_chars}자 이하. {max_chars}자를 넘기면 실패작이다.\n"
+        f"- 분량 배분: ★핵심 축 경험에 약 {int(max_chars * 0.5)}자(절반)를 쓰고, "
+        f"두괄식 도입과 마무리에 각각 {int(max_chars * 0.15)}자 안팎, "
+        f"나머지를 보조 경험에 나눠 쓸 것.\n"
+        f"- 분량이 부족해지면 보조 경험의 세부 묘사를 줄여서 맞출 것. "
+        f"핵심 축의 깊이와 마무리 문단은 절대 희생하지 말 것."
         if max_chars else "- 분량: 문항에 적절한 완결된 길이로, 충분히 자세하고 깊이 있게 작성."
     )
     question_line = question.strip() or "자유 형식의 자기소개서(핵심 강점과 지원동기 중심)"
@@ -528,7 +536,8 @@ def build_polish_prompt(
     fact_sheet = build_fact_sheet(user)
     selection_guard = build_selection_guard(selection)
     length_line = (
-        f"- 분량: 공백 포함 약 {max_chars}자 수준을 유지할 것."
+        f"- 분량: 공백 포함 {max_chars}자 이하를 반드시 지킬 것. 넘겼다면 보조 경험의\n"
+        f"  세부 묘사와 수식어를 줄여 맞추되, 핵심 축의 깊이와 마무리 문단은 지킬 것."
         if max_chars else "- 분량: 현재 수준을 유지할 것."
     )
     return f"""\
@@ -635,6 +644,59 @@ def build_completion_prompt(
 # --------------------------------------------------------------------------
 #  근거 검증(환각 탐지) 프롬프트
 # --------------------------------------------------------------------------
+def build_trim_prompt(
+    generated_text: str,
+    user: UserProfile,
+    max_chars: int,
+    selection=None,
+) -> str:
+    """분량을 초과한 자소서를 목표 글자수에 맞게 압축하는 프롬프트.
+
+    핵심은 '무엇을 깎느냐'다. 그냥 줄이라고 하면 모델은 뒤쪽 문단부터
+    통째로 잘라내 마무리가 사라지거나, 가장 중요한 핵심 축을 함께 줄여
+    글의 중심이 흐려진다. 그래서 깎을 대상을 보조 경험의 세부 묘사와
+    수식어로 명시하고, 핵심 축의 비중은 오히려 지키도록 지시한다.
+    """
+    current = len((generated_text or "").strip())
+    selection_guard = build_selection_guard(selection)
+    return f"""\
+당신은 자기소개서 전문 교정가입니다. 아래 자기소개서는 분량 제한을 넘겼습니다.
+내용의 중심을 유지한 채 목표 분량에 맞게 압축하세요.
+
+[분량]
+- 현재: 공백 포함 {current}자
+- 목표: 공백 포함 {max_chars}자 이내 (반드시 지킬 것)
+- 줄여야 할 양: 약 {max(0, current - max_chars)}자
+{selection_guard}
+
+[압축할 자기소개서]
+{generated_text}
+
+{NO_MARKDOWN_RULES}
+
+[압축 지침 — 무엇을 깎을지가 중요하다]
+- 새로운 사실을 추가하지 말 것. 압축만 한다.
+- 먼저 깎을 것(우선순위 순):
+  1) 보조 경험의 세부 묘사 — 보조는 핵심으로 가는 흐름만 남기고 과감히 줄인다.
+     보조 경험 하나를 한두 문장으로 압축해도 좋다.
+  2) 수식어와 동어반복 — '매우', '더욱', '크게' 같은 강조어, 이미 말한 내용을
+     표현만 바꿔 되풀이한 문장.
+  3) 기술 스택·도구 나열 중 핵심 메시지에 기여하지 않는 것.
+- 절대 깎지 말 것:
+  · ★핵심 축 경험의 문제의식 → 판단·행동 → 결과 수치 흐름. 압축 후에도
+    핵심 축이 전체 분량의 절반 안팎을 차지해야 한다.
+  · 두괄식 도입의 핵심 메시지, 그리고 마지막 마무리 문단.
+    (분량을 맞추겠다고 마무리를 잘라내면 실패작이다)
+  · 정량적 성과 수치.
+- 문단이 통째로 사라져 흐름이 끊기지 않게, 문장 단위로 다듬어 줄일 것.
+- 어미('~했습니다'체)와 1인칭 시점, 시계열 순서를 그대로 유지할 것.
+- 결과물은 반드시 종결어미로 끝나야 한다.
+
+[출력 형식]
+- 압축된 자소서 본문 전체만 출력(머리말/설명/사족 없이).
+"""
+
+
 def build_verification_prompt(
     generated_text: str,
     user: UserProfile,

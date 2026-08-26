@@ -79,6 +79,12 @@ _SENTENCE_END = ("다.", "요.", "음.", "됨.", "함.", ".", "!", "?", "]", "�
 #  목표 글자수 대비 이 비율 미만이면 '너무 짧게 끝났다'고 판단
 MIN_LENGTH_RATIO = 0.75
 
+#  목표 글자수 대비 이 비율을 넘으면 '분량 초과'로 판단해 줄인다.
+#  자소서 문항의 글자수 제한은 대부분 하드 제한(초과분은 잘리거나 감점)이라,
+#  넘치는 것은 모자란 것보다 위험하다. 경험을 여러 건 엮게 되면서 분량이
+#  쉽게 부풀 수 있어(1000자 문항에 1970자가 나온 사례) 상한 검사를 둔다.
+MAX_LENGTH_RATIO = 1.15
+
 
 def looks_truncated(text: str) -> bool:
     """문장이 끝맺지 못한 채 끊겼는지 판별한다."""
@@ -93,6 +99,13 @@ def looks_too_short(text: str, max_chars: int) -> bool:
     if not max_chars:
         return False
     return len((text or "").strip()) < int(max_chars * MIN_LENGTH_RATIO)
+
+
+def looks_too_long(text: str, max_chars: int) -> bool:
+    """목표 분량을 크게 넘겼는지 판별한다(max_chars=0이면 검사 안 함)."""
+    if not max_chars:
+        return False
+    return len((text or "").strip()) > int(max_chars * MAX_LENGTH_RATIO)
 
 
 def complete_draft(
@@ -165,6 +178,23 @@ def correct_draft(
 # --------------------------------------------------------------------------
 #  4) 최종 다듬기 — 어미·반복·맞춤법을 제출본 수준으로 (제2원칙의 마무리)
 # --------------------------------------------------------------------------
+def trim_draft(
+    client: GeminiClient,
+    generated_text: str,
+    user: UserProfile,
+    max_chars: int,
+    selection=None,
+) -> str:
+    """분량을 초과한 글을 목표 글자수에 맞게 압축한다.
+
+    보조 경험의 세부 묘사와 수식어부터 깎고, 핵심 축과 마무리 문단은
+    지키도록 프롬프트로 통제한다.
+    """
+    prompt = pb.build_trim_prompt(generated_text, user, max_chars,
+                                  selection=selection)
+    return client.generate(prompt, config.GENERATION_CONFIG)
+
+
 def polish_draft(
     client: GeminiClient,
     generated_text: str,
@@ -254,6 +284,30 @@ def generate_grounded_cover_letter(
                 f" 관련 경험 데이터가 부족해 목표 분량({req.max_chars}자)을 채우지 "
                 f"못했습니다(현재 {len(text.strip())}자). 이 문항과 연관된 경험을 "
                 f"더 입력하면 글이 깊어집니다."
+            )
+
+    # ---- 분량 초과 보정 -----------------------------------------------
+    # 자소서 문항의 글자수 제한은 대부분 하드 제한이라, 넘치는 것은 모자란
+    # 것보다 위험하다(초과분이 잘리거나 감점). 여러 경험을 엮게 되면서
+    # 분량이 부풀기 쉬워졌으므로 상한을 넘으면 압축 패스를 태운다.
+    # 압축 결과가 오히려 더 길거나 마무리를 잃었다면 원문을 유지한다.
+    if looks_too_long(text, req.max_chars):
+        before = len(text.strip())
+        trimmed = trim_draft(client, text, req.user, req.max_chars,
+                             selection=selection)
+        trimmed_clean = (trimmed or "").strip()
+        if (
+            trimmed_clean
+            and len(trimmed_clean) < before
+            and not looks_truncated(trimmed_clean)
+            and not looks_too_short(trimmed_clean, req.max_chars)
+        ):
+            text = trimmed_clean
+        if looks_too_long(text, req.max_chars):
+            completion_note += (
+                f" 목표 분량({req.max_chars}자)을 넘긴 {len(text.strip())}자로 "
+                f"생성되었습니다. 제출 전 직접 줄이거나, 반영할 경험 수를 "
+                f"max_supporting_experiences 로 줄여 보세요."
             )
 
     # 마크다운 잔여 기호 제거(프롬프트로 금지했지만 이중 안전장치)
