@@ -123,6 +123,61 @@ cover_letter_ai/
     pipeline.py              # 문항별 생성 오케스트레이션 + 결과 포매팅
 ```
 
+## 백엔드 연동 (★ 서버에서 호출할 때는 이 방법)
+
+`main.py` 의 `main()` 이 JSON 직렬화 가능한 envelope dict 를 돌려줍니다.
+`main.py` 안의 사용자 데이터·문항 구역은 **CLI 기본값일 뿐이며, 인자를 넘기면
+전부 덮어씁니다.**
+
+```python
+from main import main
+
+response = main(
+    user={                              # dict(JSON) 그대로 넘겨도 됩니다
+        "name": "홍길동",
+        "target_company": "네이버",
+        "target_job": "백엔드 개발자",
+        "experiences": [
+            {"company": "OO스타트업", "role": "백엔드 인턴",
+             "period": "2024.01-2024.06", "detail": "결제 API 안정성 개선"},
+        ],
+        "projects": [
+            {"name": "커머스 서버", "period": "2022", "detail": "응답속도 40% 개선"},
+        ],
+    },
+    questions=[{"question": "지원동기를 기술하시오.", "max_chars": 1000}],
+    job_key="backend",
+    region="KR",
+    api_key="AIza...",                  # 미지정 시 환경변수/config.py 사용
+    verbose=False,                      # 서버에서는 False (표준출력 안 씀)
+)
+
+if response["status"] == "success":
+    return response["result"]           # 프론트엔드로 그대로 내려주면 됨
+else:
+    log.error(response["message"])
+```
+
+**반환 형식**
+
+```
+성공: {"status": "success", "result": {meta, company_research, action_plan, answers[]}}
+실패: {"status": "error", "message": "...", "error_type": "ValueError"}
+```
+
+- `result` 는 `result_to_json()` 구조입니다 — `answers[]` 각 항목에
+  `cover_letter`(주 결과물), `char_count`, `sentences[]`, `grounding`,
+  `writing_guide`, `experience_selection` 이 들어갑니다.
+- 예외는 크래시하지 않고 error envelope 로 반환됩니다.
+  `error_type` 으로 HTTP 상태코드를 나눌 수 있습니다
+  (`"ValueError"` → 입력 데이터 문제 → 400 / 그 외 → 500).
+- `main()` 의 앞 18개 파라미터는 `generate_application()` 과 **이름·순서가 1:1로
+  동일**하고, 뒤에 `api_key` / `model_name` / `verbose` / `strict_fields` 4개가
+  `main()` 전용으로 붙습니다.
+- `user` 를 dict 로 넘길 때 `UserProfile` 에 없는 키가 있으면 `ValueError` 로
+  즉시 알려 줍니다(필드명 오타로 이력이 조용히 누락되는 사고 방지).
+  백엔드가 `id` 등 부가 키를 함께 넘긴다면 `strict_fields=False` 로 호출하세요.
+
 ## 함수 위주 사용 예 (DB/데이터는 직접 주입)
 
 ```python
