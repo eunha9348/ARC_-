@@ -1,0 +1,758 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/eunha9348/ARC_-/schema/analysis_result.schema.json",
+  "title": "Career Analysis AI — 단일 경력 분석 응답 (v1.2)",
+  "description": "career_individual.py 의 응답 계약. status 는 envelope 최상위에만 있고, vector 는 값이 없으면 키가 사라지며, result 안의 빈 값은 키를 유지하고 null 이 된다.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/success"
+    },
+    {
+      "$ref": "#/$defs/error"
+    }
+  ],
+  "$defs": {
+    "success": {
+      "type": "object",
+      "required": [
+        "status",
+        "result"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "success"
+        },
+        "vector": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "임베딩 벡터. 생성 실패 시 키 자체가 응답에서 빠진다."
+        },
+        "result": {
+          "$ref": "#/$defs/result"
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "required": [
+        "status",
+        "message"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "error"
+        },
+        "message": {
+          "type": "string",
+          "description": "사용자에게 그대로 노출 가능한 한국어 메시지"
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": [
+        "item_name",
+        "item_type",
+        "brief_summary",
+        "star_format",
+        "star_note",
+        "deep_analysis",
+        "item_strengths",
+        "item_diagnosis",
+        "synergy_recommendations",
+        "action_plan",
+        "removed_recommendations",
+        "validation",
+        "time_context",
+        "input_time_facts",
+        "input_time_resolution",
+        "time_warnings",
+        "analysis_date",
+        "embedding_dim",
+        "missing_info_warning"
+      ],
+      "properties": {
+        "item_name": {
+          "type": "string"
+        },
+        "item_type": {
+          "enum": [
+            "자격증",
+            "직무경력",
+            "인턴십",
+            "프로젝트",
+            "교육",
+            "봉사",
+            "대외활동",
+            "수상",
+            "기타"
+          ]
+        },
+        "brief_summary": {
+          "type": "string"
+        },
+        "star_format": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/starFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "star_note": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "STAR 작성 불가 사유와 기록 예시. 충분하면 null."
+        },
+        "deep_analysis": {
+          "$ref": "#/$defs/deepAnalysis"
+        },
+        "item_strengths": {
+          "$ref": "#/$defs/itemStrengths"
+        },
+        "item_diagnosis": {
+          "$ref": "#/$defs/itemDiagnosis"
+        },
+        "synergy_recommendations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/synergyRecommendation"
+          },
+          "description": "검증 통과분만. priority 는 1부터 빈 번호 없이 재부여됨."
+        },
+        "action_plan": {
+          "$ref": "#/$defs/actionPlan"
+        },
+        "removed_recommendations": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/removedRecommendation"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "검증에서 제거된 추천. 없으면 null."
+        },
+        "validation": {
+          "$ref": "#/$defs/validation"
+        },
+        "time_context": {
+          "$ref": "#/$defs/timeContext"
+        },
+        "input_time_facts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "input_time_resolution": {
+          "$ref": "#/$defs/timeResolution"
+        },
+        "time_warnings": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "analysis_date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "기준일(KST). time_context.기준일 과 동일 — 하위 호환용."
+        },
+        "embedding_dim": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "missing_info_warning": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "starFormat": {
+      "type": "object",
+      "required": [
+        "title",
+        "S",
+        "T",
+        "A",
+        "R"
+      ],
+      "properties": {
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "S": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Situation"
+        },
+        "T": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Task"
+        },
+        "A": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Action"
+        },
+        "R": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Result"
+        }
+      }
+    },
+    "deepAnalysis": {
+      "type": "object",
+      "required": [
+        "career_value",
+        "market_value",
+        "applicable_roles"
+      ],
+      "properties": {
+        "career_value": {
+          "type": "string"
+        },
+        "market_value": {
+          "type": "string",
+          "description": "analysis_date 기준 시장 평가"
+        },
+        "applicable_roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "itemStrengths": {
+      "type": "object",
+      "required": [
+        "has_genuine_strengths",
+        "one_line_strength_verdict",
+        "no_strength_reason",
+        "summarized_strengths",
+        "strengths",
+        "strongest_asset",
+        "positioning_tip"
+      ],
+      "properties": {
+        "has_genuine_strengths": {
+          "type": "boolean",
+          "description": "false 면 strengths 는 빈 배열, 요약 필드는 전부 null."
+        },
+        "one_line_strength_verdict": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "no_strength_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summarized_strengths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "strengths": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/strength"
+          }
+        },
+        "strongest_asset": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "positioning_tip": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "strength": {
+      "type": "object",
+      "required": [
+        "id",
+        "category",
+        "strength_level",
+        "title",
+        "analysis",
+        "evidence",
+        "career_impact",
+        "leverage_action",
+        "showcase_example"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "category": {
+          "enum": [
+            "전문성_희소성",
+            "성과_입증",
+            "역량_다양성",
+            "경험_깊이",
+            "도메인_전문성",
+            "차별화_포인트"
+          ]
+        },
+        "strength_level": {
+          "enum": [
+            "outstanding",
+            "notable",
+            "moderate"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "analysis": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "string",
+          "description": "입력 텍스트에서 직접 확인 가능한 근거"
+        },
+        "career_impact": {
+          "type": "string"
+        },
+        "leverage_action": {
+          "type": "string",
+          "description": "동사로 시작"
+        },
+        "showcase_example": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Before: ... → After: ... 형식"
+        }
+      }
+    },
+    "itemDiagnosis": {
+      "type": "object",
+      "required": [
+        "one_line_verdict",
+        "limitations",
+        "weaknesses",
+        "missing_elements",
+        "rewrite_suggestion"
+      ],
+      "properties": {
+        "one_line_verdict": {
+          "type": "string"
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "weaknesses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/weakness"
+          }
+        },
+        "missing_elements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rewrite_suggestion": {
+          "type": "string"
+        }
+      }
+    },
+    "weakness": {
+      "type": "object",
+      "required": [
+        "id",
+        "category",
+        "severity",
+        "title",
+        "diagnosis",
+        "evidence",
+        "impact",
+        "priority_action",
+        "improvement_example"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "category": {
+          "enum": [
+            "서술_완성도",
+            "차별성_부족",
+            "직무_연결_약함",
+            "성과_불명확",
+            "기간_문제",
+            "단독_활용_한계"
+          ]
+        },
+        "severity": {
+          "enum": [
+            "critical",
+            "major",
+            "minor"
+          ],
+          "description": "critical=역효과 가능 / major=설득력 저하 / minor=경미"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "diagnosis": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "string"
+        },
+        "impact": {
+          "type": "string"
+        },
+        "priority_action": {
+          "type": "string",
+          "description": "동사로 시작"
+        },
+        "improvement_example": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Before: ... → After: ... 형식"
+        }
+      }
+    },
+    "synergyRecommendation": {
+      "type": "object",
+      "required": [
+        "priority",
+        "category",
+        "name",
+        "reason",
+        "expected_effect"
+      ],
+      "properties": {
+        "priority": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "category": {
+          "enum": [
+            "자격증",
+            "교육강의",
+            "프로젝트",
+            "대외활동",
+            "경험"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "자격증인 경우 검증된 레지스트리의 정본 표기"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "expected_effect": {
+          "type": "string"
+        },
+        "estimated_duration": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "official_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "기관 실재성 미확인 시 null 로 치환됨"
+        }
+      }
+    },
+    "removedRecommendation": {
+      "type": "object",
+      "required": [
+        "name",
+        "category",
+        "removed_reason"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "removed_reason": {
+          "type": "string",
+          "description": "예: 실재하지 않는 자격증으로 확인됨"
+        }
+      }
+    },
+    "actionPlan": {
+      "type": "object",
+      "required": [
+        "단기",
+        "중기",
+        "장기"
+      ],
+      "description": "프롬프트 템플릿에는 문자열로 적혀 있으나 후처리가 반드시 객체로 변환한다.",
+      "properties": {
+        "단기": {
+          "$ref": "#/$defs/actionPlanWindow"
+        },
+        "중기": {
+          "$ref": "#/$defs/actionPlanWindow"
+        },
+        "장기": {
+          "$ref": "#/$defs/actionPlanWindow"
+        }
+      }
+    },
+    "actionPlanWindow": {
+      "type": "object",
+      "required": [
+        "기간",
+        "마감일",
+        "내용"
+      ],
+      "properties": {
+        "기간": {
+          "type": "string",
+          "description": "2026-08-30 ~ 2026-11-30"
+        },
+        "마감일": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "내용": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "timeContext": {
+      "type": "object",
+      "required": [
+        "기준시각_KST",
+        "기준일",
+        "기준연도",
+        "기준분기",
+        "단기_구간",
+        "중기_구간",
+        "장기_구간",
+        "타임존"
+      ],
+      "properties": {
+        "기준시각_KST": {
+          "type": "string",
+          "description": "ISO8601 with offset"
+        },
+        "기준일": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "기준연도": {
+          "type": "integer"
+        },
+        "기준분기": {
+          "type": "string"
+        },
+        "단기_구간": {
+          "type": "string"
+        },
+        "중기_구간": {
+          "type": "string"
+        },
+        "장기_구간": {
+          "type": "string"
+        },
+        "타임존": {
+          "const": "Asia/Seoul (UTC+09:00)"
+        }
+      }
+    },
+    "timeResolution": {
+      "type": "object",
+      "required": [
+        "resolution",
+        "facts",
+        "warnings",
+        "ongoing",
+        "earliest",
+        "latest",
+        "months_since_latest",
+        "total_duration_months",
+        "total_duration_label"
+      ],
+      "properties": {
+        "resolution": {
+          "enum": [
+            "absolute",
+            "relative",
+            "duration_only",
+            "none"
+          ],
+          "description": "none 이면 기간 관련 UI 를 숨기는 편이 낫다."
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "warnings": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ongoing": {
+          "type": "boolean"
+        },
+        "earliest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "latest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "months_since_latest": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "total_duration_months": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "total_duration_label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "required": [
+        "cert_whitelist_mode",
+        "cert_registry_origin",
+        "cert_registry_fetched_at",
+        "verified_cert_count",
+        "removed_recommendation_count",
+        "time_resolution",
+        "time_basis"
+      ],
+      "properties": {
+        "cert_whitelist_mode": {
+          "enum": [
+            "strict",
+            "blocklist_only"
+          ]
+        },
+        "cert_registry_origin": {
+          "enum": [
+            "live",
+            "cache",
+            "seed"
+          ],
+          "description": "live=방금 수집 / cache=캐시 / seed=내장 목록"
+        },
+        "cert_registry_fetched_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verified_cert_count": {
+          "type": "integer"
+        },
+        "removed_recommendation_count": {
+          "type": "integer"
+        },
+        "time_resolution": {
+          "enum": [
+            "absolute",
+            "relative",
+            "duration_only",
+            "none"
+          ]
+        },
+        "time_basis": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
