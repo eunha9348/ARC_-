@@ -236,3 +236,46 @@ python cert_registry.py --check 사회분석사   # 개별 자격증명 검증
 
 응답 모델은 `src.ai.models` → `analysis_response` → 내장 폴백 순서로 찾습니다.
 어느 것이 적용됐는지는 `career_individual.RESPONSE_MODEL_SOURCE` 로 확인할 수 있습니다.
+
+## 프론트엔드 연동 — `schema/analysis_result.ts`
+
+**프론트에는 이 파일 하나만 주면 됩니다.** 타입 정의, 타입 가드, 예시 응답,
+런타임 검증이 모두 들어 있습니다.
+
+```ts
+import type { AnalysisResponse } from "./analysis_result";
+import { isSuccess, EXAMPLE_SUCCESS } from "./analysis_result";
+
+const res: AnalysisResponse = await fetch(...).then(r => r.json());
+if (!isSuccess(res)) return showError(res.message);
+res.result.action_plan.단기.마감일;                  // "2026-11-30"
+res.result.item_diagnosis.weaknesses[0].severity;    // "critical" | "major" | "minor"
+```
+
+### 계약 규칙 3가지
+
+1. `status` 는 envelope 최상위에만 있습니다. `result` 안에는 없습니다.
+2. `vector` 는 값이 없으면 **키 자체가 사라집니다.** 반면 `result` 안의 빈 값은
+   키가 남고 값이 `null` 입니다. → `result.*` 는 항상 존재한다고 보고 null 체크만 하면 됩니다.
+3. **한글 키를 쓰는 곳이 두 군데** 있습니다 — `action_plan`(단기/중기/장기), `time_context`.
+
+### `career_individual.py` 를 그대로 넘기지 마세요
+
+응답 형태가 파일 안 두 곳에 나뉘어 있고 서로 다릅니다.
+
+- `build_system_prompt_individual()` 의 JSON 예시는 LLM 에게 주는 **지시문**입니다.
+  거기서 `action_plan` 은 문자열이지만 실제 응답은 객체입니다.
+- `postprocess_result()` 가 프롬프트에 없는 필드 **8개를 추가**합니다.
+
+### 스키마가 코드와 어긋나지 않게 유지하기
+
+응답 형태를 바꾼 뒤 실행하세요. 어긋나면 **exit 1** 로 실패하므로 CI 에 넣을 수 있습니다.
+
+```bash
+python schema/export_schema.py            # 검사만
+python schema/export_schema.py --write    # 검사 + EXAMPLE_SUCCESS 갱신
+```
+
+실제 후처리 파이프라인을 통과시킨 결과를 `analysis_result.ts` 와 4가지로 대조합니다 —
+인터페이스 필드(양방향), 중첩 객체 8종, 런타임 검증 상수와 인터페이스의 내부 정합성,
+`EXAMPLE_SUCCESS` 노후화.

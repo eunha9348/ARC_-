@@ -1,19 +1,25 @@
 """
 schema/export_schema.py
 ============================================================================
-응답 스키마 ↔ 실제 코드 출력의 일치 검사 + 예시 응답 생성
+응답 스키마(analysis_result.ts) ↔ 실제 코드 출력의 일치 검사
 
-스키마 문서는 손으로 관리하면 반드시 코드와 어긋난다. 실제로 v1.1 → v1.2 에서
+스키마 문서를 손으로 관리하면 반드시 코드와 어긋난다. 실제로 v1.1 → v1.2 에서
 후처리가 필드 8개를 추가하고 action_plan 구조를 바꿨지만, 프롬프트 템플릿의
-JSON 예시는 그대로여서 두 곳이 서로 다른 형태를 말하고 있었다.
+JSON 예시는 그대로여서 한 파일 안에서 두 곳이 서로 다른 형태를 말하고 있었다.
 
 이 스크립트는 career_individual 의 실제 후처리 파이프라인을 통과시킨 응답을
-스키마의 required 목록과 대조해, 어긋나면 실패한다. CI 나 배포 전에 돌리면
-"프론트에 준 스키마와 백엔드 실제 응답이 다른" 사고를 막을 수 있다.
+analysis_result.ts 와 대조해, 어긋나면 exit 1 로 실패한다.
+
+검사 항목 4가지
+  1. 인터페이스 필드 ↔ 실제 응답 키   (양방향 — 어느 쪽에만 있어도 검출)
+  2. 중첩 객체 8종도 동일하게 대조
+  3. 런타임 검증기의 REQUIRED_RESULT_KEYS ↔ AnalysisResult 인터페이스
+     (파일 내부 정합성 — 둘이 어긋나면 검증기가 헛돈다)
+  4. EXAMPLE_SUCCESS 가 실제 응답과 같은 형태인지 (예시 노후화 방지)
 
 사용법:
   python schema/export_schema.py            # 검사만
-  python schema/export_schema.py --write    # 검사 + 예시 응답 파일 갱신
+  python schema/export_schema.py --write    # 검사 + EXAMPLE_SUCCESS 갱신
 ============================================================================
 """
 
@@ -21,10 +27,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
+_TS_PATH = os.path.join(_HERE, "analysis_result.ts")
 sys.path.insert(0, _ROOT)
 
 import career_individual as ci  # noqa: E402
@@ -118,6 +126,18 @@ _LLM_RESPONSE = {
 
 _SAMPLE_INPUT = "2021.03~2021.08 OO스타트업 데이터 분석 인턴, 사용자 행동 로그 분석 담당"
 
+# 인터페이스 이름 → 응답에서의 위치
+_NESTED = {
+    "StarFormat": "star_format",
+    "DeepAnalysis": "deep_analysis",
+    "ItemStrengths": "item_strengths",
+    "ItemDiagnosis": "item_diagnosis",
+    "ActionPlanWindow": None,          # action_plan.단기/중기/장기 에 개별 적용
+    "TimeContext": "time_context",
+    "TimeResolution": "input_time_resolution",
+    "ValidationMeta": "validation",
+}
+
 
 def build_example() -> dict:
     """실제 후처리 파이프라인을 통과시킨 예시 응답 envelope."""
@@ -130,61 +150,129 @@ def build_example() -> dict:
     return {"status": "success", "vector": [0.0123, -0.0456, 0.0789], "result": payload}
 
 
-def _collect_required(schema: dict, ref: str) -> list[str]:
-    node = schema["$defs"][ref]
-    return node.get("required", [])
+# ── TypeScript 파싱 ────────────────────────────────────────
+def _strip_comments(src: str) -> str:
+    src = re.sub(r"/\*.*?\*/", " ", src, flags=re.DOTALL)
+    return re.sub(r"//[^\n]*", "", src)
 
 
-def check(schema: dict, example: dict) -> list[str]:
-    """스키마 required 목록과 실제 출력 키를 양방향 대조."""
+def _match_braces(src: str, start: int) -> int:
+    """start 위치의 '{' 에 대응하는 '}' 인덱스를 반환."""
+    depth = 0
+    for i in range(start, len(src)):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+    raise ValueError("중괄호가 닫히지 않았습니다")
+
+
+def parse_interfaces(src: str) -> dict[str, list[str]]:
+    """export interface 의 필드명을 추출한다 (주석 제거 후)."""
+    clean = _strip_comments(src)
+    out: dict[str, list[str]] = {}
+    for m in re.finditer(r"export\s+interface\s+(\w+)\s*\{", clean):
+        name = m.group(1)
+        body = clean[m.end() - 1: _match_braces(clean, m.end() - 1) + 1]
+        out[name] = re.findall(r"^\s+([가-힣A-Za-z_][가-힣\w]*)\??\s*:", body, re.M)
+    return out
+
+
+def parse_required_keys_const(src: str) -> list[str]:
+    """런타임 검증기의 REQUIRED_RESULT_KEYS 배열을 추출한다."""
+    m = re.search(r"REQUIRED_RESULT_KEYS\s*=\s*\[(.*?)\]\s*as const", src, re.DOTALL)
+    return re.findall(r'"([^"]+)"', m.group(1)) if m else []
+
+
+def parse_example(src: str) -> tuple[dict, int, int] | None:
+    """EXAMPLE_SUCCESS 리터럴을 파싱하고 위치를 함께 반환한다."""
+    m = re.search(r"EXAMPLE_SUCCESS\s*:\s*AnalysisSuccess\s*=\s*", src)
+    if not m:
+        return None
+    start = src.index("{", m.end())
+    end = _match_braces(src, start)
+    return json.loads(src[start:end + 1]), start, end + 1
+
+
+# ── 검사 ──────────────────────────────────────────────────
+def _diff(label: str, expected: set[str], actual: set[str]) -> list[str]:
+    problems = []
+    for missing in sorted(expected - actual):
+        problems.append(f"스키마에는 있으나 실제 응답에 없음: {label}.{missing}")
+    for extra in sorted(actual - expected):
+        problems.append(f"실제 응답에 있으나 스키마에 없음: {label}.{extra}")
+    return problems
+
+
+def check(ts_src: str, example: dict) -> list[str]:
     problems: list[str] = []
+    interfaces = parse_interfaces(ts_src)
     result = example["result"]
 
-    required = set(_collect_required(schema, "result"))
-    actual = set(result.keys())
+    if "AnalysisResult" not in interfaces:
+        return ["analysis_result.ts 에서 AnalysisResult 인터페이스를 찾지 못했습니다"]
 
-    for missing in sorted(required - actual):
-        problems.append(f"스키마에는 있으나 실제 응답에 없음: result.{missing}")
-    for extra in sorted(actual - required):
-        problems.append(f"실제 응답에 있으나 스키마에 없음: result.{extra}")
+    # 1) 최상위 필드
+    problems += _diff("result", set(interfaces["AnalysisResult"]), set(result.keys()))
 
-    # 중첩 객체도 같은 방식으로 대조
-    nested = [
-        ("action_plan", None), ("time_context", "timeContext"),
-        ("input_time_resolution", "timeResolution"), ("validation", "validation"),
-        ("deep_analysis", "deepAnalysis"), ("item_strengths", "itemStrengths"),
-        ("item_diagnosis", "itemDiagnosis"), ("star_format", "starFormat"),
-    ]
-    for key, ref in nested:
+    # 2) 중첩 객체
+    for iface, key in _NESTED.items():
+        if key is None or iface not in interfaces:
+            continue
         value = result.get(key)
-        if not isinstance(value, dict):
-            continue
-        if key == "action_plan":
-            for window in ("단기", "중기", "장기"):
-                w = value.get(window)
-                if not isinstance(w, dict):
-                    problems.append(f"action_plan.{window} 가 객체가 아님 — 후처리 미적용")
-                    continue
-                need = set(_collect_required(schema, "actionPlanWindow"))
-                if need - set(w.keys()):
-                    problems.append(f"action_plan.{window} 필드 누락: {sorted(need - set(w.keys()))}")
-            continue
-        need = set(_collect_required(schema, ref))
-        have = set(value.keys())
-        for missing in sorted(need - have):
-            problems.append(f"스키마에는 있으나 실제 응답에 없음: {key}.{missing}")
-        for extra in sorted(have - need):
-            problems.append(f"실제 응답에 있으나 스키마에 없음: {key}.{extra}")
+        if isinstance(value, dict):
+            problems += _diff(key, set(interfaces[iface]), set(value.keys()))
+
+    # action_plan 의 세 구간
+    plan = result.get("action_plan")
+    if not isinstance(plan, dict):
+        problems.append("result.action_plan 이 객체가 아닙니다 — 후처리 미적용")
+    else:
+        need = set(interfaces.get("ActionPlanWindow", []))
+        for window in ("단기", "중기", "장기"):
+            w = plan.get(window)
+            if not isinstance(w, dict):
+                problems.append(f"action_plan.{window} 가 객체가 아닙니다 — 후처리 미적용")
+            else:
+                problems += _diff(f"action_plan.{window}", need, set(w.keys()))
+
+    # 3) 런타임 검증기 상수 ↔ 인터페이스 (파일 내부 정합성)
+    const_keys = set(parse_required_keys_const(ts_src))
+    iface_keys = set(interfaces["AnalysisResult"])
+    if const_keys != iface_keys:
+        for k in sorted(iface_keys - const_keys):
+            problems.append(f"REQUIRED_RESULT_KEYS 에 빠짐: {k} (런타임 검증이 이 필드를 놓친다)")
+        for k in sorted(const_keys - iface_keys):
+            problems.append(f"REQUIRED_RESULT_KEYS 에만 있음: {k}")
+
+    # 4) 예시 응답 노후화
+    parsed = parse_example(ts_src)
+    if parsed is None:
+        problems.append("EXAMPLE_SUCCESS 를 찾지 못했습니다")
+    else:
+        problems += _diff("EXAMPLE_SUCCESS.result",
+                          set(result.keys()), set(parsed[0].get("result", {}).keys()))
 
     return problems
 
 
+def write_example(ts_src: str, example: dict) -> str:
+    """EXAMPLE_SUCCESS 리터럴을 실제 응답으로 교체한다."""
+    parsed = parse_example(ts_src)
+    if parsed is None:
+        raise SystemExit("EXAMPLE_SUCCESS 를 찾지 못해 갱신할 수 없습니다")
+    _, start, end = parsed
+    return ts_src[:start] + json.dumps(example, ensure_ascii=False, indent=2) + ts_src[end:]
+
+
 def main(argv: list[str]) -> int:
-    with open(os.path.join(_HERE, "analysis_result.schema.json"), encoding="utf-8") as f:
-        schema = json.load(f)
+    with open(_TS_PATH, encoding="utf-8") as f:
+        ts_src = f.read()
 
     example = build_example()
-    problems = check(schema, example)
+    problems = check(ts_src, example)
 
     if problems:
         print("스키마와 실제 응답이 어긋납니다:", file=sys.stderr)
@@ -192,21 +280,14 @@ def main(argv: list[str]) -> int:
             print(f"  - {p}", file=sys.stderr)
         return 1
 
-    n = len(_collect_required(schema, "result"))
-    print(f"일치 확인: result 최상위 {n}개 필드 + 중첩 객체 8종")
+    n = len(parse_interfaces(ts_src)["AnalysisResult"])
+    print(f"일치 확인: result 최상위 {n}개 필드 · 중첩 8종 · "
+          f"런타임 검증 상수 · EXAMPLE_SUCCESS")
 
     if "--write" in argv:
-        for name, data in [
-            ("example_success.json", example),
-            ("example_error.json",
-             {"status": "error",
-              "message": "입력 데이터가 너무 짧습니다. 분석할 경력/자격증/활동을 입력해주세요."}),
-        ]:
-            path = os.path.join(_HERE, name)
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-                f.write("\n")
-            print(f"  갱신: schema/{name}")
+        with open(_TS_PATH, "w", encoding="utf-8") as f:
+            f.write(write_example(ts_src, example))
+        print("  갱신: schema/analysis_result.ts 의 EXAMPLE_SUCCESS")
 
     return 0
 
