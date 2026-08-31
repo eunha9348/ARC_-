@@ -97,6 +97,8 @@ GEMINI_API_KEY = (
     or GEMINI_API_KEY
 )
 
+__version__ = "1.2.0"
+
 _ANALYSIS_MODEL  = "gemini-2.5-flash"
 _EMBEDDING_MODEL = "gemini-embedding-001"
 
@@ -984,7 +986,9 @@ _STRICT_HALLUCINATION_RULES = """
 def build_system_prompt_individual(tc: TimeContext, time_facts=None) -> str:
     """
     단일 항목 심층 분석용 시스템 프롬프트.
-    ★ v1.1: 시간 기준(TimeContext)과 자격증 화이트리스트를 프롬프트에 실제로 주입.
+    ★ v1.2: 시간 기준(TimeContext)과 자격증 화이트리스트를 프롬프트에 실제로 주입.
+             화이트리스트는 cert_registry 가 공식 출처에서 수집·캐시한 목록을 쓴다
+             (수집 실패 시 내장 시드로 폴백).
     """
     return (
         "당신은 대한민국 최고의 전문 커리어 컨설턴트입니다.\n"

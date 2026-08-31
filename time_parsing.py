@@ -1,7 +1,9 @@
 """
-time_parsing.py
+time_parsing.py  (Career Analysis AI v1.2)
 ============================================================================
 경력 텍스트의 시간 표현 파서
+
+v1.2 에서 신규 추가된 모듈이다.
 
 career_individual.py 가 "이 경험이 언제, 얼마나"를 스스로 계산하기 위한 모듈.
 LLM 에게 시간 계산을 맡기지 않고 여기서 전부 확정한 뒤 사실로 전달한다.
@@ -41,6 +43,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+
+
+__version__ = "1.2.0"
 
 
 # ══════════════════════════════════════════════

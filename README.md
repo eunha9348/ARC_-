@@ -139,7 +139,7 @@ print(format_application(result))
 
 ---
 
-# Career Analysis AI — 단일 경력 심층 분석 (`career_individual.py`)
+# Career Analysis AI v1.2 — 단일 경력 심층 분석 (`career_individual.py`)
 
 자격증 하나, 인턴 경험 하나처럼 **단일 항목**을 깊게 분석해 STAR 이력서 초안,
 냉정한 보완점 진단, 시너지 추천, 액션플랜을 **순수 JSON**으로 내놓는 모듈입니다.

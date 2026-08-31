@@ -1,7 +1,9 @@
 """
-cert_registry.py
+cert_registry.py  (Career Analysis AI v1.2)
 ============================================================================
 자격증 실재성 검증 레지스트리 — 공신력 있는 출처에서 종목 목록을 수집한다.
+
+v1.2 에서 신규 추가된 모듈이다.
 
 ────────────────────────────────────────────────────────────────────────
 왜 만들었나
@@ -70,6 +72,8 @@ import urllib.error
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+
+__version__ = "1.2.0"
 
 _KST = timezone(timedelta(hours=9), name="KST")
 
