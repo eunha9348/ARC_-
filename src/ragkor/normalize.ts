@@ -118,6 +118,9 @@ export function ruleNormalize(token: string): string {
   return stem(stripParticle(token));
 }
 
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const EN_MONTH = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b\.?\s*(?:\d{1,2}(?:st|nd|rd|th)?,?\s*)?(?:19|20)\d{2}\b/gi;
+
 const DATE_LIKE = /((?:19|20)\d{2})\s*[.\-/년]\s*(\d{1,2})(?:\s*[.\-/월]\s*(\d{1,2}))?/g;
 
 /** 텍스트 안의 모든 수치를 정규화해서 모은다 (단위 표기 변형 포함). */
@@ -126,6 +129,10 @@ export function numbersIn(text: string): Set<string> {
   // '2024.06.24' '2024-06-24' '2024년 6월' 같은 날짜는 소수(2024.06)로 읽히지 않게 연·월·일로 나눠 넣는다
   for (const d of (text ?? "").matchAll(DATE_LIKE)) {
     for (const part of [d[1], d[2], d[3]]) if (part) out.add(normalizeNumber(part));
+  }
+  // 'Mar 2023' 'March 2023' 'Sep. 2024' — 영문 월 이름은 월 번호로도 넣는다 (2023-03 으로 옮겨 적어도 환각이 아니다)
+  for (const d of (text ?? "").matchAll(EN_MONTH)) {
+    out.add(String(MONTHS.indexOf(d[1]!.slice(0, 3).toLowerCase()) + 1));
   }
   const re = /(\d[\d,]*(?:\.\d+)?)\s*([천만억조])?/g;
   let m: RegExpExecArray | null;

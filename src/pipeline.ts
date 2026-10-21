@@ -33,14 +33,29 @@ export interface OrganizeOptions {
   forceTypeId?: string;
   onProgress?: ProgressHandler;
   session?: LlmSession;
-  /**
-   * 품질/비용 프리셋.
-   *   "fast"     — 앙상블 1회, 전부 값싼 모델
-   *   "balanced" — 기본. 값싼 모델 2회 병렬 + 상위 모델 감독
-   *   "best"     — 배분도 상위 모델
-   */
-  quality?: "fast" | "balanced" | "best";
+  /** 속도/정확도 프리셋 — {@link QUALITY_PRESETS}. 기본은 PIPELINE.defaultQuality ("fast") */
+  quality?: Quality;
 }
+
+export type Quality = "fast" | "balanced" | "best";
+
+/**
+ * 속도/정확도 프리셋. 사용자가 결과를 직접 손본다는 전제라 기본(fast)은 속도를 우선한다.
+ *
+ *   fast     — 값싼 모델 배분 1회 + 기계 검증(근거·수치·형식) + 빈 칸 안내. 상위 모델 호출 없음.
+ *   balanced — fast + 사실 시트 + 상위 모델 필드 감사 1회.
+ *   best     — 예전 전체 경로: 상위 모델 배분 앙상블 + 감독 루프 + 필드 감사.
+ *
+ * 실측(이력서 1장, 경험 8개): 예전 balanced는 경험당 LLM 6~8회를 순서대로 돌려 약 30분 걸렸고,
+ * 감독·감사관이 실제로 고친 칸은 8개 경험을 통틀어 1칸이었다. 경험은 이제 병렬로 정리한다.
+ */
+export const QUALITY_PRESETS: Record<Quality, {
+  factsheet: boolean; ensemble: number; supervise: boolean; auditLlm: boolean; heavyExtract: boolean;
+}> = {
+  fast: { factsheet: false, ensemble: 1, supervise: false, auditLlm: false, heavyExtract: false },
+  balanced: { factsheet: true, ensemble: 1, supervise: false, auditLlm: true, heavyExtract: false },
+  best: { factsheet: true, ensemble: PIPELINE.ensemble, supervise: true, auditLlm: true, heavyExtract: true },
+};
 
 /** 여러 경험을 나눠 정리한 결과 */
 export interface OrganizeManyResult {
@@ -61,7 +76,7 @@ interface RunContext {
   session: LlmSession;
   docs: ExtractedDoc[];
   index: SourceIndex;
-  quality: "fast" | "balanced" | "best";
+  quality: Quality;
   userHint?: string;
   embedder: ReturnType<typeof defaultEmbedder>;
   onProgress?: ProgressHandler;
@@ -144,16 +159,19 @@ export async function organizeExperience(
   const onProgress = options.onProgress;
   const { session, docs, index, embedder } = await prepare(files, options);
 
+  const quality = options.quality ?? PIPELINE.defaultQuality;
+  const wantFactsheet = QUALITY_PRESETS[quality].factsheet;
+
   /* ── 1. 사실 시트 + 분류를 병렬로 ────────────────── */
-  onProgress?.({ stage: "extract", message: "사실 시트 작성 + 유형 판별 (병렬)" });
+  onProgress?.({ stage: "extract", message: wantFactsheet ? "사실 시트 작성 + 유형 판별 (병렬)" : "유형 판별" });
   let factsheet: Factsheet | null = null;
   let classification: ClassificationResult;
   if (options.forceTypeId && TYPE_BY_ID.has(options.forceTypeId)) {
     classification = forcedClassification(options.forceTypeId);
-    factsheet = await buildFactsheet(session, docs).catch(() => null);
+    factsheet = wantFactsheet ? await buildFactsheet(session, docs).catch(() => null) : null;
   } else {
     const [fsResult, clsResult] = await Promise.allSettled([
-      buildFactsheet(session, docs),
+      wantFactsheet ? buildFactsheet(session, docs) : Promise.resolve(null),
       classify(session, docs, options.userHint),
     ]);
     if (fsResult.status === "fulfilled") factsheet = fsResult.value;
@@ -165,7 +183,7 @@ export async function organizeExperience(
   reportFactsheet(onProgress, factsheet);
 
   return runExperience(
-    { session, docs, index, quality: options.quality ?? "balanced", userHint: options.userHint, embedder, onProgress },
+    { session, docs, index, quality, userHint: options.userHint, embedder, onProgress },
     classification,
     factsheet,
   );
@@ -178,7 +196,8 @@ export async function organizeExperience(
  * 시작 문구로 원문을 경험별 구간으로 잘라 **구간마다** 사실 시트 → 배분 → 감독 → 감사 → 안내를
  * 따로 돌린다. 경험 하나짜리 자료면 {@link organizeExperience}와 같은 결과 1개를 돌려준다.
  *
- * 경험은 순서대로 하나씩 정리한다 — 호출 한도(429)를 피하고, 경험별 비용을 정확히 나누기 위해서다.
+ * 경험은 PIPELINE.experienceConcurrency개씩 동시에 정리한다. 경험마다 세션을 갈라(fork)
+ * 사용량을 따로 세므로 경험별 비용이 섞이지 않는다. 429는 세션의 재시도가 처리한다.
  * 한 경험이 실패해도 나머지는 계속 정리하고 failed에 남긴다.
  */
 export async function organizeExperiences(
@@ -187,8 +206,10 @@ export async function organizeExperiences(
 ): Promise<OrganizeManyResult> {
   const onProgress = options.onProgress;
   const { session, docs, index, embedder } = await prepare(files, options);
+  const quality = options.quality ?? PIPELINE.defaultQuality;
+  const preset = QUALITY_PRESETS[quality];
   const base: RunContext = {
-    session, docs, index, quality: options.quality ?? "balanced",
+    session, docs, index, quality,
     userHint: options.userHint, embedder, onProgress,
   };
 
@@ -220,29 +241,35 @@ export async function organizeExperiences(
 
   /* ── 3a. 나누지 않음 → 예전과 같은 단일 정리 ───────── */
   if (!split.applied) {
-    onProgress?.({ stage: "extract", message: "사실 시트 작성" });
-    const factsheet = await buildFactsheet(session, docs).catch(() => {
-      onProgress?.({ stage: "extract", message: "사실 시트 실패 — 원문만으로 진행합니다" });
-      return null;
-    });
-    reportFactsheet(onProgress, factsheet);
+    let factsheet: Factsheet | null = null;
+    if (preset.factsheet) {
+      onProgress?.({ stage: "extract", message: "사실 시트 작성" });
+      factsheet = await buildFactsheet(session, docs).catch(() => {
+        onProgress?.({ stage: "extract", message: "사실 시트 실패 — 원문만으로 진행합니다" });
+        return null;
+      });
+      reportFactsheet(onProgress, factsheet);
+    }
     const item = await runExperience(base, classification, factsheet);
     return { classification, split, items: [item], failed: [], usage: session.usage };
   }
 
-  /* ── 3b. 경험별 정리 ─────────────────────────────── */
-  const items: OrganizeManyResult["items"] = [];
-  const failed: OrganizeManyResult["failed"] = [];
+  /* ── 3b. 경험별 정리 (동시에 여러 개) ─────────────── */
   const total = split.segments.length;
+  const limit = Math.max(1, PIPELINE.experienceConcurrency);
+  onProgress?.({ stage: "extract", message: `경험 ${total}개를 ${Math.min(limit, total)}개씩 동시에 정리합니다` });
 
-  for (const seg of split.segments) {
+  const outcomes = await mapLimit(split.segments, limit, async (seg) => {
     const tag = `[${seg.index + 1}/${total} ${seg.title}]`;
     const prog: ProgressHandler = (e) => onProgress?.({ ...e, message: `${tag} ${e.message}` });
-    const before = snapshot(session.usage);
+    // 경험마다 세션을 갈라 사용량을 따로 센다 (모델 선택 결과는 공유)
+    const own = session.fork?.() ?? session;
+    const before = snapshot(own.usage);
     try {
       const segDocs = segmentDocs(docs, seg);
       const ctx: RunContext = {
         ...base,
+        session: own,
         docs: segDocs,
         index: seg.located ? new SourceIndex(segDocs.map((d) => d.text)) : index,
         userHint: focusHint(seg, options.userHint),
@@ -250,12 +277,15 @@ export async function organizeExperiences(
       };
 
       // 사실 시트도 경험 구간만으로 만든다 — 다른 경험의 수치가 섞여 들어가지 않게
-      prog({ stage: "extract", message: "사실 시트 작성" });
-      const factsheet = await buildFactsheet(session, segDocs).catch(() => {
-        prog({ stage: "extract", message: "사실 시트 실패 — 원문만으로 진행합니다" });
-        return null;
-      });
-      reportFactsheet(prog, factsheet);
+      let factsheet: Factsheet | null = null;
+      if (preset.factsheet) {
+        prog({ stage: "extract", message: "사실 시트 작성" });
+        factsheet = await buildFactsheet(own, segDocs).catch(() => {
+          prog({ stage: "extract", message: "사실 시트 실패 — 원문만으로 진행합니다" });
+          return null;
+        });
+        reportFactsheet(prog, factsheet);
+      }
 
       const spec = TYPE_BY_ID.get(seg.typeId)!;
       const segClassification: ClassificationResult = {
@@ -270,20 +300,27 @@ export async function organizeExperiences(
       };
 
       const r = await runExperience(ctx, segClassification, factsheet);
-      items.push({
-        ...r,
-        // 근거 위치를 원문 전체 좌표로 — 보고서가 원문 전체 위에 하이라이트한다
-        provenance: shiftProvenance(r.provenance, seg),
-        sources: docs.map((d) => ({ sourceId: d.sourceId, name: d.name, text: d.text })),
-        usage: diffUsage(session.usage, before),
-        segment: seg,
-      });
+      return {
+        ok: true as const,
+        item: {
+          ...r,
+          // 근거 위치를 원문 전체 좌표로 — 보고서가 원문 전체 위에 하이라이트한다
+          provenance: shiftProvenance(r.provenance, seg),
+          sources: docs.map((d) => ({ sourceId: d.sourceId, name: d.name, text: d.text })),
+          usage: diffUsage(own.usage, before),
+          segment: seg,
+        },
+      };
     } catch (e) {
       const error = (e as Error).message ?? String(e);
-      failed.push({ title: seg.title, typeId: seg.typeId, error });
       prog({ stage: "done", message: `실패 — ${error.slice(0, 160)} (나머지 경험은 계속 정리합니다)` });
+      return { ok: false as const, failed: { title: seg.title, typeId: seg.typeId, error } };
+    } finally {
+      if (own !== session) addUsage(session.usage, diffUsage(own.usage, before));
     }
-  }
+  });
+  const items: OrganizeManyResult["items"] = outcomes.flatMap((o) => (o.ok ? [o.item] : []));
+  const failed: OrganizeManyResult["failed"] = outcomes.flatMap((o) => (o.ok ? [] : [o.failed]));
 
   if (!items.length) {
     throw new Error(`경험 ${total}개를 모두 정리하지 못했습니다: ${failed.map((f) => `${f.title}(${f.error})`).join(" / ")}`);
@@ -307,8 +344,9 @@ async function runExperience(
   const { session, docs, index, embedder, onProgress } = ctx;
   let classification = initialClassification;
   const quality = ctx.quality;
-  const heavyExtract = quality === "best";
-  const ensemble = quality === "fast" ? 1 : PIPELINE.ensemble;
+  const preset = QUALITY_PRESETS[quality];
+  const heavyExtract = preset.heavyExtract;
+  const ensemble = preset.ensemble;
   const fsText = factsheetText(factsheet);
 
   const initialType = TYPE_BY_ID.get(classification.typeId);
@@ -357,7 +395,7 @@ async function runExperience(
       } else {
         onProgress?.({
           stage: "extract",
-          message: feedback ? `재작업 중 (${round + 1}회차)` : "항목별 배분 중",
+          message: feedback ? `재작업 중 (${round + 1}회차)` : `항목별 배분 중${heavyExtract ? "" : " (값싼 모델)"}`,
         });
         draft = await extract(session, type, docs, {
           userHint: ctx.userHint, feedback, factsheet: fsText, light: !heavyExtract,
@@ -374,6 +412,19 @@ async function runExperience(
       ...runValidators(type, draft, docs, index),
       ...(await checkContext(type, draft.values, draft.provenance, docs, { embedder })),
     ];
+
+    // 빠른 경로: 감독 LLM 없이 기계 검증 결과만 넘긴다 — 판정은 필드 감사와 사용자 확인이 맡는다
+    if (!preset.supervise) {
+      rounds = 0;
+      final = {
+        verdict: "approve",
+        scores: { classification: 0, coverage: 0, faithfulness: 0, formatting: 0 },
+        issues: validatorIssues,
+        patch: {},
+        comment: "감독 단계 생략 — 기계 검증(근거·수치·형식) 결과만 반영했습니다.",
+      };
+      break;
+    }
 
     const spans = evidenceSpans(docs, draft.values, draft.provenance, index);
     onProgress?.({
@@ -463,7 +514,7 @@ async function runExperience(
   };
 
   /* ── 3.5 최종 필드 감사관 — 칸 하나씩, LLM 1회, 루프 없음 ── */
-  const useAuditLlm = PIPELINE.auditor && quality !== "fast";
+  const useAuditLlm = PIPELINE.auditor && preset.auditLlm;
   onProgress?.({
     stage: "supervise",
     message: useAuditLlm ? "최종 필드 감사 (칸별 대조)" : "최종 필드 감사 (기계 검증만)",
@@ -530,7 +581,7 @@ function snapshot(u: UsageStat): UsageStat {
   return { ...u, calls: [...u.calls] };
 }
 
-/** 경험 하나에 쓴 사용량 = 정리 후 누적 − 정리 전 누적 (경험을 순서대로 정리하므로 정확하다) */
+/** 경험 하나에 쓴 사용량 = 정리 후 누적 − 정리 전 누적 (경험마다 갈라 낸 세션 기준) */
 function diffUsage(after: UsageStat, before: UsageStat): UsageStat {
   return {
     inputTokens: after.inputTokens - before.inputTokens,
@@ -539,6 +590,28 @@ function diffUsage(after: UsageStat, before: UsageStat): UsageStat {
     estimatedCostUsd: after.estimatedCostUsd - before.estimatedCostUsd,
     calls: after.calls.slice(before.calls.length),
   };
+}
+
+function addUsage(into: UsageStat, add: UsageStat): void {
+  into.inputTokens += add.inputTokens;
+  into.outputTokens += add.outputTokens;
+  into.cacheReadTokens += add.cacheReadTokens;
+  into.estimatedCostUsd += add.estimatedCostUsd;
+  into.calls.push(...add.calls);
+}
+
+/** 순서를 지키며 최대 limit개씩 동시에 돌린다 */
+async function mapLimit<T, R>(list: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(list.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < list.length) {
+      const i = next++;
+      out[i] = await fn(list[i]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, list.length) }, worker));
+  return out;
 }
 
 function runValidators(

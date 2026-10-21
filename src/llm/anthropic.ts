@@ -18,6 +18,10 @@ export class AnthropicSession implements LlmSession {
     }
   }
 
+  fork(): AnthropicSession {
+    return new AnthropicSession(this.apiKey);
+  }
+
   private async client(): Promise<Anthropic> {
     if (!this.clientPromise) {
       this.clientPromise = import("@anthropic-ai/sdk").then(

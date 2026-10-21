@@ -23,6 +23,7 @@ export function getByPath(obj: unknown, path: string): unknown {
 }
 
 export function setByPath(obj: Record<string, unknown>, path: string, value: unknown): void {
+  value = unwrapJsonString(value);
   const segs = parsePath(path);
   let cur: any = obj;
   for (let i = 0; i < segs.length; i++) {
@@ -44,6 +45,20 @@ export function setByPath(obj: Record<string, unknown>, path: string, value: unk
       if (cur[seg.key][seg.index] == null) cur[seg.key][seg.index] = {};
       cur = cur[seg.key][seg.index];
     }
+  }
+}
+
+/**
+ * 감독·감사관 패치가 객체를 JSON 문자열로 보내는 경우가 있다 (예: 기간 "{\"start\":\"2023-03\",…}").
+ * 문자열 그대로 넣으면 기간 칸이 깨지므로, 객체로 읽히는 문자열만 객체로 되돌린다.
+ */
+export function unwrapJsonString(value: unknown): unknown {
+  if (typeof value !== "string" || !/^\s*\{[\s\S]*\}\s*$/.test(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : value;
+  } catch {
+    return value;
   }
 }
 

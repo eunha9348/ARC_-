@@ -161,25 +161,32 @@ await test("구간 기준 근거 위치를 원문 전체 좌표로 옮긴다", (
 /** 호출마다 사용량을 올리는 가짜 세션 — 경험별 사용량 나누기를 검증하려고 */
 function stubSession(handler: (req: StructuredRequest) => unknown) {
   const calls: { tool: string; text: string; hint: string }[] = [];
-  const usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, estimatedCostUsd: 0, calls: [] as { stage: string; ms: number }[] };
-  const session: LlmSession = {
-    providerName: "stub",
-    usage,
-    async resolveModel() { return "stub"; },
-    async structured<T>(req: StructuredRequest) {
-      calls.push({
-        tool: req.toolName,
-        text: req.content.map((c) => (c.type === "text" ? c.text : "")).join("\n"),
-        hint: req.systemVolatile ?? "",
-      });
-      usage.inputTokens += 100; usage.outputTokens += 10; usage.estimatedCostUsd += 0.001;
-      usage.calls.push({ stage: req.stage, ms: 1 });
-      return handler(req) as T;
-    },
-    async text() { return ""; },
-    async verify() { return { ok: true, detail: "stub" }; },
+  const flight = { now: 0, max: 0 };
+  const make = (): LlmSession => {
+    const usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, estimatedCostUsd: 0, calls: [] as { stage: string; ms: number }[] };
+    return {
+      providerName: "stub",
+      usage,
+      async resolveModel() { return "stub"; },
+      async structured<T>(req: StructuredRequest) {
+        calls.push({
+          tool: req.toolName,
+          text: req.content.map((c) => (c.type === "text" ? c.text : "")).join("\n"),
+          hint: req.systemVolatile ?? "",
+        });
+        flight.max = Math.max(flight.max, ++flight.now);
+        await new Promise((r) => setTimeout(r, 5));
+        flight.now--;
+        usage.inputTokens += 100; usage.outputTokens += 10; usage.estimatedCostUsd += 0.001;
+        usage.calls.push({ stage: req.stage, ms: 1 });
+        return handler(req) as T;
+      },
+      async text() { return ""; },
+      async verify() { return { ok: true, detail: "stub" }; },
+      fork: () => make(),
+    };
   };
-  return { session, calls };
+  return { session: make(), calls, flight };
 }
 
 const FACTSHEET = { docType: "이력서", register: "격식체", title: null, outline: [],
@@ -203,7 +210,7 @@ function extractFrom(req: StructuredRequest) {
 
 await test("이력서 → 경험 2개를 따로 정리하고, 추출기는 자기 구간만 받는다", async () => {
   const two = [SUGGESTIONS[1]!, SUGGESTIONS[2]!];
-  const { session, calls } = stubSession((req) => {
+  const { session, calls, flight } = stubSession((req) => {
     switch (req.toolName) {
       case "submit_classification": return cls({ splitSuggestions: two });
       case "submit_factsheet": return FACTSHEET;
@@ -226,16 +233,22 @@ await test("이력서 → 경험 2개를 따로 정리하고, 추출기는 자�
   assert.ok(String(r.items[0]!.form.values.title).startsWith("Pension AI Agent"));
   assert.ok(String(r.items[1]!.form.values.title).startsWith("AI-Based Youth"));
 
-  // 추출 호출 4번(경험 2개 × 앙상블 2) — Pension 쪽 원문에 ARC 내용이 없고, 그 반대도 마찬가지
+  // 추출 호출 2번(경험 2개 × 1회) — Pension 쪽 원문에 ARC 내용이 없고, 그 반대도 마찬가지
   const ex = calls.filter((c) => c.tool === "submit_experience");
-  assert.equal(ex.length, 4);
+  assert.equal(ex.length, 2);
   const pensionCalls = ex.filter((c) => c.text.includes("hierarchical"));
   const arcCalls = ex.filter((c) => c.text.includes("story-arc.org"));
-  assert.equal(pensionCalls.length, 2);
-  assert.equal(arcCalls.length, 2);
+  assert.equal(pensionCalls.length, 1);
+  assert.equal(arcCalls.length, 1);
   assert.ok(pensionCalls.every((c) => !c.text.includes("story-arc.org")), "Pension 추출에 ARC 원문이 섞였다");
   assert.ok(arcCalls.every((c) => !c.text.includes("hierarchical")), "ARC 추출에 Pension 원문이 섞였다");
   assert.ok(ex.every((c) => /경험 부분만 잘라 낸 것이다/.test(c.hint)), "집중 지시가 빠졌다");
+
+  // 경험은 동시에 정리하고, 경험별 사용량은 섞이지 않는다 (분류 1회는 전체에만)
+  assert.ok(flight.max >= 2, `경험이 순서대로만 돌았다 (동시 호출 최대 ${flight.max})`);
+  const perItem = r.items.map((i) => i.usage.calls.length);
+  assert.equal(perItem[0], perItem[1]);
+  assert.equal(r.usage.calls.length, 1 + perItem[0]! + perItem[1]!);
 
   // 사실 시트도 경험마다 따로 (분류 1 + 사실 시트 2)
   assert.equal(calls.filter((c) => c.tool === "submit_factsheet").length, 2);
@@ -296,7 +309,11 @@ await test("경험 하나짜리 자료는 나누지 않고 예전과 같은 결�
   assert.equal(r.split.applied, false);
   assert.equal(r.items.length, 1);
   assert.equal(r.items[0]!.segment, undefined);
-  assert.equal(calls.filter((c) => c.tool === "submit_factsheet").length, 1);
+  // 기본(fast)은 사실 시트·감독·상위 모델 감사를 부르지 않는다
+  assert.equal(calls.filter((c) => c.tool === "submit_factsheet").length, 0);
+  assert.equal(calls.filter((c) => c.tool === "submit_review").length, 0);
+  assert.equal(calls.filter((c) => c.tool === "submit_field_audit").length, 0);
+  assert.equal(r.items[0]!.review.rounds, 0);
   // 예전 진입점도 그대로 동작
   const single = await organizeExperience([{ name: "report.md", text: one }], { session });
   assert.equal(single.typeId, "career.work");

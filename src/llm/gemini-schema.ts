@@ -14,6 +14,8 @@
  * `coerceToSchema()`가 값을 보기 안으로 되돌린다.
  */
 
+import { unwrapJsonString } from "../util/path.js";
+
 type Json = Record<string, any>;
 
 const TYPE_MAP: Record<string, string> = {
@@ -82,7 +84,8 @@ export function coerceToSchema(value: unknown, node: Json): unknown {
 
   if (primary === "object") {
     const props = node.properties ?? {};
-    const src = (typeof value === "object" && value !== null ? value : {}) as Json;
+    const obj = unwrapJsonString(value);
+    const src = (typeof obj === "object" && obj !== null ? obj : {}) as Json;
     const out: Json = {};
     for (const k of Object.keys(props)) out[k] = coerceToSchema(src[k], props[k]);
     return out;

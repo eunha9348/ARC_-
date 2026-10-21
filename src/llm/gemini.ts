@@ -29,6 +29,16 @@ export class GeminiSession implements LlmSession {
 
   constructor(private readonly apiKey: string = googleKey()) {}
 
+  fork(): GeminiSession {
+    const s = new GeminiSession(this.apiKey);
+    void this.resolveModels().catch(() => {});
+    s.modelPromise = this.modelPromise;
+    s.noThinking = this.noThinking;
+    s.replaced = this.replaced;
+    s.modelNotice = this.modelNotice;
+    return s;
+  }
+
   /* ───────────────── 모델 자동 선택 ───────────────── */
 
   async listModels(): Promise<GeminiModelInfo[]> {

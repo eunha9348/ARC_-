@@ -130,6 +130,10 @@ export const PIPELINE = {
    * false면 예전처럼 대표 경험 하나만 정리한다.
    */
   splitExperiences: true,
+  /** 기본 속도/정확도 프리셋 — pipeline.ts QUALITY_PRESETS. 사람이 손볼 것을 전제로 속도 우선 */
+  defaultQuality: "fast" as "fast" | "balanced" | "best",
+  /** 여러 경험을 동시에 정리할 개수. 호출 한도(429)가 잦으면 줄이세요. */
+  experienceConcurrency: 4,
   /** 한 파일에서 나눠 정리할 최대 경험 수 — 넘치면 문서 앞쪽 경험부터 */
   maxExperiences: 8,
   /** 경험 시작 문구(anchor)가 원문과 이 정렬 일치도 이상일 때만 그 위치에서 자른다 */

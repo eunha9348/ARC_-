@@ -14,6 +14,7 @@ import { EXPERIENCE_TYPES } from "../src/schema/index.js";
 import { checkGrounding } from "../src/validate/grounding.js";
 import { mergeDrafts } from "../src/agents/merge.js";
 import { evidenceSpans } from "../src/agents/evidence.js";
+import { setByPath } from "../src/util/path.js";
 import type { ExtractedDoc, ExtractionResult } from "../src/types.js";
 
 let passed = 0;
@@ -260,6 +261,25 @@ fetch join 걸고 레디스 캐시 붙여서 210ms로 줄임. 개꿀.
   assert.equal(fn, 0, "정상 인용을 환각으로 찍으면 안 된다 (기존 구현의 실패 모드)");
   assert.ok(fp <= 1, `환각을 너무 많이 통과시킨다: ${fp}건`);
   assert.ok(f1 >= 0.98, `F1이 낮다: ${f1}`);
+});
+
+test("영문 월 이름을 YYYY-MM으로 옮긴 날짜는 환각이 아니다 (Mar 2023 → 2023-03)", () => {
+  const work = EXPERIENCE_TYPES.find((t) => t.id === "career.work")!;
+  const src = "Korea University Mar 2023 - Feb 2029. Osan Air Base Jun 2025 - Present. KUCC Aug 2024 - Dec 2024";
+  const issues = checkGrounding(work, { period: { start: "2023-03", end: "2029-02" }, summary: "2024-08 ~ 2024-12, 2025-06" },
+    [], [doc(src)]);
+  assert.deepEqual(issues.filter((i) => /수치/.test(i.detail)).map((i) => i.detail), []);
+  // 원문에 없는 달은 여전히 잡는다
+  const bad = checkGrounding(work, { summary: "2023-07 시작" }, [], [doc(src)]);
+  assert.ok(bad.some((i) => /"07"/.test(i.detail)));
+});
+
+test("패치가 객체를 JSON 문자열로 보내도 객체로 넣는다", () => {
+  const v: Record<string, unknown> = {};
+  setByPath(v, "period", '{"start":"2023-03","end":"2029-02","ongoing":true}');
+  assert.deepEqual(v.period, { start: "2023-03", end: "2029-02", ongoing: true });
+  setByPath(v, "role", "[팀장] {리더}");
+  assert.equal(v.role, "[팀장] {리더}");
 });
 
 console.log(`\n${passed}개 통과${process.exitCode ? " (실패 있음)" : ""}\n`);

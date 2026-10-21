@@ -39,6 +39,8 @@ export interface LlmSession {
   text(stage: Stage, systemStable: string, content: LlmContent[], maxTokens?: number): Promise<string>;
   /** 이 단계가 실제로 어느 tier에서 돌았는지 (비용 로그용) */
   readonly usageByTier?: { pro: number; light: number };
+  /** 모델 선택은 공유하고 사용량만 따로 세는 세션 — 경험을 병렬로 정리할 때 쓴다 */
+  fork?(): LlmSession;
   /** 키·권한이 실제로 유효한지 확인 (실제 API를 한 번 찔러본다) */
   verify(): Promise<{ ok: boolean; detail: string }>;
 }

@@ -161,7 +161,7 @@ def upload() -> list:
         return [p for p in os.environ.get("ARC_FILES", "").split(",") if p]
 
 
-def organize(paths: list, hint: str = "", quality: str = "balanced") -> dict:
+def organize(paths: list, hint: str = "", quality: str = "fast") -> dict:
     """엔진 실행. 진행 상황을 그대로 보여 주고, 결과 JSON·HTML 경로를 돌려준다."""
     if not paths:
         raise RuntimeError("올린 파일이 없습니다.")
@@ -208,7 +208,7 @@ def download(result: dict) -> None:
         pass
 
 
-def main(hint: str = "", quality: str = "balanced") -> dict:
+def main(hint: str = "", quality: str = "fast") -> dict:
     setup()
     api_key()
     _say("② 정리할 파일을 올리세요 (PDF·이미지·한글·워드·텍스트 등, 여러 개 가능)")

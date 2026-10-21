@@ -8,8 +8,8 @@
  *   const { items } = await organizeExperiences(await readInputFiles(["./이력서.pdf"]));
  */
 export {
-  organizeExperience, organizeExperiences,
-  type OrganizeOptions, type OrganizeManyResult,
+  organizeExperience, organizeExperiences, QUALITY_PRESETS,
+  type OrganizeOptions, type OrganizeManyResult, type Quality,
 } from "./pipeline.js";
 export { planSegments, type ExperienceSegment, type SegmentPlan } from "./agents/segment.js";
 export { createSession, GeminiSession, type LlmSession } from "./llm/index.js";

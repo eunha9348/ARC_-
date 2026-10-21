@@ -78,8 +78,9 @@ npm run organize -- ./인턴_최종보고서.pdf
 npm run organize -- ./상장.jpg --hint "작년에 받은 상"
 npm run organize -- ./포트폴리오.zip --out result.json
 npm run organize -- ./회고.md --form            # 프론트 바인딩용 JSON만 출력
-npm run organize -- ./보고서.pdf --quality fast  # 싸고 빠르게 (앙상블 1회)
-npm run organize -- ./보고서.pdf --quality best  # 배분도 상위 모델
+npm run organize -- ./보고서.pdf                    # 기본 fast — 값싼 모델 1회 + 기계 검증 (빠름)
+npm run organize -- ./보고서.pdf --quality balanced  # + 사실 시트·상위 모델 필드 감사
+npm run organize -- ./보고서.pdf --quality best      # 예전 전체 경로 (감독 루프 포함, 느림)
 npm run organize -- ./이력서.pdf --html report.html  # 여러 경험이면 경험별로 나눠 정리 (기본)
 npm run organize -- ./이력서.pdf --single        # 나누지 않고 대표 경험 하나만
 npm run organize -- --list-types                # 18종 유형 목록
@@ -163,7 +164,7 @@ export async function POST(req: Request) {
 
   const result = await organizeExperience(files, {
     userHint: String(fd.get("hint") ?? ""),
-    quality: "balanced",   // "fast" | "balanced" | "best"
+    quality: "fast",       // "fast"(기본) | "balanced" | "best"
   });
 
   return Response.json(toFormState(result));
@@ -377,4 +378,4 @@ apt install poppler-utils ffmpeg                          # 스캔 PDF / 영상
 
 최종 필드 감사관은 LLM을 1회 더 부릅니다. 3만 자 문서 기준 입력 약 1.4만 토큰·출력 약 5천 토큰
 (사고 토큰 포함 추정)으로, Gemini 3.8 Flash 도입가($0.75 / $3.75)에서 문서당 약 $0.03이 더 듭니다.
-맥락 검사용 임베딩(gemini-embedding-001)은 문서당 $0.001 미만입니다. 비용이 중요하면 `--quality fast`.
+맥락 검사용 임베딩(gemini-embedding-001)은 문서당 $0.001 미만입니다. 기본(fast)이 가장 싸고 빠릅니다.

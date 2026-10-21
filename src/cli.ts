@@ -23,7 +23,7 @@ const HELP = `ARC 경험 자동 정리
   --json              사람이 읽는 요약 대신 전체 JSON 출력
   --form              프론트엔드 바인딩용 FormState JSON만 출력
   --check             API 키와 선택된 모델만 확인하고 종료
-  --quality <모드>    fast | balanced(기본) | best
+  --quality <모드>    fast(기본, 1~2분) | balanced(+사실 시트·상위 모델 감사) | best(예전 전체 경로)
                       fast=앙상블 1회·전부 값싼 모델, best=배분도 상위 모델
   --single            여러 경험이 섞인 자료(이력서 등)도 나누지 않고 대표 경험 하나만 정리
                       (기본은 경험별로 나눠 각각 정리)
@@ -88,9 +88,13 @@ function printSummary(r: OrganizeResult) {
   }
 
   console.log(`\n${line}`);
-  console.log(`  검수: ${r.review.final.verdict} (${r.review.rounds}회차)`);
-  const s = r.review.final.scores;
-  console.log(`  점수 — 유형 ${s.classification} / 채움 ${s.coverage} / 충실도 ${s.faithfulness} / 형식 ${s.formatting}`);
+  if (r.review.rounds) {
+    console.log(`  검수: ${r.review.final.verdict} (${r.review.rounds}회차)`);
+    const s = r.review.final.scores;
+    console.log(`  점수 — 유형 ${s.classification} / 채움 ${s.coverage} / 충실도 ${s.faithfulness} / 형식 ${s.formatting}`);
+  } else {
+    console.log(`  검수: 감독 생략 (빠른 정리) — 기계 검증·필드 감사 결과만 반영`);
+  }
   const notable = r.review.final.issues.filter((i) => i.severity !== "minor");
   if (notable.length) {
     console.log(`  남은 이슈 ${notable.length}건:`);

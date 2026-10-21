@@ -95,7 +95,7 @@ npm test                  # API 키 없이 도는 오프라인 테스트 80건
 | `--out <경로>` | 결과 JSON 저장 |
 | `--hint "<설명>"` | 활동에 대한 한 줄 설명 (분류·추출 참고) |
 | `--type <유형id>` | 유형을 직접 지정 (분류·경험 분리 생략). 목록은 `--list-types` |
-| `--quality fast\|balanced\|best` | fast = 앙상블 1회·LLM 감사 생략 / balanced(기본) / best = 배분도 상위 모델 |
+| `--quality fast\|balanced\|best` | fast(기본) = 값싼 모델 1회 + 기계 검증 / balanced = + 사실 시트·상위 모델 필드 감사 / best = 예전 전체 경로 (아래 표) |
 | `--single` | 여러 경험이 섞인 자료도 나누지 않고 대표 경험 하나만 |
 | `--json` · `--form` | 전체 JSON / 프론트 바인딩용 FormState만 출력 |
 
@@ -208,6 +208,20 @@ tesseract.js 보조) → 엔진 간 합의율이 82% 미만이거나 긴 이미�
 전체 입력 칸 명세는 `src/schema/templates-v2.ts`. ARC 본체의 `lib/constants/templates-v2.ts`가 있으면
 그 상수를 `ExperienceTypeSpec[]`로 바꾸는 어댑터만 끼우면 나머지는 그대로 돕니다.
 
+## 속도와 정확도 (`--quality`)
+
+사용자가 결과를 직접 손본다는 전제라 기본은 **fast**입니다. 어떤 프리셋이든 기계 검증(근거 위치·수치·형식)은
+항상 돌고, 의심스러운 칸은 "확인 필요"로 표시됩니다. 경험은 `experienceConcurrency`개씩 동시에 정리합니다.
+
+| 프리셋 | 경험 1개당 LLM 호출 | 경험 8개 이력서 (추정) | 내용 |
+|---|---|---|---|
+| **fast** (기본) | 2회 (값싼 모델) | 약 1~2분 | 배분 1회 → 기계 검증 → 빈 칸 안내 |
+| balanced | 4회 (상위 모델 1회) | 약 4분 | fast + 사실 시트 + 상위 모델 필드 감사 |
+| best | 6~8회 (상위 모델 3~4회) | 약 10분 | 배분 앙상블(상위 모델) + 감독 루프 + 필드 감사 |
+
+추정치는 호출 지연을 가정한 모의 실행값입니다(같은 가정에서 예전 방식은 약 40분 — 실제 실행 약 30분).
+예전 실행에서 감독·감사관이 실제로 고친 칸은 경험 8개를 통틀어 1칸이라, 기본 경로에서 뺐습니다.
+
 ## 튜닝 (`src/config.ts`의 `PIPELINE`)
 
 | 값 | 기본 | 의미 |
@@ -216,7 +230,9 @@ tesseract.js 보조) → 엔진 간 합의율이 82% 미만이거나 긴 이미�
 | `maxExperiences` | 8 | 한 파일에서 나눠 정리할 최대 경험 수 (넘치면 문서 앞쪽부터) |
 | `segmentAnchorFloor` | 0.8 | 경험 시작 줄이 원문과 이 일치도 이상일 때만 그 위치에서 자름 |
 | `classifierDigestChars` | 16000 | 분류기에 보여 주는 문서 앞부분 길이 (뒤쪽 경험 누락 방지) |
-| `ensemble` | 2 | 배분 시도 횟수. 값싼 모델 N회 → 필드별 우수안 병합 |
+| `defaultQuality` | `"fast"` | 기본 프리셋. 사람이 결과를 손본다는 전제로 속도 우선 |
+| `experienceConcurrency` | 4 | 경험 몇 개를 동시에 정리할지. 429가 잦으면 줄이세요 |
+| `ensemble` | 2 | best에서만 쓰는 배분 시도 횟수. 값싼 모델 N회 → 필드별 우수안 병합 |
 | `maxSupervisorRounds` | 1 | 감독 재검수 최대 횟수 |
 | `supervisorEvidenceChars` | 9000 | 감독에게 넘기는 근거 구간 상한 |
 | `fieldConfidenceFloor` | 0.4 | 미만인 값은 자동으로 비움 |
