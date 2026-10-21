@@ -9,6 +9,7 @@ Colab에서 **저장소의 엔진(TypeScript) 그대로**를 설치하고 돌린
   1. Node.js 22 준비 (Colab 기본 Node가 낮으면 설치)
   2. 저장소 받기 + npm install + Kiwi 형태소 모델 받기 (처음 한 번, 2~3분)
   3. 파일 업로드 → 엔진 실행 → 칸별 감사 결과·원문 하이라이트 보고서를 출력창에 표시
+     (이력서처럼 여러 경험이 섞인 파일은 경험별로 나눠 각각 정리한다)
 """
 import os
 import shutil
@@ -16,8 +17,8 @@ import subprocess
 import sys
 import time
 
-REPO = os.environ.get("ARC_REPO", "https://github.com/eunha9348/New-Function-Test-Lab.git")
-BRANCH = os.environ.get("ARC_BRANCH", "claude/arc-service-awareness-z00hjs")
+REPO = os.environ.get("ARC_REPO", "https://github.com/eunha9348/ARC_-.git")
+BRANCH = os.environ.get("ARC_BRANCH", "extracter")
 HOME = os.environ.get("ARC_HOME", "/content/arc-engine")
 UPLOADS = os.environ.get("ARC_UPLOADS", "/content/arc-uploads")
 NODE_VERSION = "22.12.0"
@@ -60,12 +61,26 @@ def ensure_node() -> None:
         raise RuntimeError("Node.js 설치에 실패했습니다.")
 
 
+def _norm_url(url: str) -> str:
+    return url.strip().lower().rstrip("/").removesuffix(".git")
+
+
+def _installed_from_repo() -> bool:
+    """이미 받아 둔 엔진이 지금 REPO에서 받은 것인가.
+    다른 저장소에서 받은 예전 설치본이면 그 origin에는 BRANCH가 없어 갱신이 실패하므로 새로 받는다."""
+    try:
+        origin = _run(["git", "remote", "get-url", "origin"], cwd=HOME)
+    except Exception:
+        return False
+    return _norm_url(origin) == _norm_url(REPO)
+
+
 def setup(force: bool = False) -> None:
     """엔진 설치. 이미 설치돼 있으면 최신 코드만 받아 온다."""
     t0 = time.time()
     _say("① 준비")
     ensure_node()
-    if os.path.isdir(os.path.join(HOME, ".git")) and not force:
+    if os.path.isdir(os.path.join(HOME, ".git")) and not force and _installed_from_repo():
         _say("  저장소 갱신…")
         _run(["git", "fetch", "-q", "origin", BRANCH], cwd=HOME)
         _run(["git", "checkout", "-q", "-B", BRANCH, f"origin/{BRANCH}"], cwd=HOME)
@@ -125,7 +140,7 @@ def organize(paths: list, hint: str = "", quality: str = "balanced") -> dict:
     cmd = ["npx", "tsx", "src/cli.ts", *paths, "--out", out_json, "--html", out_html, "--quality", quality]
     if hint:
         cmd += ["--hint", hint]
-    _say("③ 정리 중 — 유형 판별 → 배분 → 감독 → 필드 감사")
+    _say("③ 정리 중 — 유형 판별 → (여러 경험이면 경험별로 나눔) → 배분 → 감독 → 필드 감사")
     env = dict(os.environ, KIWI_MODEL_DIR=os.path.join(HOME, "models", "kiwi"))
     p = subprocess.Popen(cmd, cwd=HOME, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     for line in p.stdout:  # type: ignore[union-attr]

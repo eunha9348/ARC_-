@@ -1,6 +1,6 @@
 {
   "name": "arc-auto-organize",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ARC 경험 자동 정리 엔진 — 산출물 파일을 넣으면 경험 유형을 판별하고 입력 항목에 맞춰 자동으로 정리한다.",
   "type": "module",
   "main": "dist/index.js",

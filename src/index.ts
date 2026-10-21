@@ -27,4 +27,4 @@ export * from "./types.js";
 export { readInputFiles } from "./read-files.js";
 export { toFormState, type FormState, type FormFieldState } from "./form.js";
 export { API_KEYS, MODELS, PIPELINE, PROVIDER } from "./config.js";
-export { renderReport } from "./report/html.js";
+export { renderReport, renderManyReport } from "./report/html.js";

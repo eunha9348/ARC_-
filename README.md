@@ -1,67 +1,167 @@
-# ARC 경험 자동 정리 엔진
+# ARC 경험 자동 추출 엔진 — `extracter` 브랜치
 
-사용자가 **활동 산출물 파일을 올리면**, 그것이 ARC의 어떤 경험 유형인지 스스로 판별하고,
-그 유형의 입력 항목에 맞춰 **요약·배분해서 자동으로 채워 넣는** 엔진입니다.
+활동 산출물 파일(보고서·상장·이력서·포트폴리오·사진·녹음 등)을 올리면, 그것이 ARC의 어떤 경험인지
+판별하고 **그 경험 유형의 입력 칸에 맞춰 자동으로 채운 뒤, 칸마다 원문 근거와 대조한 결과**를 돌려주는
+엔진입니다. 이력서처럼 한 파일에 경험이 여러 개 섞여 있으면 **경험별로 나눠 각각** 정리합니다.
+
+- 엔진: Google Gemini — **Google API 키 하나**면 됩니다
+- 언어: TypeScript (Node 20+). 한국어 근거 검증기 RAGKOR는 TypeScript·Python 두 구현이 같은 결과를 냅니다
+- 이 브랜치는 ARC 저장소의 **추출 엔진 브랜치**입니다. `main`의 자기소개서 AI 파일은 그대로 두었습니다
+  ([브랜치 안내](#브랜치-안내))
+
+---
+
+## 바로 써 보기 — Colab (PC 없이, 아이패드·휴대폰 브라우저로)
+
+**[▶ Colab에서 열기](https://colab.research.google.com/github/eunha9348/ARC_-/blob/extracter/colab/ARC_engine.ipynb)**
+
+1. https://aistudio.google.com/apikey 에서 키를 발급받습니다 (`AIza…`로 시작).
+2. Colab 왼쪽 막대 **🔑 보안 비밀**에 이름 `GOOGLE_API_KEY`로 키를 등록하고 **노트북 액세스**를 켭니다.
+   (등록하지 않으면 실행할 때 키를 물어봅니다.)
+3. 첫 셀의 ▶ 를 누르고, 업로드 창이 뜨면 파일을 고릅니다.
+4. 칸별 감사 결과와 원문 하이라이트가 담긴 보고서가 출력창에 나옵니다.
+
+노트북은 이 브랜치의 엔진(`src/`)을 **그대로** 설치해서 돌립니다. 따로 옮겨 적은 판이 아니라서
+여기서 보는 결과가 곧 실제 엔진의 결과입니다. 처음 실행은 설치 때문에 2~3분 걸립니다.
+
+> 다른 브랜치나 포크에서 돌리려면 노트북의 `BRANCH`와, 실행 전 환경 변수 `ARC_REPO`·`ARC_BRANCH`를 바꾸세요.
+> 같은 Colab 세션에 다른 저장소의 예전 설치본이 있으면 실행기가 알아서 새로 받습니다.
+
+## 무엇이 나오나
+
+| 결과물 | 내용 |
+|---|---|
+| **HTML 보고서** (`report.html`) | 경험별로 칸마다 [값 · 감사 상태 · 원문 근거 하이라이트]. 여러 경험이면 맨 위에 경험 목록 |
+| **결과 JSON** (`result.json`) | 폼에 그대로 바인딩할 값, 화면 배치, 값별 근거 위치, 감독·감사 결과, 빈 칸 안내 |
+| **빈 칸 안내** | 못 채운 칸은 비우고 "무엇을 알려 주면 채워지는지" 질문과 추가로 올리면 좋은 자료 |
+
+보고서의 칸 색: 초록 = 확인됨 · 파랑 = 감사관이 고치거나 옮김 · 주황 = 사람이 확인 필요 ·
+노란 형광펜 = 그 값의 근거가 원문 어디에 있는지.
+
+## 처리 흐름
 
 ```
 파일 업로드
    │
    ├─ ⓪ 수집 / OCR ───── 어떤 형식이든 텍스트로 (PDF·이미지·오피스·한글·음성·영상·압축)
    │
-   ├─ ⓪' 사실 시트 ───── 값싼 모델 1회로 수치·고유명사·날짜를 먼저 추출 (누락 방지)
-   │                     오타·구어도 여기서 한 번 정규화
+   ├─ ① 분류 ─────────── 대분류 4종 → 세부 유형 18종. 경험이 여러 개면 경험 목록 +
+   │                     각 경험이 시작되는 원문 줄(anchor)
    │
-   ├─ ① 분류 에이전트 ─── 대분류 4종 → 세부 유형 18종 판별  (사실 시트와 병렬)
+   ├─ ①' 경험 분리 ───── anchor를 원문에 정렬해 경험별 구간으로 자름            LLM 0회
+   │                     (경험 하나짜리 자료면 건너뜀)
    │
-   ├─ ② 배분 에이전트 ─── 값싼 모델 N회 병렬 → 필드별 우수안 병합(LLM 0회) → 충돌만 중재
-   │
-   ├─ ②' 기계 검증 ───── 근거 인용 → 원문 위치 정렬(RapidFuzz 방식) · 수치 3단 판정
-   │                     · 맥락 검사(한계 문장을 성과 칸에? 팀이 한 일을 내 역할에?)   LLM 0회
-   │
-   ├─ ③ 감독 sub-Agent ── 원문과 대조 검수 → 환각·오배치·왜곡 적발 → 수정 패치
-   │        ↕ 재작업 루프 (기본 1회)   ※ 원문 전체가 아니라 근거 구간만 본다
-   │
-   ├─ ③' 필드 감사관 ──── 칸 하나씩 "이 칸에 이 칸의 정보가 들어갔나" 최종 판정   LLM 1회, 루프 없음
-   │                     수정은 원문 정렬을 통과한 것만 적용, 새 문제가 생기면 되돌림
-   │
-   └─ ④ Fallback 안내 ─── 못 채운 칸은 비우고, "무엇을 주면 채워지는지" 질문 생성
+   └─ 경험마다 ─────────────────────────────────────────────────────────────────
+        ├─ 사실 시트 ────── 값싼 모델 1회로 수치·고유명사·날짜를 먼저 추출 (누락 방지)
+        ├─ ② 배분 ───────── 값싼 모델 N회 병렬 → 필드별 우수안 병합(LLM 0회) → 충돌만 중재
+        ├─ ②' 기계 검증 ─── 근거 인용 → 원문 위치 정렬 · 수치 3단 판정 · 맥락 검사   LLM 0회
+        ├─ ③ 감독 ───────── 원문과 대조 검수 → 환각·오배치·왜곡 적발 → 수정 패치 (재작업 기본 1회)
+        ├─ ③' 필드 감사관 ─ 칸 하나씩 "이 칸에 이 칸의 정보가 들어갔나" 최종 판정    LLM 1회
+        └─ ④ 빈 칸 안내 ── 못 채운 칸마다 무엇을 주면 채워지는지 질문 생성
 ```
 
-## 필드 감사관 — 칸마다 맞는 정보가 들어갔는가
+### 경험 분리 (이력서·포트폴리오)
 
-추출 실패의 대부분은 없는 말을 지어내는 것보다 **맞는 말을 틀린 칸에 넣는 것**입니다.
-한계 문장을 '핵심 성과'에, 팀이 한 일을 '내 역할'에, 목표를 '결과'에.
+이전에는 이력서를 넣어도 대표 경험 **하나만** 정리됐습니다. 분류기가 경험 목록을 만들고도
+파이프라인이 그 목록을 쓰지 않았기 때문입니다. 이제는:
 
-1. **필드 계약** (`src/schema/contracts.ts`) — 모든 칸에 역할(명칭·날짜·내가 한 일·성과·회고·배경·팀…)을
-   붙이고, 역할마다 "넣을 것 / 넣지 말 것"을 정의했습니다. 배분·감독·감사관이 같은 기준을 씁니다.
-2. **기계 사전 감사** — 근거 위치, 근거 일치도, 수치, 맥락(섹션·문장 성격), 같은 문장의 중복 배치를 칸별로 점검.
+1. 분류기가 경험마다 **시작 원문 줄을 글자 그대로** 냅니다 (예: `Pension AI Agent Jul 2026 - Present`).
+2. 엔진이 그 줄을 원문에 정렬해 다음 경험이 시작되기 전까지를 그 경험의 구간으로 자릅니다.
+   대시·따옴표 표기 차이, 줄바꿈 없는 PDF 텍스트도 처리합니다.
+3. 구간마다 사실 시트부터 빈 칸 안내까지 **따로** 돌립니다. 다른 경험의 내용·수치·근거가 섞이지 않습니다.
+4. 위치를 못 찾은 경험은 원문 전체를 주되 "이 경험만 정리하라"고 지시합니다.
+   한 경험이 실패해도 나머지는 계속 정리하고, 실패 목록에 남깁니다.
+
+경험은 순서대로 하나씩 정리합니다(호출 한도 회피, 경험별 비용을 정확히 나누기 위해서).
+그래서 **시간과 비용은 경험 수에 비례**합니다. 나누지 않으려면 CLI에 `--single`을 붙이세요.
+
+## 로컬에서 실행
+
+```bash
+npm install
+cp .env.example .env      # GOOGLE_API_KEY=AIza... 붙여넣기
+npm run check             # 키 확인 + 선택된 모델 표시
+npm run kiwi:model        # (선택) Kiwi 형태소 모델 받기 — 없으면 규칙 기반으로 자동 전환
+
+npm run serve             # → http://localhost:5174  파일을 끌어다 놓으면 폼이 채워집니다
+npm run organize -- ./인턴_최종보고서.pdf --hint "작년 여름 인턴"
+npm run organize -- ./이력서.pdf --html report.html --out result.json
+npm test                  # API 키 없이 도는 오프라인 테스트 80건
+```
+
+| CLI 옵션 | 설명 |
+|---|---|
+| `--html <경로>` | 칸별 감사 결과·원문 하이라이트 HTML 보고서 저장 |
+| `--out <경로>` | 결과 JSON 저장 |
+| `--hint "<설명>"` | 활동에 대한 한 줄 설명 (분류·추출 참고) |
+| `--type <유형id>` | 유형을 직접 지정 (분류·경험 분리 생략). 목록은 `--list-types` |
+| `--quality fast\|balanced\|best` | fast = 앙상블 1회·LLM 감사 생략 / balanced(기본) / best = 배분도 상위 모델 |
+| `--single` | 여러 경험이 섞인 자료도 나누지 않고 대표 경험 하나만 |
+| `--json` · `--form` | 전체 JSON / 프론트 바인딩용 FormState만 출력 |
+
+> `npm run serve`(웹 데모 서버)는 아직 경험 하나 단위로 정리합니다. 경험 분리는 CLI·Colab·라이브러리에서 됩니다.
+
+## 라이브러리로 쓰기
+
+```ts
+import {
+  organizeExperience, organizeExperiences, renderManyReport, toFormState, readInputFiles,
+} from "arc-auto-organize";
+
+// 경험 하나짜리 자료 (보고서·상장 등)
+const result = await organizeExperience(await readInputFiles(["./보고서.pdf"]), {
+  userHint: "동아리에서 한 프로젝트입니다",
+  onProgress: (e) => console.log(e.stage, e.message),
+});
+result.typeLabel;              // "팀 프로젝트"
+result.form.values;            // 폼에 그대로 바인딩할 값
+result.provenance;             // 값마다 원문 근거 (위치 포함)
+result.audit;                  // 칸별 감사 상태
+result.fallback.nextQuestions; // 사용자에게 되물을 질문
+
+// 여러 경험이 섞인 자료 (이력서·포트폴리오) — 경험 하나짜리여도 그대로 동작
+const many = await organizeExperiences(await readInputFiles(["./이력서.pdf"]));
+many.split.reason;             // "경험 4개로 나눠 정리합니다 (원문 위치 확인 4개)."
+many.items.map((r) => toFormState(r));   // 경험마다 폼 하나
+many.items[0].segment;         // 원문 어디를 잘라 썼는지
+many.failed;                   // 정리하지 못한 경험
+renderManyReport(many);        // 한 장짜리 HTML 보고서
+```
+
+프론트엔드 연동(Next.js 예제, `FormState` 전체 레퍼런스)은 **[USAGE.md](./USAGE.md)** 를 보세요.
+
+## API 키
+
+`src/config.ts` **한 곳**에만 있습니다. `.env`의 `GOOGLE_API_KEY`를 쓰면 코드는 그대로 두면 됩니다.
+
+| 키 | 필요성 | 용도 |
+|---|---|---|
+| `API_KEYS.google` | **필수** | Gemini — 분류·배분·감독·안내 + 이미지 OCR + 음성 인식 |
+| `API_KEYS.googleVision` | 선택 | OCR 보조. 비우면 위 키를 그대로 씀 (Cloud Vision API를 켠 경우만 동작) |
+| `API_KEYS.clova` | 선택 | 한국어 증명서 특화 OCR 보조 엔진 |
+| `API_KEYS.anthropic` | 선택 | 엔진을 Anthropic으로 바꿀 때만 (`ARC_LLM_PROVIDER=anthropic`) |
+
+선택 키가 없으면 자동으로 건너뛰고 나머지 엔진으로 계속 돕니다. **모델 ID는 하드코딩하지 않습니다** —
+시작할 때 사용 가능한 모델 목록을 받아 최신 세대를 고릅니다. 고정하려면 `.env`에 `GEMINI_MODEL=...`.
+
+## 핵심 설계
+
+### 필드 감사관 — 칸마다 맞는 정보가 들어갔는가
+
+추출 실패의 대부분은 없는 말을 지어내는 것보다 **맞는 말을 틀린 칸에 넣는 것**입니다
+(한계 문장을 '핵심 성과'에, 팀이 한 일을 '내 역할'에).
+
+1. **필드 계약** (`src/schema/contracts.ts`) — 모든 칸에 역할(명칭·날짜·내가 한 일·성과·회고·배경·팀…)과
+   "넣을 것 / 넣지 말 것"을 정의. 배분·감독·감사관이 같은 기준을 씁니다.
+2. **기계 사전 감사** — 근거 위치·일치도, 수치, 맥락(섹션·문장 성격), 같은 문장의 중복 배치를 칸별로 점검.
 3. **LLM 감사 1회** — 칸마다 `correct / wrong_field / distorted / incomplete / unsupported / fill` 판정.
-4. **관문** — 감사관의 수정은 근거 인용이 원문과 정렬되고(일치도 ≥ 0.85) 수치가 원문값·파생값일 때만
-   적용합니다. 적용 후 기계 검증에서 새 문제가 생기면 그 수정만 되돌립니다. 재작업 루프는 없습니다.
+4. **관문** — 감사관 수정은 근거 인용이 원문과 정렬되고(일치도 ≥ 0.85) 수치가 원문값·파생값일 때만 적용.
+   적용 후 기계 검증에서 새 문제가 생기면 그 수정만 되돌립니다. 재작업 루프는 없습니다.
 
-결과의 `audit`에 칸별 상태(확인됨·고침·옮김·비움·채움·확인 필요)와 칸 정확도가 붙습니다.
-`--quality fast`는 LLM 감사를 건너뛰고 기계 사전 감사만 합니다.
+### RAGKOR — 한국어 근거 검증
 
-오류 주입 평가(`test/auditor.test.ts`, 인턴 보고서 예제): 정답 결과에서 오탐 0칸,
-기계로 잡아야 할 오류 6종(이슈 문장→성과, 행동만 있는 성과, 팀 주어, 원문에 없는 수치,
-지어낸 근거, 같은 성과 중복)을 모두 적발. 칸 바꿔 넣기(퇴사 사유→배운 점)·과장(맡음→주도)처럼
-의미 판단이 필요한 2종은 LLM 감사관 몫입니다.
-
-근거 검증은 **RAGKOR**(`src/ragkor/`, `ragkor/`)가 맡습니다 — 한국어 유의어·오타·표기 변형을
-근거로 인정하고, 원문 수치에서 계산된 값을 환각으로 지우지 않습니다.
-자세한 내용은 [RAGKOR 보고서](./docs/RAGKOR-report.md).
-
-**엔진은 Google Gemini입니다. Google API 키 하나만 있으면 됩니다.**
-자세한 사용법은 **[USAGE.md](./USAGE.md)** 를 보세요.
-
-## RAGKOR — 한국어 근거 검증
-
-감독 에이전트가 멀쩡한 인용을 연달아 '환각'으로 찍는 문제가 있었습니다.
-원인은 의미가 아니라 **표기**였습니다 — `정규화(인용) in 정규화(원문)` 이 말줄임표 하나에 무너졌고,
-그 오탐이 재작업 루프를 3회 돌리며 비용과 품질을 동시에 망가뜨렸습니다.
-
-RAGKOR는 그 자리를 대체하는 **규칙 기반 한국어 어휘 자원 + 자모 유사도 매처**입니다.
-신경망을 훈련한 모델이 아니라, 모든 항목이 어느 규칙에서 나왔는지 역추적됩니다.
+감독이 멀쩡한 인용을 '환각'으로 찍던 원인은 의미가 아니라 **표기**(말줄임표·조사·오타)였습니다.
+RAGKOR(`src/ragkor/`, `ragkor/`)는 이를 대체하는 규칙 기반 한국어 어휘 자원 + 자모 유사도 매처입니다.
 
 | | 기존 | RAGKOR |
 |---|---:|---:|
@@ -69,219 +169,34 @@ RAGKOR는 그 자리를 대체하는 **규칙 기반 한국어 어휘 자원 + �
 | 정상 인용을 환각으로 오탐 | 21건 / 180 | **0건** |
 | 말줄임표 붙은 인용 | 2/23 | **23/23** |
 | 오타 복원 (사전 미수록) | — | **98.0%** |
-| 유의어·신조어 인식 | — | **100%** |
-| 활용형 → 같은 원형 (40쌍) | 규칙 15쌍 | **Kiwi 39쌍** |
 | 근거 인용의 원문 위치 찾기 | — | **138/138** |
-| 맥락 오배치(한계 문장→성과 칸) | 통과 | **적발** |
 
-**Kiwi**(형태소 분석, `bab2min/Kiwi`)가 조사·어미를 떼고, 인용 위치는 **RapidFuzz**
-`partial_ratio_alignment`와 같은 방식으로 찾습니다(Python은 rapidfuzz 직접 사용,
-TS는 같은 점수를 내는지 `test/align.test.ts`가 223건으로 검증). Kiwi 모델은 저장소에 없으므로
-`npm run kiwi:model`로 받습니다. 모델이 없으면 기존 규칙으로 자동 전환됩니다.
+Kiwi 형태소 분석이 조사·어미를 떼고, 인용 위치는 RapidFuzz `partial_ratio_alignment`와 같은 방식으로
+찾습니다. 자세한 분석은 [docs/RAGKOR-report.md](./docs/RAGKOR-report.md).
 
-Python(`ragkor/`)과 TypeScript(`src/ragkor/`) 두 구현이 **같은 시드·같은 알고리즘**을 씁니다.
-시드는 `python tools/gen_seed_ts.py` 로 생성되어 갈라지지 않고,
-`npx tsx test/ragkor.test.ts` 가 개별 점수까지 일치하는지 검증합니다.
+### OCR — 4단 설계
 
-```ts
-import { SourceIndex } from "arc-auto-organize/ragkor";
+전처리(회전·대비·300DPI 업스케일) → **다중 엔진 병렬**(Gemini Vision 주 엔진, Cloud Vision·CLOVA·
+tesseract.js 보조) → 엔진 간 합의율이 82% 미만이거나 긴 이미지는 **타일로 잘라 재판독** → 신뢰도 산출.
+낮은 신뢰도 문서에서만 나온 값은 배분 단계에서 신뢰도를 낮춰 자동으로 비웁니다.
 
-const idx = new SourceIndex([원문]);
-idx.verifyQuote("...");      // { score: 0.97, verdict: "grounded" }
-idx.classifyNumber("22.8");  // "literal" | "derived" | "unknown"
-idx.checkTerm("향상");        // 유의어·오타를 허용하고 원문 존재 여부 판정
-```
-
-자세한 분석은 [docs/RAGKOR-report.md](./docs/RAGKOR-report.md).
-
-## Colab에서 바로 테스트 (PC 없이, 아이패드·휴대폰 브라우저로)
-
-**[▶ Colab에서 열기](https://colab.research.google.com/github/eunha9348/New-Function-Test-Lab/blob/claude/arc-service-awareness-z00hjs/colab/ARC_engine.ipynb)**
-
-1. 위 링크를 열고, 왼쪽 **🔑 보안 비밀**에 `GOOGLE_API_KEY`를 등록합니다 (노트북 액세스 켜기).
-2. 첫 셀의 ▶ 를 누르고, 업로드 창이 뜨면 파일을 고릅니다.
-3. 칸별 감사 결과와 원문 하이라이트가 담긴 보고서가 출력창에 나옵니다.
-
-이 노트북은 **이 저장소의 엔진(`src/`)을 그대로** 설치해서 돌립니다. 따로 옮겨 적은 판이 아니라서
-여기서 보는 결과가 곧 실제 엔진의 결과입니다. 처음 실행은 설치 때문에 2~3분 걸립니다.
-(예전 Python 포팅본은 `tools/legacy/`로 옮겼고 더 이상 쓰지 않습니다.)
-
-## 빠른 시작
-
-```bash
-npm install
-cp .env.example .env      # GOOGLE_API_KEY=AIza... 붙여넣기
-npm run check             # 키 확인 + 선택된 모델 표시
-
-npm run serve             # → http://localhost:5174  파일을 끌어다 놓으면 폼이 채워집니다
-npm run organize -- ./인턴_최종보고서.pdf --hint "작년 여름 인턴"
-npm test                  # API 키 없이 도는 오프라인 검증 42종
-npm run ragkor            # RAGKOR 벤치마크 (Python)
-```
-
-품질/비용 조절:
-
-```bash
-npm run organize -- ./보고서.pdf --quality fast      # 앙상블 1회·전부 값싼 모델
-npm run organize -- ./보고서.pdf --quality best      # 배분도 상위 모델
-```
-
-여러 경험이 섞인 자료(이력서·포트폴리오 등):
-
-```bash
-npm run organize -- ./이력서.pdf                     # 기본 — 경험별로 나눠 각각 정리
-npm run organize -- ./이력서.pdf --single            # 예전 동작 — 대표 경험 하나만
-```
-
-분류기가 경험 목록과 각 경험이 시작되는 원문 문구를 내면, 그 문구로 원문을 경험별 구간으로
-잘라 구간마다 사실 시트 → 배분 → 감독 → 감사를 따로 돌립니다. 구간 밖 내용은 그 경험의 추출에
-들어가지 않습니다. 위치를 못 찾은 경험은 원문 전체를 주되 그 경험만 정리하라고 지시합니다.
-경험은 순서대로 하나씩 정리하므로 시간과 비용은 경험 수만큼 늘어납니다
-(`PIPELINE.splitExperiences`, `maxExperiences`로 조절).
-
-라이브러리로 쓸 때:
-
-```ts
-import { organizeExperience, readInputFiles } from "arc-auto-organize";
-
-const result = await organizeExperience(await readInputFiles(["./보고서.pdf"]), {
-  userHint: "동아리에서 한 프로젝트입니다",
-  onProgress: (e) => console.log(e.stage, e.message),
-});
-
-result.typeLabel;              // "팀 프로젝트"
-result.form.values;            // 폼에 그대로 바인딩할 값
-result.form.layout;            // 화면 배치(헤더/전용/확장/증빙)
-result.provenance;             // 값마다 원문 근거
-result.review.final;           // 감독 검수 결과
-result.fallback.nextQuestions; // 사용자에게 되물을 질문
-```
-
-## ★ API 키 넣는 곳
-
-`src/config.ts` **한 곳**에만 있습니다. `.env`의 `GOOGLE_API_KEY`를 쓰면 그대로 두면 되고,
-하드코딩하려면 `API_KEYS.google`의 빈 문자열 자리에 적으면 됩니다.
-
-| 키 | 필요성 | 용도 |
-|---|---|---|
-| `API_KEYS.google` | **필수** | Gemini — 분류·배분·감독·안내 + 이미지 OCR + 음성 인식 |
-| `API_KEYS.googleVision` | 선택 | OCR 보조. 비우면 위 키를 그대로 씀 (Cloud Vision API를 켠 경우만 동작) |
-| `API_KEYS.clova` | 선택 | 한국어 증명서 특화 OCR 보조 엔진 |
-| `API_KEYS.anthropic` | 선택 | 엔진을 Anthropic으로 바꿀 때만 (`PROVIDER = "anthropic"`) |
-
-선택 키가 없으면 **자동으로 건너뛰고** 나머지 엔진으로 계속 돕니다. 키 없다고 멈추지 않습니다.
-
-**모델은 하드코딩하지 않습니다.** Gemini 모델 ID는 자주 바뀌고 구버전은 종료되므로,
-시작할 때 ListModels로 실제 사용 가능한 목록을 받아 **가장 최신 세대**를 자동으로 고릅니다.
-고정하려면 `.env`에 `GEMINI_MODEL=...` 을 넣으세요.
-
-## 파일 수용 범용성
+### 받는 파일 형식
 
 | 계열 | 확장자 | 처리 |
 |---|---|---|
-| 문서 | pdf | 텍스트 레이어 우선 → 없는 페이지만 300DPI 렌더 후 OCR |
-| | docx · doc · odt | mammoth → 실패 시 OOXML 직접 파싱 |
-| | pptx · ppt · odp | 슬라이드 + **발표자 노트**까지 |
+| 문서 | pdf | 텍스트 레이어 우선 → 없는 페이지만 렌더 후 OCR |
+| | docx · doc · odt · pptx · ppt · odp | 본문 + 발표자 노트까지 |
 | | xlsx · xls · csv · tsv | 시트를 표 텍스트로 (열 이름 유지) |
 | | hwp · hwpx | HWPX는 ZIP+XML 직접 파싱, HWP는 hwp.js / hwp5txt |
-| 이미지 | png jpg webp gif bmp tiff heic avif | 전처리 + 다중 엔진 앙상블 OCR, EXIF 촬영일 추출 |
-| 미디어 | mp3 m4a wav … | Gemini에 오디오를 그대로 들려줘 받아쓰기 (별도 STT 서비스 불필요) |
-| | mp4 mov mkv … | 오디오 받아쓰기 **+ 장면 전환 프레임 OCR** (발표 슬라이드·화면 녹화) |
-| 웹/메일 | html htm xml eml | 본문 추출 + 링크 보존, 메일 헤더 파싱 |
-| 코드/노트북 | ts py java … ipynb | 그대로 + 노트북은 마크다운/코드/출력 분해 |
-| 압축 | zip | 내부 파일을 각각 재귀 처리 (최대 40개, 깊이 2) |
-| 그 외 | 확장자 불명 | 바이트를 보고 텍스트면 텍스트로, 아니면 안내 메시지 |
+| 이미지 | png jpg webp gif bmp tiff heic avif | 전처리 + 다중 엔진 OCR, EXIF 촬영일 |
+| 미디어 | mp3 m4a wav · mp4 mov mkv | Gemini 받아쓰기 (+ 영상은 장면 전환 프레임 OCR) |
+| 웹/메일/코드 | html eml · ts py ipynb … | 본문 추출, 노트북은 셀 단위 분해 |
+| 압축 | zip | 내부 파일 재귀 처리 (최대 40개, 깊이 2) |
 
-- 확장자와 실제 내용이 다르면 **매직 넘버를 신뢰**합니다 (`.txt`로 저장된 PNG 등).
-- ZIP 컨테이너는 내부 구조를 보고 docx/pptx/xlsx/hwpx를 구분합니다.
-- EUC-KR/CP949로 저장된 한글 텍스트를 자동 감지해 디코딩합니다.
+확장자와 내용이 다르면 매직 넘버를 믿고, EUC-KR/CP949 한글 텍스트는 자동 감지합니다. 선택 의존성이
+없어도 크래시 없이 동작하고, 무엇을 못 읽었는지 `warnings`로 알려줍니다.
 
-선택 의존성(sharp, pdfjs-dist, mammoth, xlsx, jszip, tesseract.js)이 없어도 **크래시 없이** 동작하고,
-무엇이 없어서 무엇을 못 읽었는지 `warnings`로 알려줍니다.
-
-## OCR — 가장 정확하게 읽기 위한 설계
-
-한국어는 획이 많아 저해상도·저대비에서 특히 잘 깨집니다. 그래서 4단으로 짰습니다.
-
-**1단계 — 전처리** (`src/ocr/preprocess.ts`)
-EXIF 자동 회전 → 회색조 → 대비 정규화 → **2000px 이상으로 업스케일(300DPI 상당)** → 미디언 디노이즈 → 언샤프.
-Vision 모델용(비이진화)과 고전 OCR용(이진화) 두 벌을 만듭니다. 엔진마다 잘 먹는 입력이 다르기 때문입니다.
-
-**2단계 — 다중 엔진 병렬 실행** (`src/ocr/providers.ts`)
-
-| 엔진 | 역할 |
-|---|---|
-| Gemini Vision | **주 엔진.** 다단 레이아웃·표·손글씨·도장까지 읽고 읽기 순서를 지킴 |
-| Google Cloud Vision | 보조. 인쇄체 정밀도 (같은 키, API를 켠 경우에만) |
-| NAVER CLOVA | 보조. 한국어 증명서·영수증 특화 (선택) |
-| tesseract.js | 오프라인 폴백. 키·네트워크 없이 동작 |
-
-주 엔진 프롬프트는 **원문 그대로 복사**를 강제하고, 확신 없는 글자는 `«불명»`으로 표시하게 합니다.
-맞춤법 교정·의역·요약을 금지해 "그럴듯하게 지어낸 글자"를 원천 차단합니다.
-
-**3단계 — 합의 검증 + 재판독** (`src/ocr/index.ts`)
-엔진 결과를 문자 바이그램 Dice 계수로 비교합니다. 일치율이 82% 미만이거나 세로 2200px를 넘으면
-**겹침 160px를 둔 타일로 잘라 다시 읽고** 합칩니다. 긴 스크린샷에서 작은 글씨가 살아나는 지점입니다.
-
-**4단계 — 신뢰도 산출**
-`합의율 + 엔진 자체 점수 − «불명» 비율`로 0~1 점수를 냅니다. 이 점수는 그냥 로그가 아니라
-② 배분 단계에 "이 문서는 품질 낮음 — 여기서만 나온 값은 신뢰도를 낮춰라"로 전달되고,
-낮은 신뢰도 값은 자동으로 비워집니다.
-
-## 3단 에이전트
-
-### ① 분류 (`src/agents/classifier.ts`)
-반드시 **대분류를 먼저** 고르고 그 안에서 세부 유형을 고릅니다. 경계 사례는 규칙으로 못 박았습니다.
-
-- 회사에서 급여 받고 한 일 → `career.work` (팀 프로젝트처럼 보여도)
-- 수업의 일부인 팀 과제 → `academic.major_course`의 수업 기록 안
-- 상 받은 게 핵심 → `career.award` / 참가가 핵심 → `career.external`
-- 작품성이 핵심 → `project.creative` / 배운 점이 핵심 → `growth.*`
-
-한 파일에 여러 경험이 섞여 있으면(포트폴리오·이력서) `multipleExperiences=true`와 분할 제안을 냅니다.
-
-### ② 배분 (`src/agents/extractor.ts`)
-유형의 전체 항목 구조에서 **JSON Schema를 동적 생성**하고 `strict: true` 강제 tool 호출로 받습니다.
-모든 필드가 nullable이라 **모델이 지어내는 대신 null을 낼 수 있습니다.**
-
-값마다 `evidence`(원문에서 그대로 복사한 문장 + sourceId + 신뢰도)를 함께 받고,
-신뢰도 0.4 미만인 값은 파이프라인이 **자동으로 비웁니다.**
-
-### ③ 감독 sub-Agent (`src/agents/supervisor.ts`)
-심사자 역할입니다. 원문·정리 결과·근거·기계 검증 결과를 모두 받아 9개 항목을 순서대로 검수합니다.
-
-유형 오판 → **환각** → 주어 왜곡("팀이 한 일"을 "내 역할"에) → 오배치 → 요약 왜곡("참여"→"주도") →
-중복 → 분해 누락 → 과소 추출 → 형식.
-
-판정은 `approve` / `revise` / `reclassify`. 수정은 `{path, valueJson}` 패치로 내려오고,
-패치로 못 고치는 blocker가 남으면 **②로 되돌려 재작업**시킵니다(최대 2회).
-`reclassify`면 유형을 바꿔 처음부터 다시 배분합니다.
-
-**감독 앞단에 결정론적 검증기를 둡니다** (`src/validate/`). LLM이 볼 필요 없는 건 기계가 잡습니다.
-
-- `structural.ts` — 필수 누락, 보기 위반, 날짜 형식/역전, 배열 형식, 한 줄 항목의 줄바꿈
-- `grounding.ts` — **환각 탐지.** ⑴ 근거 문장이 원문에 실제로 있는지 ⑵ 값 안의 숫자·영문 고유명사가
-  원문에 있는지 ⑶ 파일 항목이 실제 업로드 파일명인지 ⑷ 근거 없이 채워진 긴 값
-
-기계가 먼저 잡아주면 감독은 '의미'에만 집중할 수 있어 정확도가 오르고 비용도 내려갑니다.
-
-### ④ Fallback 안내 (`src/agents/guide.ts`)
-**못 채운 칸은 비웁니다.** 대신 비운 칸마다 이렇게 안내합니다.
-
-```json
-{
-  "label": "결과/성과 > 수치",
-  "why": "보고서에 참여자 수나 성과 지표가 적혀 있지 않습니다",
-  "whatToProvide": "이 캠페인으로 팔로워가 몇 명 늘었는지, 또는 참여자가 몇 명이었는지 숫자로 알려주세요. 주최 측 결과 리포트 파일이 있으면 올려주셔도 됩니다.",
-  "question": "이 활동으로 어떤 수치가 달라졌나요?",
-  "priority": "high"
-}
-```
-
-하나의 답으로 여러 칸이 동시에 채워지는 질문을 골라 `nextQuestions` 3~5개로 추립니다.
-분류 신뢰도가 0.55 미만이면 유형 확인 질문(`confirmTypeWith`)도 함께 냅니다.
-
-## 지원하는 경험 유형 (18종)
+### 지원 경험 유형 (18종)
 
 | 대분류 | 유형 |
 |---|---|
@@ -290,82 +205,71 @@ Vision 모델용(비이진화)과 고전 OCR용(이진화) 두 벌을 만듭니�
 | 🚀 프로젝트 | 개인 프로젝트 · 팀 프로젝트 · 창작물/작업물 |
 | 🌱 개인성장 | 봉사활동 · 해외 경험 · 운동 및 신체 역량 · 독서 · 기록(일지/회고) · 목표/계획 |
 
-각 유형은 공통 항목(기본 정보 6 + 확장 입력 8)을 포함하고 전용 항목이 더해집니다.
-전용 항목과 의미가 겹치는 공통 항목은 `supersedes`로 선언되어 **화면에서 자동으로 숨겨집니다**
-(값은 저장됨 — 실제 `ExperienceFormV2.formLayout` 동작과 동일).
+전체 입력 칸 명세는 `src/schema/templates-v2.ts`. ARC 본체의 `lib/constants/templates-v2.ts`가 있으면
+그 상수를 `ExperienceTypeSpec[]`로 바꾸는 어댑터만 끼우면 나머지는 그대로 돕니다.
 
-## 프론트엔드 자동 채움
-
-**파일 하나 올리면 프론트 폼이 알아서 채워집니다.** 핵심은 `toFormState(result)` 하나입니다.
-"어떤 폼을 그릴지"와 "각 칸에 무슨 값이 들어가는지"가 한 객체에 같이 들어 있어,
-프론트는 ARC 스키마 내부를 몰라도 됩니다.
-
-```tsx
-const res  = await fetch("/api/organize", { method: "POST", body: fd });
-const form = await res.json();     // FormState
-
-setValues(form.values);            // ★ 이 한 줄로 모든 칸이 채워짐
-
-form.sections.map((section) => (   // 유형에 맞는 폼이 자동 생성됨
-  <fieldset key={section.title}>
-    <legend>{section.title}</legend>
-    {section.fields.map((f) => (
-      <label key={f.key}>
-        {f.label}{f.filled && <span className="badge">자동</span>}
-        <input value={values[f.key] ?? ""} placeholder={f.guide?.question} … />
-        {!f.filled && f.guide && <small>{f.guide.whatToProvide}</small>}
-      </label>
-    ))}
-  </fieldset>
-))
-```
-
-각 필드에는 값뿐 아니라 `filled`(자동 채움 배지), `confidence`(신뢰도),
-`evidence`(어느 파일 어느 문장에서 왔는지 — "출처 보기"), `guide`(빈 칸 안내 문구),
-`options`(보기), `itemFields`(반복 입력 행 구성)가 함께 옵니다.
-
-동작하는 전체 예제가 `public/index.html`에 있습니다 — `npm run serve` 로 바로 확인하세요.
-Next.js 연동 코드와 `FormState` 전체 레퍼런스는 **[USAGE.md](./USAGE.md)** 에 있습니다.
-
-## ARC 본체에 붙이기
-
-이 저장소는 ARC 본체와 독립적으로 돌도록 짜여 있습니다. 붙일 때 건드릴 곳은 두 군데입니다.
-
-1. **스키마** — `src/schema/templates-v2.ts`가 문서 기준으로 새로 정의한 것입니다.
-   본체에 이미 `lib/constants/templates-v2.ts`가 있다면, 그쪽 상수를 읽어
-   `ExperienceTypeSpec[]`로 변환하는 어댑터만 끼우면 나머지 전부 그대로 돕니다.
-2. **결과 바인딩** — `toFormState(result)`를 쓰면 위처럼 바로 끝나고,
-   더 세밀하게 다루고 싶으면 `result.form.values` / `result.form.layout` /
-   `result.form.hiddenCommonKeys`를 직접 쓰면 됩니다.
-
-## 튜닝 포인트 (`src/config.ts`)
+## 튜닝 (`src/config.ts`의 `PIPELINE`)
 
 | 값 | 기본 | 의미 |
 |---|---|---|
-| `maxSupervisorRounds` | 2 | 감독 재검수 최대 횟수 |
-| `classificationConfidenceFloor` | 0.55 | 미만이면 사용자에게 유형 확인 요청 |
-| `fieldConfidenceFloor` | 0.4 | 미만인 값은 자동으로 비움 |
-| `ocrAgreementFloor` | 0.82 | 엔진 간 일치율이 미만이면 타일 재판독 |
-| `THINKING.supervisor` | `-1`(자동) | 감독만 깊게 — 정확도가 여기서 갈림. `0`이면 빠르고 쌈 |
+| `splitExperiences` | `true` | 여러 경험이 섞인 자료를 경험별로 나눠 정리 |
+| `maxExperiences` | 8 | 한 파일에서 나눠 정리할 최대 경험 수 (넘치면 문서 앞쪽부터) |
+| `segmentAnchorFloor` | 0.8 | 경험 시작 줄이 원문과 이 일치도 이상일 때만 그 위치에서 자름 |
+| `classifierDigestChars` | 16000 | 분류기에 보여 주는 문서 앞부분 길이 (뒤쪽 경험 누락 방지) |
 | `ensemble` | 2 | 배분 시도 횟수. 값싼 모델 N회 → 필드별 우수안 병합 |
-| `supervisorEvidenceChars` | 9000 | 감독에게 넘기는 근거 구간 상한. 원문 전체를 보내지 않음 |
+| `maxSupervisorRounds` | 1 | 감독 재검수 최대 횟수 |
+| `supervisorEvidenceChars` | 9000 | 감독에게 넘기는 근거 구간 상한 |
+| `fieldConfidenceFloor` | 0.4 | 미만인 값은 자동으로 비움 |
+| `classificationConfidenceFloor` | 0.55 | 미만이면 사용자에게 유형 확인 요청 |
+| `auditor` · `auditorPatchFloor` | `true` · 0.85 | 필드 감사관 사용 · 감사관 수정 적용 기준 |
 
-## 선택 설치로 얻는 것
+## 알려진 한계와 다음 작업
 
-```bash
-npm i sharp pdfjs-dist mammoth xlsx jszip tesseract.js   # Node 패키지
-apt install poppler-utils ffmpeg                          # 스캔 PDF 렌더 / 영상 처리
+실제 이력서 실행 결과를 분석해 찾은 문제 가운데 **경험 분리만 이번 버전에 반영**했고, 나머지는 남아 있습니다.
+
+- **경험 분리는 가짜 LLM 테스트로만 검증했습니다.** 실제 Gemini가 경험 시작 줄을 원문 그대로 잘 내주는지는
+  실제 문서로 확인이 필요합니다. 못 찾은 경험은 "원문 전체 + 이 경험만" 방식으로 처리됩니다.
+- **감사관이 원문에 있는 정보를 지울 수 있습니다.** 감사관 수정 관문은 *새로 넣는* 수치·문장만 검사하고,
+  *지우는* 수정은 막지 않습니다. 감사관이 근거 문장을 잘린 채로 보면 실제 있는 사실을 지웁니다.
+- **근거 문장 경계가 잘못 잡힐 수 있습니다.** `8.9%`, `story-arc.org`의 마침표를 문장 끝으로 보고,
+  짧은 문서도 감독용 근거를 압축합니다. (경험 분리 후에는 구간이 짧아 영향이 줄 것으로 예상)
+- **'칸 정확도'는 실제 정확도가 아니라 '근거 확인율'에 가깝습니다.** 근거 인용이 없는 칸은 감사관이
+  맞다고 판정해도 '확인 필요'로 셉니다. 추출기가 값마다 인용을 강제받지 않아 인용이 자주 빠집니다.
+- 두 초안을 합칠 때 표현만 다른 같은 반복 입력 행(작업 기록 등)이 중복될 수 있고,
+  수정 전에 나온 감독 이슈가 수정 후 다시 확인되지 않아 이미 해결된 이슈가 '남은 문제'로 보일 수 있습니다.
+- 영어 원문을 한국어 값으로 정리하면 값과 원문의 글자 대조가 어려워 근거 위치를 못 찾는 칸이 생깁니다.
+- 웹 데모 서버(`npm run serve`)는 아직 경험 분리를 하지 않습니다.
+
+## 프로젝트 구조
+
+```
+src/
+  pipeline.ts        organizeExperience(단일) · organizeExperiences(경험별)
+  agents/            classifier · segment(경험 분리) · factsheet · extractor · merge
+                     supervisor · auditor · guide · evidence
+  ragkor/            한국어 근거 검증 (TypeScript)
+  validate/          형식·근거·맥락 기계 검증, 인용 위치 찾기
+  ingest/ ocr/       파일 수집·OCR
+  schema/            18종 유형·입력 칸·필드 계약
+  report/html.ts     칸별 HTML 보고서 (renderReport · renderManyReport)
+  cli.ts  form.ts    CLI · 프론트 바인딩(toFormState)
+ragkor/              RAGKOR Python 구현 + 벤치마크
+colab/               ARC_engine.ipynb · run_engine.py (Colab 실행기)
+server/ public/      웹 데모 서버
+test/                오프라인 테스트 (API 키 불필요)
+tools/ docs/         모델 받기·시드 생성 도구, RAGKOR 보고서
 ```
 
-없으면 그 부분만 건너뛰고 `warnings`에 이유가 남습니다.
+## 브랜치 안내
 
-## 엔진 바꾸기
+| 브랜치 | 내용 |
+|---|---|
+| **`extracter`** | ← 이 브랜치. 경험 자동 추출 엔진 |
+| `main` | 자기소개서 AI — Colab 복붙용 단일 파일 (`cover_letter_ai_all_in_one.py`) |
+| `claude/cover-letter-ai-generator-7uvjuj` | 자기소개서 AI 모듈형 패키지 (로컬/서버·DB 연동용) |
+| `claude/dazzling-cray-bm7fzu` | 자기소개서 AI — 경험 선택기·백엔드 연동 envelope |
+| `claude/career-analysis-individual-dl20u5` | 커리어 개별 분석 |
+| `claude/comprehensive-analysis-hallucination-fix-o67sc5` | 커리어 종합 분석 + 환각 방지 |
 
-기본은 Gemini입니다. Anthropic으로 바꾸려면 `.env`에 다음을 넣으세요.
-
-```bash
-ARC_LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-파이프라인·에이전트·검증기는 엔진과 분리돼 있어(`src/llm/provider.ts`) 나머지 코드는 그대로입니다.
+이 엔진은 `New-Function-Test-Lab` 저장소의 `claude/arc-service-awareness-z00hjs`(`b1dd4e3`)에서
+옮겨 와, 경험 분리 기능을 더한 것입니다.

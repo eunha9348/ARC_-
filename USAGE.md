@@ -80,6 +80,8 @@ npm run organize -- ./포트폴리오.zip --out result.json
 npm run organize -- ./회고.md --form            # 프론트 바인딩용 JSON만 출력
 npm run organize -- ./보고서.pdf --quality fast  # 싸고 빠르게 (앙상블 1회)
 npm run organize -- ./보고서.pdf --quality best  # 배분도 상위 모델
+npm run organize -- ./이력서.pdf --html report.html  # 여러 경험이면 경험별로 나눠 정리 (기본)
+npm run organize -- ./이력서.pdf --single        # 나누지 않고 대표 경험 하나만
 npm run organize -- --list-types                # 18종 유형 목록
 ```
 
@@ -91,6 +93,33 @@ import { organizeExperience, toFormState, readInputFiles } from "./src/index.js"
 const result = await organizeExperience(await readInputFiles(["./보고서.pdf"]));
 const form = toFormState(result);   // ← 프론트에 그대로 넘기면 되는 형태
 ```
+
+### ⓓ 여러 경험이 섞인 자료 (이력서·포트폴리오)
+
+`organizeExperience`는 파일 묶음을 **경험 하나**로 정리합니다. 이력서처럼 한 파일에 학력·프로젝트·
+대외활동이 함께 있으면 `organizeExperiences`를 쓰세요. 경험마다 결과가 하나씩 나옵니다.
+
+```ts
+import { organizeExperiences, renderManyReport, toFormState, readInputFiles } from "./src/index.js";
+
+const m = await organizeExperiences(await readInputFiles(["./이력서.pdf"]));
+
+m.split.applied;      // true면 경험별로 나눴음
+m.split.reason;       // "경험 4개로 나눠 정리합니다 (원문 위치 확인 4개)."
+m.items.length;       // 경험 수 — 경험 하나짜리 자료면 1
+m.items[0].segment;   // { title, typeId, start, end, located, … } 원문 어디를 잘라 썼는지
+m.items.map((r) => toFormState(r));   // 경험마다 폼 하나
+m.failed;             // 정리하지 못한 경험 (나머지는 계속 정리됨)
+renderManyReport(m);  // 경험 목록 + 경험별 칸 감사 결과를 한 장의 HTML로
+```
+
+동작 방식: 분류기가 경험 목록과 **각 경험이 시작되는 원문 줄**(anchor)을 냅니다. 엔진은 그 줄을
+원문에 정렬해 경험별 구간으로 자르고(LLM 호출 없음), 구간마다 사실 시트 → 배분 → 감독 → 감사 →
+안내를 따로 돌립니다. 그래서 한 경험의 칸에 다른 경험의 내용이 섞이지 않습니다. 위치를 못 찾은
+경험은 원문 전체를 주되 그 경험만 정리하라고 지시합니다.
+
+경험은 순서대로 하나씩 정리하므로 시간과 비용은 경험 수에 비례해 늘어납니다.
+`src/config.ts`의 `PIPELINE.splitExperiences`(끄기), `maxExperiences`(최대 개수, 기본 8)로 조절합니다.
 
 ---
 
