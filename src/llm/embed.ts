@@ -32,9 +32,9 @@ export class GeminiEmbedder implements Embedder {
     for (let i = 0; i < todo.length; i += 100) {
       const batch = todo.slice(i, i + 100);
       const started = Date.now();
-      const res = await fetch(`${BASE}/models/${MODEL}:batchEmbedContents?key=${this.apiKey}`, {
+      const res = await fetch(`${BASE}/models/${MODEL}:batchEmbedContents`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-goog-api-key": this.apiKey },
         body: JSON.stringify({
           requests: batch.map((text) => ({
             model: `models/${MODEL}`,

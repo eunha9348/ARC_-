@@ -96,22 +96,52 @@ def setup(force: bool = False) -> None:
     _say(f"  준비 완료 ({time.time() - t0:.0f}초)\n")
 
 
+def _key_problem(key: str) -> str:
+    """src/config.ts googleKeyProblem 과 같은 규칙. 확실히 키가 아닌 값만 거른다."""
+    if len(key) > 200:
+        return f"길이가 {len(key):,}자입니다 (실제 키는 39자 안팎) — 키가 아닌 다른 내용이 들어 있습니다"
+    if any(c.isspace() for c in key):
+        return "공백이나 줄바꿈이 섞여 있습니다"
+    if not all(33 <= ord(c) <= 126 for c in key):
+        return "한글 등 키에 쓸 수 없는 글자가 들어 있습니다"
+    return ""
+
+
+def _mask(key: str) -> str:
+    return f"{key[:4]}…{key[-4:]} ({len(key)}자)"
+
+
 def api_key() -> str:
-    """키 찾기 — 환경 변수 → Colab 보안 비밀(🔑) → 직접 입력."""
-    key = os.environ.get("GOOGLE_API_KEY", "").strip()
-    if not key:
+    """키 찾기 — 환경 변수 → Colab 보안 비밀(🔑) → 직접 입력.
+    앞 단계 값이 키 모양이 아니면 알리고 다음 단계로 넘어간다
+    (예전 셀에서 os.environ에 엉뚱한 값을 넣어 두면 보안 비밀의 올바른 키가 가려졌다)."""
+    def secret() -> str:
         try:
             from google.colab import userdata  # type: ignore
-            key = (userdata.get("GOOGLE_API_KEY") or "").strip()
+            return userdata.get("GOOGLE_API_KEY") or ""
         except Exception:
-            key = ""
-    if not key:
+            return ""
+
+    def typed() -> str:
         from getpass import getpass
-        key = getpass("Google API 키 (AIza…로 시작): ").strip()
-    if not key:
-        raise RuntimeError("Google API 키가 없습니다. https://aistudio.google.com/apikey 에서 발급하세요.")
-    os.environ["GOOGLE_API_KEY"] = key
-    return key
+        return getpass("Google API 키 (AIza…로 시작): ")
+
+    for where, get in (("환경 변수 GOOGLE_API_KEY", lambda: os.environ.get("GOOGLE_API_KEY", "")),
+                       ("Colab 보안 비밀 GOOGLE_API_KEY", secret),
+                       ("직접 입력", typed)):
+        key = get().strip().strip("\"'")
+        if not key:
+            continue
+        problem = _key_problem(key)
+        if problem:
+            _say(f"  ⚠ {where} 값은 API 키가 아닙니다: {problem}. 다음 방법으로 찾습니다.")
+            continue
+        _say(f"  키: {where} {_mask(key)}")
+        os.environ["GOOGLE_API_KEY"] = key
+        return key
+    os.environ.pop("GOOGLE_API_KEY", None)
+    raise RuntimeError("올바른 Google API 키가 없습니다. https://aistudio.google.com/apikey 에서 발급해 "
+                       "🔑 보안 비밀 GOOGLE_API_KEY 에 넣어 주세요.")
 
 
 def upload() -> list:

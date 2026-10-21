@@ -156,7 +156,26 @@ export function googleKey(): string {
         "  2) src/config.ts 의 API_KEYS.google 에 붙여넣거나 .env 에 GOOGLE_API_KEY=... 로 넣으세요.",
     );
   }
-  return API_KEYS.google;
+  const key = API_KEYS.google.trim().replace(/^["']|["']$/g, "");
+  const problem = googleKeyProblem(key);
+  if (problem) {
+    throw new Error(
+      `GOOGLE_API_KEY 값이 API 키가 아닙니다 — ${problem}\n` +
+        "  https://aistudio.google.com/apikey 에서 키(AIza…로 시작하는 39자)를 복사해 다시 넣어 주세요.",
+    );
+  }
+  return key;
+}
+
+/**
+ * 키 모양 검사. 형식이 바뀔 수 있으니 AIza 접두사는 강제하지 않고, 확실히 키가 아닌 값만 거른다.
+ * 키가 너무 길면 URL이 Google 프런트엔드 한도(약 16KB)를 넘어 "Error 400 (Bad Request)" HTML이 돌아온다.
+ */
+export function googleKeyProblem(key: string): string | null {
+  if (key.length > 200) return `길이가 ${key.length.toLocaleString()}자입니다 (실제 키는 39자 안팎). 키가 아닌 다른 내용이 들어 있습니다.`;
+  if (/\s/.test(key)) return "공백이나 줄바꿈이 섞여 있습니다.";
+  if (!/^[\x21-\x7e]+$/.test(key)) return "한글 등 키에 쓸 수 없는 글자가 들어 있습니다.";
+  return null;
 }
 
 export function visionKey(): string {

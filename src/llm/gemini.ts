@@ -32,7 +32,7 @@ export class GeminiSession implements LlmSession {
   /* ───────────────── 모델 자동 선택 ───────────────── */
 
   async listModels(): Promise<GeminiModelInfo[]> {
-    const res = await fetch(`${BASE}/models?key=${this.apiKey}&pageSize=200`);
+    const res = await fetch(`${BASE}/models?pageSize=200`, { headers: { "x-goog-api-key": this.apiKey } });
     const body = await readBody(res);
     if (!res.ok || !body.json) throw new Error(describeError(res.status, body, "모델 목록 조회"));
     return (body.json as { models?: GeminiModelInfo[] }).models ?? [];
@@ -207,9 +207,9 @@ export class GeminiSession implements LlmSession {
     };
 
     return withRetry(async () => {
-      const res = await fetch(`${BASE}/models/${model}:generateContent?key=${this.apiKey}`, {
+      const res = await fetch(`${BASE}/models/${model}:generateContent`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-goog-api-key": this.apiKey },
         body: JSON.stringify(body),
       });
       const got = await readBody(res);
