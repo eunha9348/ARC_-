@@ -24,6 +24,8 @@ export class GeminiSession implements LlmSession {
   readonly usage: UsageStat = newUsage();
   private modelPromise: Promise<{ main: string; light: string }> | null = null;
   private noThinking = new Set<string>();
+  /** 호출이 404로 막힌 자동 선택 모델 → 대신 쓸 모델 */
+  private replaced = new Map<string, string>();
 
   constructor(private readonly apiKey: string = googleKey()) {}
 
@@ -31,9 +33,9 @@ export class GeminiSession implements LlmSession {
 
   async listModels(): Promise<GeminiModelInfo[]> {
     const res = await fetch(`${BASE}/models?key=${this.apiKey}&pageSize=200`);
-    if (!res.ok) throw new Error(await describeError(res, "모델 목록 조회"));
-    const json = (await res.json()) as { models?: GeminiModelInfo[] };
-    return json.models ?? [];
+    const body = await readBody(res);
+    if (!res.ok || !body.json) throw new Error(describeError(res.status, body, "모델 목록 조회"));
+    return (body.json as { models?: GeminiModelInfo[] }).models ?? [];
   }
 
   private async resolveModels(): Promise<{ main: string; light: string }> {
@@ -139,14 +141,26 @@ export class GeminiSession implements LlmSession {
         ? { ...generationConfig, thinkingConfig: { thinkingBudget: budget } }
         : generationConfig;
 
-    let json = await this.post(model, system, content, withThinking);
+    model = this.replaced.get(model) ?? model;
+    let json = await this.post(model, system, content, withThinking).catch((e) => ({ thrown: e }));
+
+    // 자동으로 고른 모델이 이 키로 호출되지 않으면(404) 기본 모델로 한 번 바꿔 다시 부른다
+    const fallback = MODELS.gemini.fallback;
+    if (isNotFound(json) && !MODELS.gemini.pin && model !== fallback) {
+      this.replaced.set(model, fallback);
+      model = fallback;
+      json = await this.post(model, system, content, withThinking).catch((e) => ({ thrown: e }));
+    }
+    if (json.thrown) throw new Error(`[${stage}] ${(json.thrown as Error).message}`);
 
     // thinkingConfig를 모르는 모델이면 한 번만 빼고 재시도
     if (json.error && /thinking/i.test(JSON.stringify(json.error))) {
       this.noThinking.add(model);
       json = await this.post(model, system, content, generationConfig);
     }
-    if (json.error) throw new Error(`[${stage}] Gemini 오류: ${json.error.message ?? JSON.stringify(json.error)}`);
+    if (json.error) {
+      throw new Error(`[${stage}] Gemini 오류 (모델 ${model}): ${json.error.message ?? JSON.stringify(json.error)}`);
+    }
 
     const candidate = json.candidates?.[0];
     const finish = candidate?.finishReason;
@@ -196,10 +210,14 @@ export class GeminiSession implements LlmSession {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
+      const got = await readBody(res);
       if (res.status === 429 || res.status >= 500) {
-        throw Object.assign(new Error(await describeError(res, "생성")), { retryable: true });
+        throw Object.assign(new Error(describeError(res.status, got, "생성", model)), { retryable: true });
       }
-      return res.json();
+      // 정상 응답이거나 JSON 오류 본문이면 그대로 넘긴다 (thinking 재시도·404 대체가 json.error를 본다)
+      if (got.json && (res.ok || got.json.error)) return got.json;
+      // HTML 오류 페이지 등 — 예전에는 여기서 res.json()이 터져 실제 상태 코드가 가려졌다
+      throw Object.assign(new Error(describeError(res.status, got, "생성", model)), { status: res.status });
     });
   }
 
@@ -281,22 +299,46 @@ function stripCodeFence(s: string): string {
   return m ? m[1]! : s;
 }
 
-async function describeError(res: Response, what: string): Promise<string> {
-  let detail = "";
+interface Body {
+  json: any;
+  /** JSON이 아닐 때 본문 요약 (HTML이면 <title> 또는 태그를 걷어 낸 앞부분) */
+  snippet: string;
+}
+
+/** 본문을 한 번만 읽는다. Google 프런트엔드는 경로가 틀리거나 요청이 너무 크면 HTML을 돌려준다. */
+async function readBody(res: Response): Promise<Body> {
+  const raw = await res.text().catch(() => "");
   try {
-    const j: any = await res.json();
-    detail = j?.error?.message ?? "";
+    return { json: JSON.parse(raw), snippet: "" };
   } catch {
-    /* 본문이 JSON이 아닐 수 있다 */
+    const title = /<title>([\s\S]*?)<\/title>/i.exec(raw)?.[1];
+    const plain = (title ?? raw.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>|<[^>]+>/gi, " "))
+      .replace(/\s+/g, " ")
+      .trim();
+    return { json: null, snippet: plain.slice(0, 160) };
   }
-  if (res.status === 400 && /API key not valid/i.test(detail)) {
+}
+
+function isNotFound(r: any): boolean {
+  return r?.thrown?.status === 404 || r?.error?.code === 404 || r?.error?.status === "NOT_FOUND";
+}
+
+export function describeError(status: number, body: Body, what: string, model?: string): string {
+  const detail = body.json?.error?.message ?? (body.snippet ? `서버가 JSON 대신 HTML 페이지를 돌려줌: "${body.snippet}"` : "");
+  const on = model ? `, 모델 ${model}` : "";
+  if (status === 400 && /API key not valid/i.test(detail)) {
     return "Google API 키가 올바르지 않습니다. https://aistudio.google.com/apikey 에서 키를 확인해 주세요.";
   }
-  if (res.status === 403) {
+  if (status === 403) {
     return `권한이 없습니다(403). Generative Language API가 켜져 있는지 확인해 주세요. ${detail}`;
   }
-  if (res.status === 429) return `요청 한도를 초과했습니다(429). 잠시 후 다시 시도합니다. ${detail}`;
-  return `${what} 실패 (HTTP ${res.status}) ${detail}`;
+  if (status === 429) return `요청 한도를 초과했습니다(429). 잠시 후 다시 시도합니다. ${detail}`;
+  if (status === 404) {
+    return `${what} 실패 (HTTP 404${on}) — 이 키로 호출할 수 없는 모델이거나 주소가 잘못됐습니다. `
+      + `GEMINI_MODEL=gemini-2.5-flash 처럼 모델을 고정해 보세요. ${detail}`;
+  }
+  if (status === 413) return `${what} 실패 (HTTP 413${on}) — 요청이 너무 큽니다. 파일을 나눠 올려 주세요. ${detail}`;
+  return `${what} 실패 (HTTP ${status}${on}) ${detail}`;
 }
 
 async function withRetry<T>(fn: () => Promise<T>, tries = 4): Promise<T> {

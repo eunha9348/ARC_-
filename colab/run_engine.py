@@ -140,8 +140,15 @@ def organize(paths: list, hint: str = "", quality: str = "balanced") -> dict:
     cmd = ["npx", "tsx", "src/cli.ts", *paths, "--out", out_json, "--html", out_html, "--quality", quality]
     if hint:
         cmd += ["--hint", hint]
-    _say("③ 정리 중 — 유형 판별 → (여러 경험이면 경험별로 나눔) → 배분 → 감독 → 필드 감사")
     env = dict(os.environ, KIWI_MODEL_DIR=os.path.join(HOME, "models", "kiwi"))
+    # 키·모델을 먼저 확인한다 — 막히면 정리 도중이 아니라 원인과 함께 바로 멈춘다
+    chk = subprocess.run(["npx", "tsx", "src/cli.ts", "--check"], cwd=HOME, env=env,
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    print(chk.stdout, end="", flush=True)
+    if chk.returncode != 0:
+        raise RuntimeError("API 키 또는 모델 확인에 실패했습니다. 위 메시지를 확인하세요. "
+                           "모델을 고정하려면 os.environ['GEMINI_MODEL'] = 'gemini-2.5-flash' 후 다시 실행하세요.")
+    _say("③ 정리 중 — 유형 판별 → (여러 경험이면 경험별로 나눔) → 배분 → 감독 → 필드 감사")
     p = subprocess.Popen(cmd, cwd=HOME, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     for line in p.stdout:  # type: ignore[union-attr]
         if "Quantization is not supported" in line:
