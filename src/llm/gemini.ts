@@ -17,7 +17,7 @@ interface GeminiModelInfo {
  *
  * 모델 ID를 하드코딩하지 않는다. 첫 호출 때 ListModels로 실제 계정에서 쓸 수 있는
  * 모델 목록을 받아, config.MODELS.gemini.prefer 우선순위에 따라 **가장 최신 세대**를
- * 자동으로 고른다. config.MODELS.gemini.pin 을 채우면 그 모델로 고정된다.
+ * 자동으로 고른다. config.MODELS.gemini.pin(기본 gemini-3.5-pro)이 목록에 있으면 그 모델을 쓴다.
  */
 export class GeminiSession implements LlmSession {
   readonly providerName = "gemini";
@@ -38,23 +38,31 @@ export class GeminiSession implements LlmSession {
     return (body.json as { models?: GeminiModelInfo[] }).models ?? [];
   }
 
+  /** 지정 모델을 목록에서 찾지 못해 다른 모델로 바꿨을 때의 안내 */
+  modelNotice = "";
+
   private async resolveModels(): Promise<{ main: string; light: string }> {
     if (!this.modelPromise) {
       this.modelPromise = (async () => {
         const cfg = MODELS.gemini;
-        if (cfg.pin) return { main: cfg.pin, light: cfg.lightPin || cfg.pin };
+        let usable: string[];
         try {
-          const models = await this.listModels();
-          const usable = models
+          usable = (await this.listModels())
             .filter((m) => (m.supportedGenerationMethods ?? []).includes("generateContent"))
             .map((m) => m.name.replace(/^models\//, ""));
-          const main = pickModel(usable) ?? cfg.fallback;
-          const light = cfg.lightPin || pickTier(usable, "flash") || main;
-          return { main, light };
         } catch {
           // 목록 조회가 막혀 있어도 파이프라인은 계속 돌아야 한다
-          return { main: cfg.fallback, light: cfg.lightPin || cfg.fallback };
+          const main = cfg.pin || cfg.fallback;
+          return { main, light: cfg.lightPin || main };
         }
+        let main = cfg.pin ? resolvePinned(usable, cfg.pin) : null;
+        if (cfg.pin && !main) {
+          main = pickModel(usable) ?? cfg.fallback;
+          this.modelNotice = `지정 모델 "${cfg.pin}" 이 이 키의 모델 목록에 없어 "${main}" 으로 대신합니다.`;
+        }
+        main ??= pickModel(usable) ?? cfg.fallback;
+        const light = cfg.lightPin || pickTier(usable, "flash") || main;
+        return { main, light };
       })();
     }
     return this.modelPromise;
@@ -71,14 +79,8 @@ export class GeminiSession implements LlmSession {
         return { ok: false, detail: "generateContent를 지원하는 모델이 없습니다. API 키의 권한을 확인해 주세요." };
       }
       const chosen = await this.resolveModel("extract");
-      const pinned = MODELS.gemini.pin;
-      if (pinned && !usable.includes(pinned)) {
-        return {
-          ok: false,
-          detail: `고정한 모델 "${pinned}" 을 쓸 수 없습니다. 사용 가능: ${usable.slice(0, 8).join(", ")}`,
-        };
-      }
-      return { ok: true, detail: `사용 가능한 모델 ${usable.length}개 중 "${chosen}" 선택` };
+      const notice = this.modelNotice ? ` — ${this.modelNotice}` : "";
+      return { ok: true, detail: `사용 가능한 모델 ${usable.length}개 중 "${chosen}" 선택${notice}` };
     } catch (e) {
       return { ok: false, detail: (e as Error).message };
     }
@@ -144,9 +146,9 @@ export class GeminiSession implements LlmSession {
     model = this.replaced.get(model) ?? model;
     let json = await this.post(model, system, content, withThinking).catch((e) => ({ thrown: e }));
 
-    // 자동으로 고른 모델이 이 키로 호출되지 않으면(404) 기본 모델로 한 번 바꿔 다시 부른다
+    // 고른 모델이 이 키로 호출되지 않으면(404) 기본 모델로 한 번 바꿔 다시 부른다
     const fallback = MODELS.gemini.fallback;
-    if (isNotFound(json) && !MODELS.gemini.pin && model !== fallback) {
+    if (isNotFound(json) && model !== fallback) {
       this.replaced.set(model, fallback);
       model = fallback;
       json = await this.post(model, system, content, withThinking).catch((e) => ({ thrown: e }));
@@ -279,6 +281,17 @@ export function pickModel(models: string[]): string | null {
   return scored[0]![4];
 }
 
+/**
+ * 지정 모델을 목록에서 찾는다. 정확히 같은 이름이 없으면 그 이름으로 시작하는
+ * preview·exp 판 중 가장 짧은(=기본) 것을 쓴다. 없으면 null.
+ */
+export function resolvePinned(models: string[], pin: string): string | null {
+  if (models.includes(pin)) return pin;
+  const variants = models.filter((m) => m.startsWith(`${pin}-`) && /-(preview|exp)/.test(m.slice(pin.length)));
+  variants.sort((a, b) => a.length - b.length || a.localeCompare(b));
+  return variants[0] ?? null;
+}
+
 /** 특정 tier에서 가장 최신 세대 */
 export function pickTier(models: string[], tier: "pro" | "flash"): string | null {
   const scored: [number, number, number, string][] = [];
@@ -335,7 +348,7 @@ export function describeError(status: number, body: Body, what: string, model?: 
   if (status === 429) return `요청 한도를 초과했습니다(429). 잠시 후 다시 시도합니다. ${detail}`;
   if (status === 404) {
     return `${what} 실패 (HTTP 404${on}) — 이 키로 호출할 수 없는 모델이거나 주소가 잘못됐습니다. `
-      + `GEMINI_MODEL=gemini-2.5-flash 처럼 모델을 고정해 보세요. ${detail}`;
+      + `GEMINI_MODEL=gemini-3.5-flash 처럼 다른 모델을 지정해 보세요. ${detail}`;
   }
   if (status === 413) return `${what} 실패 (HTTP 413${on}) — 요청이 너무 큽니다. 파일을 나눠 올려 주세요. ${detail}`;
   return `${what} 실패 (HTTP ${status}${on}) ${detail}`;

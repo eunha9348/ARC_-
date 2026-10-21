@@ -142,7 +142,7 @@ renderManyReport(many);        // 한 장짜리 HTML 보고서
 | `API_KEYS.anthropic` | 선택 | 엔진을 Anthropic으로 바꿀 때만 (`ARC_LLM_PROVIDER=anthropic`) |
 
 선택 키가 없으면 자동으로 건너뛰고 나머지 엔진으로 계속 돕니다. **모델 ID는 하드코딩하지 않습니다** —
-시작할 때 사용 가능한 모델 목록을 받아 최신 세대를 고릅니다. 고정하려면 `.env`에 `GEMINI_MODEL=...`.
+주 모델은 **gemini-3.5-pro**, 가벼운 단계(앙상블 배분·안내)는 최신 flash를 씁니다. 시작할 때 모델 목록을 받아 3.5 Pro가 없으면 같은 이름의 preview 판 → 최신 세대 자동 선택 순으로 대신하고 그 사실을 알립니다. 바꾸려면 `.env`에 `GEMINI_MODEL=...` (빈 값이면 자동 선택).
 
 ## 핵심 설계
 

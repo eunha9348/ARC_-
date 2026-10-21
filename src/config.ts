@@ -48,12 +48,15 @@ export const PROVIDER: "gemini" | "anthropic" =
  * 그래서 **하드코딩하지 않고**, 시작할 때 ListModels API로 실제 사용 가능한 모델을
  * 받아와 아래 우선순위 규칙에 맞는 최신 모델을 자동으로 고릅니다.
  *
- * 특정 모델로 고정하고 싶으면 `pin`에 모델 id를 적으세요. (예: "gemini-2.5-pro")
+ * 기본 모델은 `pin`(gemini-3.5-pro)입니다. 계정 목록에 정확히 그 이름이 없으면
+ * 같은 이름의 preview 판(예: gemini-3.5-pro-preview-…)을 쓰고, 그것도 없으면 아래 규칙으로
+ * 최신 모델을 자동으로 고른 뒤 바꿨다는 사실을 알립니다. 환경 변수 GEMINI_MODEL로 바꿀 수 있고,
+ * 빈 문자열("")이면 처음부터 자동 선택입니다.
  */
 export const MODELS = {
   gemini: {
-    /** 고정하고 싶을 때만 채우세요. 비우면 자동 선택. */
-    pin: process.env.GEMINI_MODEL ?? "", // <<<<<< (선택) 모델 고정
+    /** 주 모델. 목록에 없으면 자동 선택으로 대체된다. */
+    pin: process.env.GEMINI_MODEL ?? "gemini-3.5-pro", // <<<<<< 주 모델
 
     /**
      * 자동 선택은 **세대를 tier보다 먼저** 봅니다.
@@ -62,8 +65,8 @@ export const MODELS = {
      */
     pattern: /^gemini-(\d+(?:\.\d+)?)-(pro|flash)(?:-(preview|exp).*)?$/,
     /** 자동 선택이 실패했을 때 마지막으로 시도할 모델 */
-    fallback: "gemini-2.5-pro",
-    /** 가벼운 단계(안내 생성 등)에 쓸 모델. 비우면 위와 동일 모델 사용 */
+    fallback: "gemini-3.5-flash",
+    /** 가벼운 단계(앙상블 배분·안내 생성 등)에 쓸 모델. 비우면 최신 flash를 자동 선택 */
     lightPin: process.env.GEMINI_LIGHT_MODEL ?? "",
   },
   anthropic: {

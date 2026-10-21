@@ -147,7 +147,7 @@ def organize(paths: list, hint: str = "", quality: str = "balanced") -> dict:
     print(chk.stdout, end="", flush=True)
     if chk.returncode != 0:
         raise RuntimeError("API 키 또는 모델 확인에 실패했습니다. 위 메시지를 확인하세요. "
-                           "모델을 고정하려면 os.environ['GEMINI_MODEL'] = 'gemini-2.5-flash' 후 다시 실행하세요.")
+                           "모델을 바꾸려면 os.environ['GEMINI_MODEL'] = 'gemini-3.5-flash' 후 다시 실행하세요.")
     _say("③ 정리 중 — 유형 판별 → (여러 경험이면 경험별로 나눔) → 배분 → 감독 → 필드 감사")
     p = subprocess.Popen(cmd, cwd=HOME, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     for line in p.stdout:  # type: ignore[union-attr]

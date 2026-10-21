@@ -230,7 +230,7 @@ await test("텍스트·CSV·HTML 수집이 API 호출 없이 동작한다", asyn
 /* ───────── Gemini 스키마 변환 / 프론트 바인딩 ───────── */
 
 const { toGeminiSchema, coerceToSchema } = await import("../src/llm/gemini-schema.js");
-const { pickModel, pickTier } = await import("../src/llm/gemini.js");
+const { pickModel, pickTier, resolvePinned } = await import("../src/llm/gemini.js");
 const { toFormState } = await import("../src/form.js");
 
 await test("JSON Schema → Gemini 스키마: 유니온 타입이 nullable로 바뀐다", () => {
@@ -316,6 +316,16 @@ await test("모델 자동 선택은 세대를 tier보다 먼저 본다", () => {
     "세대를 먼저 보지 않으면 gemini-2.5-pro 가 선택된다",
   );
   assert.equal(pickTier(["gemini-2.5-pro", "gemini-3.8-flash"], "flash"), "gemini-3.8-flash");
+});
+
+await test("지정 모델은 정확한 이름 → preview 판 순으로 찾고, 없으면 null", () => {
+  assert.equal(resolvePinned(["gemini-3.5-pro", "gemini-3.5-pro-preview-05"], "gemini-3.5-pro"), "gemini-3.5-pro");
+  assert.equal(
+    resolvePinned(["gemini-3.5-flash", "gemini-3.5-pro-preview-06-2026", "gemini-3.5-pro-preview"], "gemini-3.5-pro"),
+    "gemini-3.5-pro-preview",
+  );
+  // 이름이 앞부분만 겹치는 다른 모델(tts 등)은 고르지 않는다
+  assert.equal(resolvePinned(["gemini-3.5-pro-tts", "gemini-3.8-flash"], "gemini-3.5-pro"), null);
 });
 
 await test("toFormState가 프론트에 바로 꽂히는 형태를 만든다", () => {
